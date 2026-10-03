@@ -44,18 +44,18 @@ assert "TWOPHASE_B03_PREFILL_FAIL_CLEANED" in bridge
 assert "packet.n_pos = static_cast<llama_pos>(" in bridge_s
 assert "std::max(grid_x, grid_y)" in bridge_s
 
-assert 'Button("刷新并复制完整诊断")' in production
-assert "buildDiagnosticSnapshot()" in production
-assert "BonsaiRC1231LastAPIVisionMetrics" in production
-assert "=== BONSAILAB DIAGNOSTIC SNAPSHOT v1 ===" in production
-assert "api_key=[REDACTED]" in production
-assert "raw_image=NOT_INCLUDED" in production
-assert "base64=NOT_INCLUDED" in production
-assert "prompt_text=NOT_INCLUDED" in production
-assert "assistant_output=NOT_INCLUDED" in production
-snapshot_start = production.index("private func buildDiagnosticSnapshot()")
-snapshot_end = production.index("private func startAPIServer()", snapshot_start)
-snapshot_source = production[snapshot_start:snapshot_end]
+assert 'Button("刷新并复制完整诊断")' in view
+assert "buildDiagnosticSnapshot()" in view
+assert "BonsaiRC1231LastAPIVisionMetrics" in view
+assert "=== BONSAILAB DIAGNOSTIC SNAPSHOT v1 ===" in view
+assert "api_key=[REDACTED]" in view
+assert "raw_image=NOT_INCLUDED" in view
+assert "base64=NOT_INCLUDED" in view
+assert "prompt_text=NOT_INCLUDED" in view
+assert "assistant_output=NOT_INCLUDED" in view
+snapshot_start = view.index("private func buildDiagnosticSnapshot()")
+snapshot_end = view.index("private func startAPIServer()", snapshot_start)
+snapshot_source = view[snapshot_start:snapshot_end]
 assert "apiServer.apiKey" not in snapshot_source
 
 print("RC1.23.1 source contracts: PASS")
