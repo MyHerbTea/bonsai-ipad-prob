@@ -1,0 +1,296 @@
+name: Build Bonsai iPad Lab v1 RC1.23.1 OpenAI Multimodal API
+
+on:
+  push:
+    branches:
+      - lab-v1-rc1-23-1-openai-multimodal-api
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Live vision injection gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          # RC1.16 intentionally changes the native bridge. Protect the
+          # inherited RC1.15 lifecycle contract instead of requiring byte identity.
+          grep -q 'unloadAll(releaseStagedResident: false)' BonsaiLab/BonsaiEngine.swift
+          grep -q 'release_resident_context_locked' BonsaiLab/StagedVisionBridge.mm
+          grep -q 'resident_model_hit' BonsaiLab/StagedVisionBridge.h
+          grep -q 'STAGED_10_MODEL_KEPT_RESIDENT' BonsaiLab/StagedVisionBridge.mm
+          grep -q 'cache_hit' BonsaiLab/StagedVisionBridge.h
+          grep -q 'resident_context_hit' BonsaiLab/StagedVisionBridge.h
+          grep -q 'kv_reuse_hit' BonsaiLab/StagedVisionBridge.h
+          grep -q 'STAGED_07_CONTEXT_RESIDENT_HIT' BonsaiLab/StagedVisionBridge.mm
+          grep -q 'STAGED_10_CONTEXT_KEPT_RESIDENT_KV_REUSED' BonsaiLab/StagedVisionBridge.mm
+          grep -q 'residentContextHit' BonsaiLab/LabTypes.swift
+          grep -q 'kvReuseHit' BonsaiLab/LabTypes.swift
+          grep -q 'BonsaiStagedStreamCallback' BonsaiLab/StagedVisionBridge.h
+          grep -q 'stream_callback' BonsaiLab/StagedVisionBridge.mm
+          grep -q 'Transfer-Encoding: chunked' BonsaiLab/LocalOpenAIServer.swift
+          grep -q 'sendStreamDelta' BonsaiLab/LocalOpenAIServer.swift
+          grep -q 'StagedVisionStreamBox' BonsaiLab/BonsaiEngine.swift
+          grep -q 'stream=true 真 SSE' BonsaiLab/ProductionView.swift
+          grep -q 'ResourceGovernorState' BonsaiLab/LabTypes.swift
+          grep -q 'RESOURCE_10_RESIDENT_RELEASED' BonsaiLab/BonsaiEngine.swift
+          grep -q 'RESOURCE_20_VISION_DOWNGRADE_768' BonsaiLab/BonsaiEngine.swift
+          grep -q 'resourceGovernorEnabled: false' BonsaiLab/ProductionView.swift
+          grep -q 'Transfer-Encoding: chunked' BonsaiLab/LocalOpenAIServer.swift
+          grep -q '/v1/models/' BonsaiLab/LocalOpenAIServer.swift
+          grep -q 'include_usage' BonsaiLab/LocalOpenAIServer.swift
+          grep -q 'finishReason' BonsaiLab/LocalOpenAIServer.swift
+          grep -q 'unsupportedTools' BonsaiLab/LocalOpenAIServer.swift
+          grep -q 'Transfer-Encoding: chunked' BonsaiLab/LocalOpenAIServer.swift
+          grep -q 'ResourceGovernorState' BonsaiLab/LabTypes.swift
+          grep -q 'warmSessionSummary' BonsaiLab/ProductionView.swift
+          grep -q 'warm.residentContextHit' BonsaiLab/ProductionView.swift
+          grep -q 'warm.kvReuseHit' BonsaiLab/ProductionView.swift
+          grep -q 'UIPasteboard.general.string' BonsaiLab/ProductionView.swift
+          grep -q 'MARKETING_VERSION: "1.0.0"' project.yml
+          grep -q 'CURRENT_PROJECT_VERSION: "38"' project.yml
+          grep -q 'reasoningEffort' BonsaiLab/BonsaiEngine.swift
+          grep -q 'payload.reasoningEffort' BonsaiLab/ProductionView.swift
+          grep -q '<think>\\n\\n</think>\\n\\n' BonsaiLab/BonsaiEngine.swift
+          grep -q 'default_reasoning_effort' BonsaiLab/LocalOpenAIServer.swift
+          grep -q 'payload.maxTokens,' BonsaiLab/ProductionView.swift
+          grep -q '256' BonsaiLab/ProductionView.swift
+          grep -q 'BonsaiPrepareVisionCache' BonsaiLab/StagedVisionBridge.h
+          grep -q 'BonsaiPrefillCachedVision' BonsaiLab/StagedVisionBridge.h
+          grep -q 'TWOPHASE_A99_CACHE_READY' BonsaiLab/StagedVisionBridge.mm
+          grep -q 'TWOPHASE_B99_PREFILL_READY' BonsaiLab/StagedVisionBridge.mm
+          grep -q 'prepareVisionEmbeddingCache' BonsaiLab/BonsaiEngine.swift
+          grep -q 'generateCachedVision' BonsaiLab/BonsaiEngine.swift
+          grep -q 'releasedTextRuntime' BonsaiLab/LabTypes.swift
+          grep -q 'VisionConfig.low512' BonsaiLab/ProductionView.swift
+          grep -q 'Two-Phase Vision' BonsaiLab/ContentView.swift
+          grep -q 'bonsai_two_phase_vision_stage.txt' BonsaiLab/ContentView.swift
+          grep -q 'TWOPHASE_A00_SCOPE_READY' BonsaiLab/BonsaiEngine.swift
+          grep -q 'startAccessingSecurityScopedResource' BonsaiLab/BonsaiEngine.swift
+          grep -q 'let cacheURL = try makeVisionCacheURL' BonsaiLab/BonsaiEngine.swift
+          grep -q 'TWOPHASE_A110_RESTART_REQUIRED' BonsaiLab/BonsaiEngine.swift
+          grep -q 'outHiddenSize: 5_120' BonsaiLab/BonsaiMLXVisionSidecar.swift
+          grep -q 'apiServer.isRunning' BonsaiLab/ProductionView.swift
+          grep -q 'MLX Vision Stage' BonsaiLab/ContentView.swift
+          grep -q 'MLX_ADMIT_01_TENSOR_SMOKE_BEGIN' BonsaiLab/BonsaiMLXVisionSidecar.swift
+          grep -q 'stream: .cpu' BonsaiLab/BonsaiMLXVisionSidecar.swift
+          grep -q 'runHardCutBlock' BonsaiLab/BonsaiMLXVisionSidecar.swift
+          grep -q 'output.asData(access: .copy)' BonsaiLab/BonsaiMLXVisionSidecar.swift
+          grep -q 'MLXArray(data: snapshot)' BonsaiLab/BonsaiMLXVisionSidecar.swift
+          grep -q 'MLX_CUT_%02d_BEGIN' BonsaiLab/BonsaiMLXVisionSidecar.swift
+          grep -q 'MLX_CUT_28_MERGER_BEGIN' BonsaiLab/BonsaiMLXVisionSidecar.swift
+          grep -q 'MLX_HARDCUT_99_PASS' BonsaiLab/BonsaiMLXVisionSidecar.swift
+          grep -q 'encodeForInjection' BonsaiLab/BonsaiMLXVisionSidecar.swift
+          grep -q 'MLX_INJECT_03_PACKET_READY' BonsaiLab/BonsaiMLXVisionSidecar.swift
+          grep -q 'BonsaiWriteProjectedVisionCache' BonsaiLab/StagedVisionBridge.h
+          grep -q 'MLX_INJECT_12_CACHE_READY' BonsaiLab/StagedVisionBridge.mm
+          grep -q 'writeMLXProjectedVisionCache' BonsaiLab/BonsaiEngine.swift
+          grep -q 'runLiveVisionInjection' BonsaiLab/ProductionView.swift
+          grep -q 'selectedMLXVisionWeightsURL' BonsaiLab/ProductionView.swift
+          grep -q 'vision_model_unavailable' BonsaiLab/ProductionView.swift
+          grep -q 'vision_inference_failed' BonsaiLab/ProductionView.swift
+          grep -q 'vision_injection_failed' BonsaiLab/ProductionView.swift
+          grep -q 'context_length_exceeded' BonsaiLab/ProductionView.swift
+          grep -q 'requireFullOutputBudget:' BonsaiLab/ProductionView.swift
+          grep -q 'cleanupAfterRequestFailure' BonsaiLab/ProductionView.swift
+          grep -q 'OpenAIMultimodalNormalizer' BonsaiLab/LocalOpenAIServer.swift
+          grep -q 'RC1.23.1 OpenAI Multimodal API' BonsaiLab/ProductionView.swift
+          grep -q 'Live Vision Injection' BonsaiLab/ContentView.swift
+          grep -q 'Text("MLX Vision Metrics")' BonsaiLab/ContentView.swift
+          grep -q 'maxPixels: Int = 65_536' BonsaiLab/BonsaiMLXVisionSidecar.swift
+          grep -q 'Memory.cacheLimit = 20 \* 1_048_576' BonsaiLab/BonsaiMLXVisionSidecar.swift
+          grep -q 'Memory.clearCache()' BonsaiLab/BonsaiMLXVisionSidecar.swift
+          grep -q 'mlx-swift-lm' BonsaiLab/BonsaiMLXVisionSidecar.swift
+          grep -q 'exactVersion: 0.31.3' project.yml
+          ! grep -q 'MLXVLM' project.yml
+          ! grep -q 'MLXLMCommon' project.yml
+          grep -q 'iOS: "17.0"' project.yml
+          python3 -m py_compile tools/extract_bonsai_vision_tower.py
+          echo "RC1.22.5 MLX vision sidecar + frozen RC1.20.7/RC1.21.2 invariants: PASS"
+
+      - name: Product invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'ProductionView()' BonsaiLab/BonsaiLabApp.swift
+          grep -q '/v1/chat/completions' BonsaiLab/LocalOpenAIServer.swift
+          grep -q '/v1/models' BonsaiLab/LocalOpenAIServer.swift
+          grep -q 'Authorization: Bearer' BonsaiLab/LocalOpenAIServer.swift
+          ! grep -q 'min(gen.maxTokens, 64)' BonsaiLab/BonsaiEngine.swift
+          grep -q 'runCertification()' BonsaiLab/ProductionView.swift
+          grep -q 'scenePhase' BonsaiLab/ProductionView.swift
+          grep -q 'apiServer.stop()' BonsaiLab/ProductionView.swift
+          grep -q 'imageCacheHit' BonsaiLab/LabTypes.swift
+          grep -q 'residentModelHit' BonsaiLab/LabTypes.swift
+          echo "Product + session invariants: PASS"
+
+      - name: RC1.23.1 RED/GREEN contracts
+        shell: bash
+        run: |
+          set +e
+          status=0
+
+          echo "=== Source contracts ==="
+          python3 tools/rc1231_source_contract_tests.py || status=1
+
+          echo "=== Multimodal parser contracts ==="
+          if test -f BonsaiLab/OpenAIMultimodal.swift; then
+            xcrun swiftc \
+              BonsaiLab/OpenAIMultimodal.swift \
+              tools/rc1231_multimodal_contract_tests.swift \
+              -framework ImageIO \
+              -framework CoreGraphics \
+              -o /tmp/rc1231_multimodal_contract_tests
+            if test "$?" -eq 0; then
+              /tmp/rc1231_multimodal_contract_tests || status=1
+            else
+              status=1
+            fi
+          else
+            echo "RED: BonsaiLab/OpenAIMultimodal.swift does not exist yet"
+            status=1
+          fi
+
+          exit "$status"
+
+      - name: Show Apple toolchain
+        run: |
+          set -euo pipefail
+          sw_vers
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          uname -m
+
+      - name: Install XcodeGen
+        run: |
+          set -euo pipefail
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Download pinned Prism XCFramework
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://github.com/PrismML-Eng/llama.cpp/releases/download/prism-b10743-adfffbe/llama-prism-b10743-adfffbe-xcframework.zip"
+          SHA256="d23bb0325cca43054c1a76a233c79950a1ce26d98a359466c8d81fafd3b1d9ad"
+
+          rm -rf Vendor/llama.xcframework /tmp/prism-xcframework /tmp/prism-xcframework.zip
+          mkdir -p Vendor /tmp/prism-xcframework
+          curl -L --fail --retry 4 --retry-delay 3 "$URL" -o /tmp/prism-xcframework.zip
+          echo "${SHA256}  /tmp/prism-xcframework.zip" | shasum -a 256 -c -
+          unzip -q /tmp/prism-xcframework.zip -d /tmp/prism-xcframework
+
+          FRAMEWORK="$(find /tmp/prism-xcframework -type d -name 'llama.xcframework' -print -quit)"
+          test -n "$FRAMEWORK"
+          ditto "$FRAMEWORK" Vendor/llama.xcframework
+          test -f Vendor/llama.xcframework/ios-arm64/llama.framework/llama
+          test -f Vendor/llama.xcframework/ios-arm64/llama.framework/Headers/mtmd.h
+          test -f Vendor/llama.xcframework/ios-arm64/llama.framework/Headers/mtmd-helper.h
+
+      - name: Swift syntax preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in BonsaiLab/*.swift; do
+            echo "Parsing $f"
+            xcrun swiftc -frontend -parse "$f"
+          done
+
+      - name: Generate Xcode project
+        run: |
+          set -euo pipefail
+          xcodegen generate
+          test -d BonsaiLab.xcodeproj
+
+      - name: Full Xcode build
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild             -project BonsaiLab.xcodeproj             -scheme BonsaiLab             -configuration Release             -sdk iphoneos             -destination 'generic/platform=iOS'             -derivedDataPath "$PWD/build/DerivedData"             CODE_SIGNING_ALLOWED=NO             CODE_SIGNING_REQUIRED=NO             CODE_SIGN_IDENTITY=""             DEVELOPMENT_TEAM=""             build | tee build.log
+
+      - name: Verify app and Prism multimodal symbols
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="$PWD/build/DerivedData/Build/Products/Release-iphoneos/BonsaiLab.app"
+          FRAMEWORK="$APP/Frameworks/llama.framework/llama"
+          test -d "$APP"
+          test -f "$APP/BonsaiLab"
+          test -f "$FRAMEWORK"
+          file "$APP/BonsaiLab"
+          file "$FRAMEWORK"
+          otool -L "$APP/BonsaiLab"
+          test "$(plutil -extract CFBundleShortVersionString raw -o - "$APP/Info.plist")" = "1.0.0"
+          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "38"
+          nm -gU "$FRAMEWORK" > build/llama-symbols.txt
+          grep -q '_mtmd_init_from_file' build/llama-symbols.txt
+          grep -q '_mtmd_helper_eval_chunks' build/llama-symbols.txt
+          grep -q 'MLX' build.log
+          echo "Prism + minimal MLX sidecar build: PASS"
+
+      - name: Package unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="$PWD/build/DerivedData/Build/Products/Release-iphoneos/BonsaiLab.app"
+          rm -rf build/ipa
+          mkdir -p build/ipa/Payload
+          ditto "$APP" build/ipa/Payload/BonsaiLab.app
+
+          cat > build/BUILD_INFO.txt <<'INFO'
+          Bonsai iPad Lab v1 RC1.23.1
+          Prism: prism-b10743-adfffbe
+          Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
+          Vision: libmtmd / optional mmproj
+          Safe preset: ctx=256, batch=16, ubatch=16, gpu_layers=99, swa_full=false
+          Vision RC1.23.1: preserves RC1.22.5 hard-graph-cut and RC1.23.0 live injection. OpenAI single-image data URLs now use the MLX Vision Tower and inject projected F32 embeddings through BVCACHE1 into the resident RC1.20.7 text context. The LAN image path does not initialize mmproj and does not require an App restart.
+          Model/mmproj are NOT bundled in the IPA.
+          INFO
+          echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
+          echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
+
+          cd build/ipa
+          zip -qry ../BonsaiLab-v1-RC1.23.1-unsigned.ipa Payload
+          cd ../..
+          shasum -a 256 build/BonsaiLab-v1-RC1.23.1-unsigned.ipa | tee build/BonsaiLab-v1-RC1.23.1-unsigned.ipa.sha256
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BonsaiLab-iPad-v1-RC1.23.1-OpenAI-Multimodal-API
+          path: |
+            build/BonsaiLab-v1-RC1.23.1-unsigned.ipa
+            build/BonsaiLab-v1-RC1.23.1-unsigned.ipa.sha256
+            build/BUILD_INFO.txt
+            RC1.20_RELEASE_ACCEPTANCE.md
+            OPENAI_API_QUICKSTART_RC1.20.md
+            RC1.20.1_API_CRASH_GUARD.md
+            RC1.20.2_CONTEXT_ADMISSION.md
+            RC1.20.3_API_SWIFT_VISION_BYPASS.md
+            RC1.20.4_PREWARMED_API_RUNTIME.md
+            RC1.20.5_TEXT_API_BASELINE.md
+            RC1.20.6_TEXT_API_HARDENING.md
+            RC1.20.7_NATIVE_NONTHINKING_TEMPLATE.md
+            RC1.21.0_TWO_PHASE_MULTIMODAL.md
+            RC1.21.1_SCOPE_SAFE_CACHE_HIT.md
+            RC1.21.2_CACHE_HANDOFF_GATE.md
+            RC1.22.5_MLX_VISION_SIDECAR.md
+            RC1.23.0_LIVE_VISION_INJECTION.md
+            RC1.23.1_OPENAI_MULTIMODAL_API.md
+            RC1.23.1_SOURCE_MAP.md
+            THIRD_PARTY_MLX_VISION_NOTICE.md
+            tools/extract_bonsai_vision_tower.py
+            build.log
+          if-no-files-found: error
+          retention-days: 14
