@@ -3,6 +3,7 @@ name: Build Bonsai iPad Lab v1 RC1.23.1 OpenAI Multimodal API
 on:
   push:
     branches:
+      - main
       - lab-v1-rc1-23-1-openai-multimodal-api
   workflow_dispatch:
 
