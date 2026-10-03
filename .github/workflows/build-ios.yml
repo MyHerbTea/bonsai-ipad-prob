@@ -1,10 +1,11 @@
-name: Build Bonsai iPad Lab v1 RC1.23.1 OpenAI Multimodal API
+name: Build Bonsai iPad Lab v1 RC1.23.2 Performance & Session Reuse
 
 on:
   push:
     branches:
       - main
       - lab-v1-rc1-23-1-openai-multimodal-api
+      - lab-v1-rc1-23-2-performance-session-reuse
   workflow_dispatch:
 
 permissions:
@@ -165,6 +166,12 @@ jobs:
 
           exit "$status"
 
+      - name: RC1.23.2 observability contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/rc1232_observability_contract_tests.py
+
       - name: Show Apple toolchain
         run: |
           set -euo pipefail
@@ -250,29 +257,29 @@ jobs:
           ditto "$APP" build/ipa/Payload/BonsaiLab.app
 
           cat > build/BUILD_INFO.txt <<'INFO'
-          Bonsai iPad Lab v1 RC1.23.1
+          Bonsai iPad Lab v1 RC1.23.2
           Prism: prism-b10743-adfffbe
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: libmtmd / optional mmproj
           Safe preset: ctx=256, batch=16, ubatch=16, gpu_layers=99, swa_full=false
-          Vision RC1.23.1: preserves RC1.22.5 hard-graph-cut and RC1.23.0 live injection. OpenAI single-image data URLs now use the MLX Vision Tower and inject projected F32 embeddings through BVCACHE1 into the resident RC1.20.7 text context. The LAN image path does not initialize mmproj and does not require an App restart.
+          RC1.23.2 Phase A: preserves RC1.23.1 behavior and adds API performance observability only. No cache/session optimization is enabled yet; real-device performance claims are deferred.
           Model/mmproj are NOT bundled in the IPA.
           INFO
           echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.23.1-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.23.2-phaseA-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.23.1-unsigned.ipa | tee build/BonsaiLab-v1-RC1.23.1-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.23.2-phaseA-unsigned.ipa | tee build/BonsaiLab-v1-RC1.23.2-phaseA-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.23.1-OpenAI-Multimodal-API
+          name: BonsaiLab-iPad-v1-RC1.23.2-Performance-Observability
           path: |
-            build/BonsaiLab-v1-RC1.23.1-unsigned.ipa
-            build/BonsaiLab-v1-RC1.23.1-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.23.2-phaseA-unsigned.ipa
+            build/BonsaiLab-v1-RC1.23.2-phaseA-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             RC1.20_RELEASE_ACCEPTANCE.md
             OPENAI_API_QUICKSTART_RC1.20.md
@@ -290,6 +297,8 @@ jobs:
             RC1.23.0_LIVE_VISION_INJECTION.md
             RC1.23.1_OPENAI_MULTIMODAL_API.md
             RC1.23.1_SOURCE_MAP.md
+            RC1.23.2_PERFORMANCE_SESSION_REUSE.md
+            tools/rc1232_observability_contract_tests.py
             THIRD_PARTY_MLX_VISION_NOTICE.md
             tools/extract_bonsai_vision_tower.py
             build.log
