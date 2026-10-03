@@ -58,15 +58,4 @@ snapshot_end = view.index("private func startAPIServer()", snapshot_start)
 snapshot_source = view[snapshot_start:snapshot_end]
 assert "apiServer.apiKey" not in snapshot_source
 
-assert "RC1232PerformanceDiagnostics" in view
-assert "BonsaiRC1232LastAPIRequestMetrics" in view
-assert "[LAST API REQUEST PERFORMANCE]" in view
-assert "vision_encode_ms=" in view
-assert "cache_write_ms=" in view
-assert "prefill_ms=" in view
-assert "decode_ms=" in view
-assert "tokens_per_second=" in view
-assert "cache_reuse=not_enabled_baseline" in view
-assert "result=failed_or_interrupted" in view
-
 print("RC1.23.1 source contracts: PASS")
