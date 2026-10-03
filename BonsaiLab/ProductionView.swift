@@ -2,6 +2,36 @@ import SwiftUI
 import UniformTypeIdentifiers
 import UIKit
 
+private enum RC1232PerformanceDiagnostics {
+    static let defaultsKey =
+        "BonsaiRC1232LastAPIRequestMetrics"
+
+    static func now() -> UInt64 {
+        DispatchTime.now().uptimeNanoseconds
+    }
+
+    static func milliseconds(
+        from start: UInt64,
+        to end: UInt64
+    ) -> Double {
+        guard end >= start else { return 0 }
+        return Double(end - start) / 1_000_000.0
+    }
+
+    static func persist(_ lines: [String]) {
+        UserDefaults.standard.set(
+            lines.joined(separator: "\n"),
+            forKey: defaultsKey
+        )
+    }
+
+    static func formatMilliseconds(
+        _ value: Double
+    ) -> String {
+        String(format: "%.3f", value)
+    }
+}
+
 struct ProductionView: View {
     @Environment(\.scenePhase) private var scenePhase
     private let engine = BonsaiEngine()
@@ -948,6 +978,12 @@ struct ProductionView: View {
                 forKey:
                     "BonsaiRC1231LastAPIVisionMetrics"
             ) ?? "无"
+        let apiPerformanceMetrics =
+            defaults.string(
+                forKey:
+                    RC1232PerformanceDiagnostics
+                        .defaultsKey
+            ) ?? "无"
 
         let lastStage =
             defaults.string(
@@ -1069,6 +1105,9 @@ struct ProductionView: View {
             "[LAST API VISION METRICS]",
             apiVisionMetrics,
             "",
+            "[LAST API REQUEST PERFORMANCE]",
+            apiPerformanceMetrics,
+            "",
             "[RESOURCE / MEMORY]",
             "vision_headroom=\(visionHeadroom)",
             "projector_first_bootstrap=\(bootstrap)",
@@ -1134,6 +1173,45 @@ struct ProductionView: View {
                     payload,
                     onDelta in
 
+                    let requestID =
+                        UUID().uuidString
+                    let requestStart =
+                        RC1232PerformanceDiagnostics.now()
+                    let requestRoute =
+                        payload.imageData == nil
+                        ? "text"
+                        : "vision"
+                    var requestMetricsCommitted = false
+
+                    defer {
+                        if !requestMetricsCommitted {
+                            let end =
+                                RC1232PerformanceDiagnostics.now()
+                            let lastStage =
+                                UserDefaults.standard.string(
+                                    forKey:
+                                        "BonsaiLabLastStage"
+                                ) ?? "无"
+                            RC1232PerformanceDiagnostics.persist([
+                                "request_id=\(requestID)",
+                                "route=\(requestRoute)",
+                                "stream=\(payload.stream)",
+                                "result=failed_or_interrupted",
+                                "total_ms="
+                                    + RC1232PerformanceDiagnostics
+                                        .formatMilliseconds(
+                                            RC1232PerformanceDiagnostics
+                                                .milliseconds(
+                                                    from:
+                                                        requestStart,
+                                                    to: end
+                                                )
+                                        ),
+                                "last_stage=\(lastStage)",
+                            ])
+                        }
+                    }
+
                     var gen = GenerationConfig()
                     gen.maxTokens = min(
                         payload.maxTokens,
@@ -1194,6 +1272,8 @@ struct ProductionView: View {
                                 payload.imageExtension
                             )
 
+                        let imageWriteStart =
+                            RC1232PerformanceDiagnostics.now()
                         do {
                             try imageData.write(
                                 to: imageURL,
@@ -1223,6 +1303,11 @@ struct ProductionView: View {
                             forKey:
                                 "BonsaiRC1231LastImageOrdering"
                         )
+
+                        let imageWriteEnd =
+                            RC1232PerformanceDiagnostics.now()
+                        let visionEncodeStart =
+                            imageWriteEnd
 
                         let packet: MLXVisionEmbeddingPacket
                         do {
@@ -1316,10 +1401,15 @@ struct ProductionView: View {
                             )
                         }
 
+                        let visionEncodeEnd =
+                            RC1232PerformanceDiagnostics.now()
+
                         let imageMaxTokens =
                             VisionConfig.low512
                                 .imageMaxTokens
 
+                        let cacheWriteStart =
+                            visionEncodeEnd
                         let cacheURL: URL
                         do {
                             cacheURL =
@@ -1357,6 +1447,11 @@ struct ProductionView: View {
                                     error.localizedDescription
                             )
                         }
+
+                        let cacheWriteEnd =
+                            RC1232PerformanceDiagnostics.now()
+                        let generationStart =
+                            cacheWriteEnd
 
                         let metrics: VisionMetrics
                         do {
@@ -1414,6 +1509,93 @@ struct ProductionView: View {
                             )
                         }
 
+                        let requestEnd =
+                            RC1232PerformanceDiagnostics.now()
+                        RC1232PerformanceDiagnostics.persist([
+                            "request_id=\(requestID)",
+                            "route=vision",
+                            "stream=\(payload.stream)",
+                            "result=success",
+                            "image_write_ms="
+                                + RC1232PerformanceDiagnostics
+                                    .formatMilliseconds(
+                                        RC1232PerformanceDiagnostics
+                                            .milliseconds(
+                                                from:
+                                                    imageWriteStart,
+                                                to:
+                                                    imageWriteEnd
+                                            )
+                                    ),
+                            "vision_encode_ms="
+                                + RC1232PerformanceDiagnostics
+                                    .formatMilliseconds(
+                                        RC1232PerformanceDiagnostics
+                                            .milliseconds(
+                                                from:
+                                                    visionEncodeStart,
+                                                to:
+                                                    visionEncodeEnd
+                                            )
+                                    ),
+                            "vision_encode_reported_ms="
+                                + RC1232PerformanceDiagnostics
+                                    .formatMilliseconds(
+                                        packet.metrics.encodeSeconds
+                                            * 1_000
+                                    ),
+                            "cache_write_ms="
+                                + RC1232PerformanceDiagnostics
+                                    .formatMilliseconds(
+                                        RC1232PerformanceDiagnostics
+                                            .milliseconds(
+                                                from:
+                                                    cacheWriteStart,
+                                                to:
+                                                    cacheWriteEnd
+                                            )
+                                    ),
+                            "prefill_ms="
+                                + RC1232PerformanceDiagnostics
+                                    .formatMilliseconds(
+                                        metrics.visionPrefillSeconds
+                                            * 1_000
+                                    ),
+                            "decode_ms="
+                                + RC1232PerformanceDiagnostics
+                                    .formatMilliseconds(
+                                        metrics.generation
+                                            .generationSeconds
+                                            * 1_000
+                                    ),
+                            "tokens_per_second="
+                                + String(
+                                    format: "%.3f",
+                                    metrics.generation
+                                        .tokensPerSecond
+                                ),
+                            "prompt_tokens=\(metrics.generation.promptTokens)",
+                            "completion_tokens=\(metrics.generation.generatedTokens)",
+                            "visual_rows=\(packet.metrics.outputTokens)",
+                            "projection_dim=\(packet.metrics.outputDimension)",
+                            "grid=\(packet.gridY)x\(packet.gridX)",
+                            "n_pos=\(max(packet.gridX, packet.gridY))",
+                            "image_ordering=\(payload.imageOrdering.rawValue)",
+                            "cache_reuse=not_enabled_baseline",
+                            "total_ms="
+                                + RC1232PerformanceDiagnostics
+                                    .formatMilliseconds(
+                                        RC1232PerformanceDiagnostics
+                                            .milliseconds(
+                                                from:
+                                                    requestStart,
+                                                to:
+                                                    requestEnd
+                                            )
+                                    ),
+                        ])
+                        requestMetricsCommitted = true
+
                         UserDefaults.standard.set(
                             packet.metrics.summary
                                 + "\nAPI image ordering: "
@@ -1445,6 +1627,8 @@ struct ProductionView: View {
                         )
                     }
 
+                    let textGenerationStart =
+                        RC1232PerformanceDiagnostics.now()
                     let metrics =
                         try await sharedEngine.generateText(
                             systemPrompt:
@@ -1456,6 +1640,57 @@ struct ProductionView: View {
                                 payload.reasoningEffort,
                             onDelta: onDelta
                         )
+
+                    let textGenerationEnd =
+                        RC1232PerformanceDiagnostics.now()
+                    RC1232PerformanceDiagnostics.persist([
+                        "request_id=\(requestID)",
+                        "route=text",
+                        "stream=\(payload.stream)",
+                        "result=success",
+                        "text_generation_ms="
+                            + RC1232PerformanceDiagnostics
+                                .formatMilliseconds(
+                                    RC1232PerformanceDiagnostics
+                                        .milliseconds(
+                                            from:
+                                                textGenerationStart,
+                                            to:
+                                                textGenerationEnd
+                                        )
+                                ),
+                        "ttft_ms="
+                            + RC1232PerformanceDiagnostics
+                                .formatMilliseconds(
+                                    metrics.ttftSeconds
+                                        * 1_000
+                                ),
+                        "decode_ms="
+                            + RC1232PerformanceDiagnostics
+                                .formatMilliseconds(
+                                    metrics.generationSeconds
+                                        * 1_000
+                                ),
+                        "tokens_per_second="
+                            + String(
+                                format: "%.3f",
+                                metrics.tokensPerSecond
+                            ),
+                        "prompt_tokens=\(metrics.promptTokens)",
+                        "completion_tokens=\(metrics.generatedTokens)",
+                        "total_ms="
+                            + RC1232PerformanceDiagnostics
+                                .formatMilliseconds(
+                                    RC1232PerformanceDiagnostics
+                                        .milliseconds(
+                                            from:
+                                                requestStart,
+                                            to:
+                                                textGenerationEnd
+                                        )
+                                ),
+                    ])
+                    requestMetricsCommitted = true
 
                     return OpenAIHandlerResult(
                         text: metrics.text,
