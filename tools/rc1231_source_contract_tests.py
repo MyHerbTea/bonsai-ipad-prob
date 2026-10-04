@@ -53,9 +53,31 @@ assert "raw_image=NOT_INCLUDED" in view
 assert "base64=NOT_INCLUDED" in view
 assert "prompt_text=NOT_INCLUDED" in view
 assert "assistant_output=NOT_INCLUDED" in view
-snapshot_start = view.index("private func buildDiagnosticSnapshot()")
-snapshot_end = view.index("private func startAPIServer()", snapshot_start)
-snapshot_source = view[snapshot_start:snapshot_end]
+def extract_braced_block(text: str, marker: str) -> str:
+    start = text.index(marker)
+    brace_start = text.index("{", start)
+    depth = 0
+
+    for index in range(brace_start, len(text)):
+        char = text[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:index + 1]
+
+    raise AssertionError(f"Unterminated braced block: {marker}")
+
+snapshot_source = extract_braced_block(
+    view,
+    "private func buildDiagnosticSnapshot()",
+)
 assert "apiServer.apiKey" not in snapshot_source
+assert "api_key=[REDACTED]" in snapshot_source
+assert "raw_image=NOT_INCLUDED" in snapshot_source
+assert "base64=NOT_INCLUDED" in snapshot_source
+assert "prompt_text=NOT_INCLUDED" in snapshot_source
+assert "assistant_output=NOT_INCLUDED" in snapshot_source
 
 print("RC1.23.1 source contracts: PASS")
