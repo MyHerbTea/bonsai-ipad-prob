@@ -1,4 +1,4 @@
-# RC1.23.3 Accelerated Performance Baseline — Build 45 Candidate
+# RC1.23.3 Accelerated Performance Baseline — Build 45 FROZEN
 
 Build 44 target-device evidence selects **Full / Accelerated** as the recommended runtime profile.
 
@@ -13,7 +13,7 @@ Build 44 target-device evidence selects **Full / Accelerated** as the recommende
 - C2-B stayed HIT + retained=true; warm prefix/image prefill stayed zero.
 - No crash or monotonic resource accumulation was observed.
 
-Build 45 changes product selection only:
+Status: **FROZEN**\n\nBuild 45 changes product selection only:
 - Accelerated becomes the fresh-install default.
 - Safe remains the compatibility fallback.
 - Flash-only is hidden and stale Flash selections migrate to Accelerated.
