@@ -1093,6 +1093,17 @@ actor BonsaiEngine {
             - Int(prefill.input_positions)
             - 1
         guard available > 0 else {
+            if requireFullOutputBudget {
+                throw LabError.contextBudgetExceeded(
+                    inputPositions:
+                        Int(prefill.input_positions),
+                    requestedOutputTokens:
+                        gen.maxTokens,
+                    contextLimit:
+                        appliedRuntime.context
+                )
+            }
+
             throw LabError.promptTooLong(
                 Int(prefill.input_positions),
                 appliedRuntime.context
@@ -1101,11 +1112,13 @@ actor BonsaiEngine {
 
         if requireFullOutputBudget,
            gen.maxTokens > available {
-            throw LabError.promptTooLong(
-                Int(prefill.input_positions)
-                    + gen.maxTokens
-                    + 1,
-                appliedRuntime.context
+            throw LabError.contextBudgetExceeded(
+                inputPositions:
+                    Int(prefill.input_positions),
+                requestedOutputTokens:
+                    gen.maxTokens,
+                contextLimit:
+                    appliedRuntime.context
             )
         }
 
