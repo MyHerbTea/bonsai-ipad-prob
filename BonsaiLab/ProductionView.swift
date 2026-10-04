@@ -725,6 +725,9 @@ struct ProductionView: View {
     @State private var warmSessionPass: Bool?
     @State private var mlxVisionSummary = ""
     @State private var diagnosticSnapshot = ""
+    @State private var certificationRunnerRunning = false
+    @State private var certificationRunnerProgress = "Ready"
+    private let certificationCycles = 4
     private let mlxVisionSidecar = MLXVisionSidecar()
 
     private var runtime: RuntimeConfig {
@@ -990,56 +993,53 @@ struct ProductionView: View {
                     }
                 }
 
-                Section("RC1.23.6 Certification Recorder") {
+                Section("RC1.23.6 Restart Certification") {
                     LabeledContent(
-                        "状态",
+                        "Runner",
+                        value: certificationRunnerProgress
+                    )
+
+                    LabeledContent(
+                        "Recorder",
                         value: certificationRecorder.statusText
                     )
 
                     LabeledContent(
-                        "已记录",
+                        "自动采集",
                         value:
                             "\(certificationRecorder.eventCount) events · "
                             + "\(certificationRecorder.snapshotCount) snapshots"
                     )
 
-                    if certificationRecorder.isRecording {
-                        Button("记录当前诊断快照") {
-                            certificationRecorder.recordSnapshot(
-                                label: "manual_snapshot",
-                                diagnostic: buildDiagnosticSnapshot()
-                            )
-                        }
+                    Button("运行 Restart Certification") {
+                        runRestartCertification()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(
+                        certificationRunnerRunning
+                        || busy
+                        || modelURL == nil
+                        || mlxVisionWeightsURL == nil
+                        || imageURL == nil
+                        || certificationRecorder.isRecording
+                    )
 
-                        Button("完成并生成单文件存档") {
-                            certificationRecorder.recordSnapshot(
-                                label: "final_snapshot",
-                                diagnostic: buildDiagnosticSnapshot()
-                            )
-                            _ = certificationRecorder.finishRun(
-                                summary:
-                                    "Manual recorder infrastructure check completed."
-                            )
-                        }
-                    } else {
-                        Button("开始记录器（基础设施验证）") {
-                            startCertificationRecorder()
-                        }
-                        .disabled(modelURL == nil)
+                    if certificationRunnerRunning {
+                        ProgressView()
                     }
 
                     if let archiveURL =
                         certificationRecorder.latestArchiveURL {
                         ShareLink(item: archiveURL) {
                             Label(
-                                "分享最近测试存档",
+                                "分享测试结果",
                                 systemImage: "square.and.arrow.up"
                             )
                         }
                     }
 
                     Text(
-                        "Build 49 先验证单文件、崩溃可恢复的记录基础设施。后续 Restart Certification Runner 会自动开始记录、自动抓取每轮诊断并自动完成存档，不要求逐轮手工复制。"
+                        "只需选择主模型、Vision Tower 和测试图片后点击一次。Build 50 固定使用 Accelerated + 512 context，自动执行 4 轮 stop → awaited unload → start → seed → warm，并把全部生命周期事件与诊断写入一个 BONSAI-RUN-*.json。"
                     )
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -1944,6 +1944,502 @@ struct ProductionView: View {
         return lines.joined(separator: "\n")
     }
 
+    private struct RestartCertificationHTTPResult {
+        let statusCode: Int
+        let elapsedMilliseconds: Double
+        let completionTokens: Int
+        let finishReason: String
+    }
+
+    private enum RestartCertificationError: LocalizedError {
+        case apiReadyTimeout
+        case invalidLoopbackURL
+        case invalidHTTPResponse
+        case unexpectedHTTPStatus(Int)
+        case malformedResponse
+
+        var errorDescription: String? {
+            switch self {
+            case .apiReadyTimeout:
+                return "API did not become ready before timeout."
+            case .invalidLoopbackURL:
+                return "Unable to construct loopback API URL."
+            case .invalidHTTPResponse:
+                return "Loopback API returned a non-HTTP response."
+            case .unexpectedHTTPStatus(let status):
+                return "Loopback API returned HTTP \(status)."
+            case .malformedResponse:
+                return "Loopback API response could not be parsed."
+            }
+        }
+    }
+
+    private func runRestartCertification() {
+        guard
+            let modelURL,
+            let mlxVisionWeightsURL,
+            let imageURL
+        else {
+            status =
+                "Restart Certification 需要主模型、Vision Tower 和测试图片"
+            return
+        }
+
+        if certificationRunnerRunning {
+            return
+        }
+
+        apiRuntimeProfile = "accelerated"
+        apiContextProfile = "512"
+        visionPrefixKVReuseEnabled = true
+        certificationRunnerRunning = true
+        certificationRunnerProgress = "Preparing"
+
+        let build =
+            Bundle.main.object(
+                forInfoDictionaryKey:
+                    "CFBundleVersion"
+            ) as? String ?? "?"
+
+        let environment: [String: String] = [
+            "device": UIDevice.current.model,
+            "os":
+                UIDevice.current.systemName
+                + " "
+                + UIDevice.current.systemVersion,
+            "physical_memory_mib":
+                String(
+                    ProcessInfo.processInfo.physicalMemory
+                    / 1_048_576
+                ),
+            "main_model": modelName,
+            "vision_tower": mlxVisionWeightsName,
+            "test_image": imageName,
+            "runtime_profile": "accelerated",
+            "api_context": "512",
+            "api_batch": "8",
+            "api_ubatch": "8",
+            "vision_prefix_kv_reuse_enabled": "true",
+            "cycles": String(certificationCycles),
+        ]
+
+        guard
+            certificationRecorder.startRun(
+                stage:
+                    "RC1.23.6 One-Click Restart Certification",
+                build: build,
+                environment: environment
+            ) != nil
+        else {
+            certificationRunnerRunning = false
+            certificationRunnerProgress =
+                "Recorder could not start"
+            return
+        }
+
+        certificationRecorder.recordEvent(
+            "runner_started",
+            fields: [
+                "cycles": String(certificationCycles),
+                "context": "512",
+                "runtime": "accelerated",
+            ]
+        )
+        certificationRecorder.recordSnapshot(
+            label: "runner_initial_snapshot",
+            diagnostic: buildDiagnosticSnapshot()
+        )
+
+        Task { @MainActor in
+            do {
+                let imagePayload =
+                    try makeCertificationImagePayload(
+                        imageURL: imageURL
+                    )
+
+                for cycle in 1...certificationCycles {
+                    certificationRunnerProgress =
+                        "Cycle \(cycle)/\(certificationCycles) · teardown"
+
+                    certificationRecorder.recordEvent(
+                        "cycle_started",
+                        fields: [
+                            "cycle": String(cycle),
+                        ]
+                    )
+
+                    certificationRecorder.recordEvent(
+                        "api_stop_requested",
+                        fields: [
+                            "cycle": String(cycle),
+                            "api_running_before":
+                                String(apiServer.isRunning),
+                        ]
+                    )
+                    apiServer.stop()
+
+                    certificationRecorder.recordEvent(
+                        "engine_unload_started",
+                        fields: [
+                            "cycle": String(cycle),
+                        ]
+                    )
+                    await engine.unloadAll()
+                    certificationRecorder.recordEvent(
+                        "engine_unload_finished",
+                        fields: [
+                            "cycle": String(cycle),
+                        ]
+                    )
+
+                    certificationRunnerProgress =
+                        "Cycle \(cycle)/\(certificationCycles) · starting API"
+                    certificationRecorder.recordEvent(
+                        "api_start_requested",
+                        fields: [
+                            "cycle": String(cycle),
+                            "context": "512",
+                        ]
+                    )
+
+                    // Reuse the actual product OpenAI server setup.
+                    startAPIServer()
+                    try await waitForCertificationAPIReady(
+                        timeoutSeconds: 180
+                    )
+
+                    certificationRecorder.recordEvent(
+                        "api_ready",
+                        fields: [
+                            "cycle": String(cycle),
+                            "api_running":
+                                String(apiServer.isRunning),
+                        ]
+                    )
+
+                    certificationRunnerProgress =
+                        "Cycle \(cycle)/\(certificationCycles) · seed"
+                    certificationRecorder.recordEvent(
+                        "seed_request_started",
+                        fields: [
+                            "cycle": String(cycle),
+                        ]
+                    )
+                    let seed =
+                        try await performCertificationVisionRequest(
+                            imagePayload: imagePayload
+                        )
+                    certificationRecorder.recordEvent(
+                        "seed_request_finished",
+                        fields:
+                            certificationHTTPFields(
+                                cycle: cycle,
+                                result: seed
+                            )
+                    )
+
+                    certificationRunnerProgress =
+                        "Cycle \(cycle)/\(certificationCycles) · warm"
+                    certificationRecorder.recordEvent(
+                        "warm_request_started",
+                        fields: [
+                            "cycle": String(cycle),
+                        ]
+                    )
+                    let warm =
+                        try await performCertificationVisionRequest(
+                            imagePayload: imagePayload
+                        )
+                    certificationRecorder.recordEvent(
+                        "warm_request_finished",
+                        fields:
+                            certificationHTTPFields(
+                                cycle: cycle,
+                                result: warm
+                            )
+                    )
+
+                    certificationRecorder.recordSnapshot(
+                        label: "cycle_\(cycle)_warm_snapshot",
+                        diagnostic: buildDiagnosticSnapshot()
+                    )
+                    certificationRecorder.recordEvent(
+                        "cycle_completed",
+                        fields: [
+                            "cycle": String(cycle),
+                            "warm_http_status":
+                                String(warm.statusCode),
+                            "warm_completion_tokens":
+                                String(warm.completionTokens),
+                            "warm_finish_reason":
+                                warm.finishReason,
+                        ]
+                    )
+                }
+
+                certificationRunnerProgress =
+                    "Finalizing"
+                certificationRecorder.recordEvent(
+                    "final_api_stop_requested"
+                )
+                apiServer.stop()
+                certificationRecorder.recordEvent(
+                    "final_engine_unload_started"
+                )
+                await engine.unloadAll()
+                certificationRecorder.recordEvent(
+                    "final_engine_unload_finished"
+                )
+                certificationRecorder.recordSnapshot(
+                    label: "runner_final_snapshot",
+                    diagnostic: buildDiagnosticSnapshot()
+                )
+
+                _ = certificationRecorder.finishRun(
+                    summary:
+                        "PASS: completed \(certificationCycles) automated 512-context restart cycles."
+                )
+
+                certificationRunnerProgress =
+                    "PASS · \(certificationCycles)/\(certificationCycles) cycles"
+                status =
+                    "Restart Certification 完成，可直接分享单个测试结果"
+            } catch {
+                certificationRecorder.recordEvent(
+                    "runner_failed",
+                    fields: [
+                        "error":
+                            error.localizedDescription,
+                    ]
+                )
+                certificationRecorder.recordSnapshot(
+                    label: "runner_failure_snapshot",
+                    diagnostic: buildDiagnosticSnapshot()
+                )
+
+                apiServer.stop()
+                await engine.unloadAll()
+
+                _ = certificationRecorder.finishRun(
+                    summary:
+                        "FAIL: "
+                        + error.localizedDescription
+                )
+
+                certificationRunnerProgress =
+                    "FAIL · "
+                    + error.localizedDescription
+                status =
+                    "Restart Certification 失败；结果已自动归档"
+            }
+
+            certificationRunnerRunning = false
+        }
+    }
+
+    private func waitForCertificationAPIReady(
+        timeoutSeconds: Double
+    ) async throws {
+        let deadline =
+            Date().addingTimeInterval(
+                timeoutSeconds
+            )
+
+        while Date() < deadline {
+            if apiServer.isRunning {
+                return
+            }
+
+            if !apiServer.lastError.isEmpty {
+                throw OpenAIHandlerHTTPError(
+                    status: 500,
+                    code: "api_start_failed",
+                    message: apiServer.lastError
+                )
+            }
+
+            if status.contains("预热失败") {
+                throw OpenAIHandlerHTTPError(
+                    status: 500,
+                    code: "api_start_failed",
+                    message: detail
+                )
+            }
+
+            try await Task.sleep(
+                nanoseconds: 250_000_000
+            )
+        }
+
+        throw RestartCertificationError.apiReadyTimeout
+    }
+
+    private func makeCertificationImagePayload(
+        imageURL: URL
+    ) throws -> String {
+        let scoped =
+            imageURL.startAccessingSecurityScopedResource()
+        defer {
+            if scoped {
+                imageURL.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        let data =
+            try Data(contentsOf: imageURL)
+        let ext =
+            imageURL.pathExtension.lowercased()
+        let mime =
+            (ext == "jpg" || ext == "jpeg")
+                ? "image/jpeg"
+                : "image/png"
+
+        return "data:"
+            + mime
+            + ";base64,"
+            + data.base64EncodedString()
+    }
+
+    private func performCertificationVisionRequest(
+        imagePayload: String
+    ) async throws -> RestartCertificationHTTPResult {
+        guard
+            let url = URL(
+                string:
+                    "http://127.0.0.1:8080/v1/chat/completions"
+            )
+        else {
+            throw RestartCertificationError
+                .invalidLoopbackURL
+        }
+
+        let body: [String: Any] = [
+            "model": apiServer.modelID,
+            "messages": [
+                [
+                    "role": "user",
+                    "content": [
+                        [
+                            "type": "image_url",
+                            "image_url": [
+                                "url": imagePayload,
+                            ],
+                        ],
+                        [
+                            "type": "text",
+                            "text":
+                                "Describe the person, the dog, and the background in this image using concise bullet points.",
+                        ],
+                    ],
+                ],
+            ],
+            "max_completion_tokens": 128,
+            "stream": false,
+            "reasoning_effort": "none",
+        ]
+
+        let bodyData =
+            try JSONSerialization.data(
+                withJSONObject: body
+            )
+
+        var request =
+            URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.httpBody = bodyData
+        request.setValue(
+            "application/json; charset=utf-8",
+            forHTTPHeaderField:
+                "Content-Type"
+        )
+        request.setValue(
+            "Bearer " + apiServer.apiKey,
+            forHTTPHeaderField:
+                "Authorization"
+        )
+        request.timeoutInterval = 300
+
+        let started =
+            DispatchTime.now().uptimeNanoseconds
+        let (data, response) =
+            try await URLSession.shared.data(
+                for: request
+            )
+        let ended =
+            DispatchTime.now().uptimeNanoseconds
+
+        guard
+            let http =
+                response as? HTTPURLResponse
+        else {
+            throw RestartCertificationError
+                .invalidHTTPResponse
+        }
+
+        guard http.statusCode == 200 else {
+            throw RestartCertificationError
+                .unexpectedHTTPStatus(
+                    http.statusCode
+                )
+        }
+
+        guard
+            let object =
+                try JSONSerialization
+                    .jsonObject(with: data)
+                    as? [String: Any],
+            let choices =
+                object["choices"]
+                    as? [[String: Any]],
+            let first = choices.first,
+            let finishReason =
+                first["finish_reason"]
+                    as? String,
+            let usage =
+                object["usage"]
+                    as? [String: Any],
+            let completionNumber =
+                usage["completion_tokens"]
+                    as? NSNumber
+        else {
+            throw RestartCertificationError
+                .malformedResponse
+        }
+
+        let elapsedMilliseconds =
+            Double(ended - started)
+            / 1_000_000
+
+        return RestartCertificationHTTPResult(
+            statusCode: http.statusCode,
+            elapsedMilliseconds:
+                elapsedMilliseconds,
+            completionTokens:
+                completionNumber.intValue,
+            finishReason: finishReason
+        )
+    }
+
+    private func certificationHTTPFields(
+        cycle: Int,
+        result: RestartCertificationHTTPResult
+    ) -> [String: String] {
+        [
+            "cycle": String(cycle),
+            "http_status":
+                String(result.statusCode),
+            "elapsed_ms":
+                String(
+                    format: "%.3f",
+                    result.elapsedMilliseconds
+                ),
+            "completion_tokens":
+                String(result.completionTokens),
+            "finish_reason":
+                result.finishReason,
+        ]
+    }
+
     private func startCertificationRecorder() {
         let build =
             Bundle.main.object(
@@ -2013,7 +2509,7 @@ struct ProductionView: View {
         let sharedVisionSidecar = mlxVisionSidecar
 
         busy = true
-        status = "正在预热 RC1.23.5 Dynamic Context A/B Runtime…"
+        status = "正在预热 RC1.23.6 Frozen 512 Runtime…"
         detail = """
         Text API 继续使用冻结的 RC1.20.7 路径。
         单图请求使用 RC1.23.0 MLX Live Vision Injection；
@@ -2532,7 +3028,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.23.5 Dynamic Context A/B 已预热"
+                        "RC1.23.6 Frozen 512 Runtime 已预热"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
@@ -2554,7 +3050,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.23.5 Dynamic Context A/B Runtime 预热失败"
+                        "RC1.23.6 Frozen 512 Runtime 预热失败"
                     detail = error.localizedDescription
                 }
             }
