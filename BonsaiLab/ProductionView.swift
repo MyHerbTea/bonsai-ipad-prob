@@ -956,7 +956,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.24.0 Sustained Decode Profiling")
+                            Text("1.0 · RC1.24.1 Runtime Profile A/B")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -1292,15 +1292,26 @@ struct ProductionView: View {
                             selection: $apiRuntimeProfile
                         ) {
                             Text("Safe").tag("safe")
+                            Text("Flash").tag("ab_flash_only")
+                            Text("+KQV").tag("ab_flash_kqv")
                             Text("Full").tag("accelerated")
                         }
                         .pickerStyle(.segmented)
                         .disabled(apiServer.isRunning)
 
                         Text(
-                            apiRuntimeProfile == "safe"
-                                ? "Safe：兼容回退档，Flash/KQV/Op Offload 均关闭。"
-                                : "Full：RC1.23.3 推荐性能档，开启 Flash Attention + KQV/Op Offload。"
+                            {
+                                switch apiRuntimeProfile {
+                                case "safe":
+                                    return "Safe：Flash/KQV/Op Offload 均关闭。"
+                                case "ab_flash_only":
+                                    return "A/B Flash：仅开启 Flash Attention；KQV/Op Offload 关闭。"
+                                case "ab_flash_kqv":
+                                    return "A/B +KQV：开启 Flash Attention + KQV Offload；Op Offload 关闭。"
+                                default:
+                                    return "Full：开启 Flash Attention + KQV/Op Offload；仍是默认生产性能档。"
+                                }
+                            }()
                         )
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -2060,9 +2071,12 @@ struct ProductionView: View {
                 : requestedAPIRuntimeProfile
         let apiFlashAttention =
             effectiveAPIRuntimeProfile == "flash"
+            || effectiveAPIRuntimeProfile == "ab_flash_only"
+            || effectiveAPIRuntimeProfile == "ab_flash_kqv"
             || effectiveAPIRuntimeProfile == "accelerated"
         let apiOffloadKQV =
-            effectiveAPIRuntimeProfile == "accelerated"
+            effectiveAPIRuntimeProfile == "ab_flash_kqv"
+            || effectiveAPIRuntimeProfile == "accelerated"
         let apiOpOffload =
             effectiveAPIRuntimeProfile == "accelerated"
 
@@ -2876,16 +2890,23 @@ struct ProductionView: View {
         let selectedMLXVisionWeightsURL =
             mlxVisionWeightsURL
         let selectedRuntime = runtime
-        let selectedAPIRuntimeProfile =
-            apiRuntimeProfile == "safe"
-                ? "safe"
-                : "accelerated"
+        let selectedAPIRuntimeProfile: String
+        switch apiRuntimeProfile {
+        case "safe":
+            selectedAPIRuntimeProfile = "safe"
+        case "ab_flash_only":
+            selectedAPIRuntimeProfile = "ab_flash_only"
+        case "ab_flash_kqv":
+            selectedAPIRuntimeProfile = "ab_flash_kqv"
+        default:
+            selectedAPIRuntimeProfile = "accelerated"
+        }
         let selectedAPIContext = 512
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
         busy = true
-        status = "正在预热 RC1.24.0 Build 55 Profiling Runtime…"
+        status = "正在预热 RC1.24.1 Build 56 Runtime A/B…"
         detail = """
         Text API 继续使用冻结的 RC1.20.7 路径。
         单图请求使用 RC1.23.0 MLX Live Vision Injection；
@@ -2902,6 +2923,14 @@ struct ProductionView: View {
                 apiRuntime.ubatch = 8
 
                 switch selectedAPIRuntimeProfile {
+                case "ab_flash_only":
+                    apiRuntime.flashAttention = true
+                    apiRuntime.offloadKQV = false
+                    apiRuntime.opOffload = false
+                case "ab_flash_kqv":
+                    apiRuntime.flashAttention = true
+                    apiRuntime.offloadKQV = true
+                    apiRuntime.opOffload = false
                 case "accelerated":
                     apiRuntime.flashAttention = true
                     apiRuntime.offloadKQV = true
@@ -3411,7 +3440,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.24.0 Build 55 Profiling Runtime 已预热"
+                        "RC1.24.1 Build 56 Runtime A/B 已预热"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
