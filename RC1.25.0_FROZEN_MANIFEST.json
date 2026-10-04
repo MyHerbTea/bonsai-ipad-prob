@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "release": "RC1.25.0",
+  "build": 57,
+  "status": "DEVICE_CERTIFIED_FROZEN",
+  "certifiedSourceCommit": "00f854f28e49153dc547b5f32183db82c5910235",
+  "sourceBranch": "lab-v1-rc1-25-0-multi-image-openai-api",
+  "frozenBranch": "frozen-v1-rc1-25-0-build57-multi-image-device-certified",
+  "ci": {
+    "runId": 37242509681,
+    "runNumber": 64,
+    "conclusion": "success",
+    "artifactId": 11317991753,
+    "artifactName": "BonsaiLab-iPad-v1-RC1.25.0-Build57-Multi-Image-OpenAI-API",
+    "artifactDigest": "sha256:bcf16beab85862a629859e3891f87570430661bdceaee5799a3d9d80123c049e",
+    "ipaSha256": "0c6439c16b7fb8f75be00d85a76a80e2f47854a0f0498c553639931ae57bab13"
+  },
+  "deviceCertification": {
+    "finalCasesPassed": 6,
+    "finalCasesTotal": 6,
+    "threeImageSemanticProbe": "PASS",
+    "twoImageProbe": "PASS",
+    "singleImageOCR": "PASS",
+    "fourImageBoundary": "PASS",
+    "invalidImageBoundary": "PASS",
+    "apiSurvivalAfterErrors": "PASS"
+  },
+  "productionRuntime": {
+    "context": 512,
+    "batch": 8,
+    "ubatch": 8,
+    "flashAttention": true,
+    "offloadKQV": true,
+    "opOffload": true,
+    "kvUnified": true,
+    "loadMode": "mmap"
+  },
+  "multiImage": {
+    "maxImages": 3,
+    "adapter": "bounded_contact_sheet_before_vision_tower",
+    "twoImageLayout": "left-right",
+    "threeImageLayout": "left-center-right",
+    "canvas": "1024x512"
+  },
+  "knownNonBlockingIssues": [
+    "multi-image performance route can be logged as vision instead of vision_multi",
+    "context admission error wording conflates input and requested output budget",
+    "Café can display as CafÃ© in the Windows/JSON output path"
+  ]
+}
