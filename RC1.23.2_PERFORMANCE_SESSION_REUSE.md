@@ -1,6 +1,6 @@
 # RC1.23.2 — Multimodal Performance & Session Reuse
 
-Status: **ACTIVE DEVELOPMENT — DEVICE CERTIFICATION DEFERRED**
+Status: **ACTIVE DEVELOPMENT — PHASE C2-A DEVICE CANDIDATE**
 
 Base: `a032634d992f3b2edf0b3665e9b381ee4d6c06cf`  
 Parent behavior: RC1.23.1 OpenAI Multimodal API candidate.
@@ -70,7 +70,11 @@ base64, prompt body, or assistant response body.
 
 ## Phase B — Vision embedding cache reuse
 
-Not enabled in the Phase A baseline.
+Status: **DEFERRED / LOWER PRIORITY AFTER PHASE A DEVICE EVIDENCE**.
+
+Phase A measured Vision encode + cache write at only about 0.24 s, while
+27B multimodal prefill was about 9.63 s. Phase B remains a valid follow-up
+optimization, but it is not the primary RC1.23.2 latency target.
 
 Candidate design:
 
@@ -85,7 +89,10 @@ This phase requires real-device A/B evidence before being accepted.
 
 ## Phase C — 27B context / KV reuse
 
-Not enabled until Phase B is measured.
+Status: **PRIMARY OPTIMIZATION TRACK**.
+
+Phase A device evidence justified advancing this phase ahead of Phase B because
+27B multimodal prefill dominates the measured repeated-image latency.
 
 Any reuse must prove:
 
@@ -178,7 +185,7 @@ The next optimization target is therefore **Vision-prefix KV reuse**.
 
 ## Phase C1 — Experimental Vision-prefix KV reuse
 
-Status: **IMPLEMENTED AS DEFAULT-OFF CANDIDATE; DEVICE A/B REQUIRED**
+Status: **DEVICE REJECTED — SAFE FALLBACK CONFIRMED**
 
 Design:
 
@@ -210,7 +217,82 @@ Diagnostics include:
 - image_prefill_ms;
 - suffix_prefill_ms.
 
-Acceptance requires a controlled OFF/ON real-device A/B using the same image,
-question lengths and output budget. The candidate is rejected if it causes
-cross-request leakage, historical-image leakage, cleanup failure, memory
-growth, or semantic regression.
+### Phase C1 real-device result — 2026-10-04
+
+Build 39 controlled OFF/ON evidence:
+
+- OFF repeated-image request remained a full MISS;
+- ON repeated-image request was also a MISS;
+- ON diagnostic reported `prefix_retained=false`;
+- OFF 27B prefill: about 10.318 s;
+- ON 27B prefill: about 10.400 s;
+- ON same-image request #2 was 8.31% slower end-to-end than request #1;
+- Vision output remained semantically correct;
+- MLX peak remained 144 MiB;
+- post-vision text recovery returned `TEXT_RECOVERY_OK`.
+
+Root cause was confirmed in the C1 implementation: post-generation retention
+depended on partial `llama_memory_seq_rm(..., prefix_positions, -1)`. The
+pinned Prism runtime explicitly permits partial removal to fail. On device that
+operation returned unsupported, so Bonsai cleared the full KV memory and
+correctly fell back to the RC1.23.1 behavior.
+
+### Phase C1 decision
+
+**NO-GO for the partial-trim design.**
+
+The experiment failed safely: no semantic regression, stale-image leakage,
+text-recovery failure, crash, or observed MLX memory regression was introduced.
+
+## Phase C2-A — Sequence checkpoint Vision-prefix KV reuse
+
+Status: **IMPLEMENTED; CI PASS; BUILD 40 DEVICE CANDIDATE NEXT**.
+
+C2-A replaces C1 partial trimming with two llama sequences:
+
+- sequence 0: request working sequence;
+- sequence 1: retained `prefix + image` checkpoint;
+- first matching vision request copies the completed prefix+image KV from
+  sequence 0 into sequence 1 before suffix decode;
+- after generation, the whole sequence 0 is removed;
+- the whole retained sequence 1 remains as the checkpoint;
+- the next same-image + same-system request copies sequence 1 back to
+  sequence 0 and decodes only the new suffix;
+- whole-sequence removal is used instead of unsupported partial removal;
+- the experimental context uses `n_seq_max=2`; the default-OFF baseline
+  remains `n_seq_max=1`;
+- text request, request failure, model unload, image identity change, or system
+  prompt identity change still invalidates reuse state;
+- if the experimental toggle is enabled only after a one-sequence context was
+  already created, the optimization stays disabled until a clean restart.
+
+Pinned Prism support verified for C2-A:
+
+- `llama_memory_seq_cp`;
+- `llama_memory_seq_keep`;
+- whole-sequence `llama_memory_seq_rm`;
+- sequence position inspection.
+
+Commit implementing C2-A:
+
+`f32b7bb7fd41bbe07a90e678b8d4d636095adb7c`
+
+GitHub Actions run #20 / `37180140338`: **SUCCESS**.
+
+### Phase C2-A device acceptance gate
+
+Build 40 must repeat the controlled OFF/ON test with the same image, prompt,
+output budget and clean-start procedure.
+
+The candidate is accepted only if:
+
+- first ON vision request creates/retains the checkpoint;
+- second matching ON request reports a true prefix reuse HIT;
+- prefix + image prefill drops materially versus OFF;
+- answer semantics remain correct;
+- no cross-request prompt or historical-image leakage occurs;
+- text recovery and failure cleanup remain correct;
+- memory remains bounded and no crash occurs.
+
+If sequence checkpoint reuse fails on the pinned Prism runtime, the fallback
+design is **Phase C2-B: sequence state checkpoint via llama_state_seq_* APIs**.
