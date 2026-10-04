@@ -447,6 +447,7 @@ jobs:
             tools/rc1241_runtime_profile_ab_contract_tests.py
             tools/rc1250_multi_image_contract_tests.py
             tools/rc1250_multi_image_composer_contract_tests.swift
+            tools/rc1250_three_image_probe.ps1
             THIRD_PARTY_MLX_VISION_NOTICE.md
             tools/extract_bonsai_vision_tower.py
             build.log
