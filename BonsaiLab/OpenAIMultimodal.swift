@@ -147,7 +147,7 @@ enum OpenAIMultimodalMessageBindingValidator {
             }
 
             totalImages += message.imageCount
-            if totalImages > 1 {
+            if totalImages > 3 {
                 throw OpenAIMultimodalError.tooManyImages
             }
 
