@@ -4,7 +4,7 @@ param(
 
     [string]$BaseUrl = "http://192.168.0.103:8080/v1",
     [string]$Model = "bonsai-2-27b-local",
-    [string]$ImagePath = "D:\\apple\\vision_test_01_people_landscape.png",
+    [string]$ImagePath = "D:\apple\vision_test_01_people_landscape.png",
     [string]$TextPrompt = "Reply with one concise sentence describing why the sky appears blue.",
     [string]$VisionPrompt = ""
 )
@@ -131,7 +131,7 @@ function Invoke-BonsaiProbe {
     $choice = $response.choices[0]
     $usage = $response.usage
     $content = [string]$choice.message.content
-    $compact = ($content -replace "\\r?\\n", " ").Trim()
+    $compact = ($content -replace "\r?\n", " ").Trim()
 
     [pscustomobject]@{
         Label = $Label
