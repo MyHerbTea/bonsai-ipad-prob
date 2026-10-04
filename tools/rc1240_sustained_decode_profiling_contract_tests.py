@@ -34,10 +34,13 @@ for marker in [
     "requestResourceSnapshotStart",
     "resourceSnapshotStart:",
     "resourceTransitionLines(",
-    '"available_mib_start="',
-    '"resident_mib_start="',
-    '"phys_footprint_mib_start="',
-    '"metal_allocated_mib_start="',
+    '"available_mib",',
+    '"resident_mib",',
+    '"phys_footprint_mib",',
+    '"metal_allocated_mib",',
+    'key + "_start="',
+    'key + "_end="',
+    'key + "_delta="',
 ]:
     assert marker in view
 
