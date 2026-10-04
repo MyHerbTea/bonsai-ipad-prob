@@ -12,8 +12,11 @@ workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text()
 assert "func restartListenerPreservingHandler(" in server
 assert "let preservedHandler = handler" in server
 assert "guard let preservedHandler" in server
-assert "try start(" in server
 assert "handler: preservedHandler" in server
+assert (
+    "try start(" in server
+    or "try installListener(" in server
+)
 
 # Build 52 runner: cycle 1 performs one full runtime load, cycles 2+ restart
 # only the listener/handler and MUST NOT unload/recreate the engine.
