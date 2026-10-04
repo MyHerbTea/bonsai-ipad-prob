@@ -92,6 +92,10 @@ final class LocalOpenAIServer: ObservableObject {
         return "http://\(ip):\(port)/v1"
     }
 
+    var canResumePreservedRuntime: Bool {
+        handler != nil
+    }
+
     func regenerateKey() {
         let created = UUID().uuidString
             .replacingOccurrences(of: "-", with: "")
@@ -114,6 +118,21 @@ final class LocalOpenAIServer: ObservableObject {
             port: requestedPort,
             handler: handler
         )
+    }
+
+    func stopListenerPreservingHandler() async {
+        guard handler != nil else {
+            stop()
+            return
+        }
+
+        await cancelListenerForRestart()
+
+        await MainActor.run {
+            self.isRunning = false
+            self.status = "已停止 · Runtime 常驻"
+            self.lastError = ""
+        }
     }
 
     func restartListenerPreservingHandler(
