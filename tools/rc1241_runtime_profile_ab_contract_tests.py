@@ -24,18 +24,17 @@ for marker in [
 ]:
     assert marker in view
 
-flash_block = view[
-    view.index('case "ab_flash_only":'):
-    view.index('case "ab_flash_kqv":')
-]
+runtime_switch = view.index("switch selectedAPIRuntimeProfile")
+flash_case = view.index('case "ab_flash_only":', runtime_switch)
+kqv_case = view.index('case "ab_flash_kqv":', flash_case)
+full_case = view.index('case "accelerated":', kqv_case)
+
+flash_block = view[flash_case:kqv_case]
 assert 'apiRuntime.flashAttention = true' in flash_block
 assert 'apiRuntime.offloadKQV = false' in flash_block
 assert 'apiRuntime.opOffload = false' in flash_block
 
-kqv_block = view[
-    view.index('case "ab_flash_kqv":'):
-    view.index('case "accelerated":', view.index('case "ab_flash_kqv":'))
-]
+kqv_block = view[kqv_case:full_case]
 assert 'apiRuntime.flashAttention = true' in kqv_block
 assert 'apiRuntime.offloadKQV = true' in kqv_block
 assert 'apiRuntime.opOffload = false' in kqv_block
