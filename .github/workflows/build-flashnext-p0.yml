@@ -8,6 +8,7 @@ on:
       - "FlashNextP0/**"
       - "docs/flashnext/**"
       - "tools/download_flashnext_p0.ps1"
+      - "tools/inspect_flashnext_p0_index.py"
       - ".github/workflows/build-flashnext-p0.yml"
   workflow_dispatch:
 
@@ -64,6 +65,7 @@ jobs:
           grep -q 'switch_mlp' FlashNextP0/Sources/FlashNextExpertProbe.swift
           grep -q 'FlashNextReadSystemProbe' FlashNextP0/Sources/FlashNextExpertProbe.swift
           grep -q 'model-00008-of-00008.safetensors' FlashNextP0/README.md
+          python3 -m py_compile tools/inspect_flashnext_p0_index.py
           echo "FlashNext P0-A source contracts: PASS"
 
       - name: Generate isolated Xcode project
