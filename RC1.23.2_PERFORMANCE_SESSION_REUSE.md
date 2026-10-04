@@ -1,6 +1,6 @@
 # RC1.23.2 — Multimodal Performance & Session Reuse
 
-Status: **ACTIVE DEVELOPMENT — PHASE C2-B DEVICE CANDIDATE**
+Status: **FROZEN PERFORMANCE BASELINE — BUILD 41 / PHASE C2-B**
 
 Base: `a032634d992f3b2edf0b3665e9b381ee4d6c06cf`  
 Parent behavior: RC1.23.1 OpenAI Multimodal API candidate.
@@ -119,24 +119,15 @@ Every candidate must pass:
 - Prism multimodal symbol verification;
 - unsigned IPA packaging.
 
-## Deferred real-device gate
+## Real-device gate
 
-Because the test iPad is temporarily unavailable, RC1.23.2 may progress through
-CI-safe implementation, but may not be frozen or described as faster until a
-real-device controlled A/B run is completed.
+Status: **COMPLETED — 2026-10-04**.
 
-The first device run should copy one Diagnostic Snapshot after:
+The target-device program completed controlled performance, isolation and
+stability testing on iPadOS 27.0.1 with the 12 GB iPad Pro M5-class device.
 
-1. cold text request;
-2. repeated text request;
-3. cold image request;
-4. same-image repeated request;
-5. different-image request;
-6. invalid-image failure;
-7. post-failure text request.
-
-That single snapshot set will determine whether Phase B or Phase C is the next
-optimization target.
+The accepted path is Phase C2-B. Phase C1 and C2-A remain documented as
+rejected experiments and must not be reintroduced into the frozen baseline.
 
 
 ## Phase A real-device evidence — 2026-10-04
@@ -308,7 +299,7 @@ regression.
 
 ## Phase C2-B — Single-sequence ON_DEVICE state checkpoint
 
-Status: **IMPLEMENTED; CI PASS; BUILD 41 DEVICE CANDIDATE NEXT**.
+Status: **ACCEPTED AND FROZEN — BUILD 41**.
 
 C2-B removes the C2-A multi-sequence requirement and restores the context shape
 that already passed build 40 OFF testing:
@@ -336,24 +327,122 @@ C2-B implementation commit:
 
 GitHub Actions run #22 / `37182779661`: **SUCCESS**.
 
-### Phase C2-B device acceptance gate
+### Phase C2-B real-device acceptance — 2026-10-04
 
-Build 41 must first prove that enabling Vision Prefix KV Reuse no longer
-regresses API startup. Only after startup succeeds should the controlled
-same-image A/B request test run.
+Build 41 passed the controlled device gate.
 
-Acceptance requires:
+Primary performance run:
 
-- API startup succeeds with the experimental toggle ON;
-- first ON image request reports MISS and retained=true;
-- second matching ON image request reports HIT and retained=true;
-- second-request prefix and image prefill are skipped or reduced to effectively
-  zero while suffix prefill remains;
-- repeated-image total prefill drops materially versus the build 40 OFF
-  baseline;
-- answer semantics remain correct;
-- no cross-request prompt or historical-image leakage occurs;
-- text recovery and failure cleanup remain correct;
-- memory remains bounded and no crash occurs.
+- API startup with Vision Prefix KV Reuse enabled: PASS;
+- image request #1: HTTP 200, 27157.4 ms end-to-end;
+- image request #2: HTTP 200, 18454.9 ms end-to-end;
+- measured end-to-end improvement: 32.04%;
+- second-request 27B prefill: 2.514 s;
+- second-request prefix prefill: 0.000 s;
+- second-request image prefill: 0.000 s;
+- second-request suffix prefill: 2.514 s;
+- second-request reuse state: HIT, retained=true;
+- text recovery: exact `TEXT_RECOVERY_OK`;
+- MLX peak: 144 MiB.
 
-No performance claim is accepted until those device conditions pass.
+The build 40 OFF comparison was a full MISS with:
+
+- 27B prefill: 10.280 s;
+- prefix: 1.662 s;
+- image: 6.028 s;
+- suffix: 2.590 s.
+
+Therefore the repeated-image C2-B path removed approximately 7.77 seconds of
+prefix + image prefill in the controlled build-41 run.
+
+### Isolation certification
+
+All required reuse boundaries passed:
+
+1. **Same image, different question — PASS**
+   - second request remained HIT and retained=true;
+   - prefix and image prefill remained 0.000 s;
+   - the new question requested only the animal identity;
+   - output was `Golden Retriever`;
+   - previous question/assistant suffix leakage was not observed.
+
+2. **Text request invalidation — PASS**
+   - text returned exact `TEXT_INVALIDATE_OK`;
+   - the following same-image Vision request correctly became MISS;
+   - retained=true after rebuilding the checkpoint;
+   - full prefill returned: prefix 1.644 s, image 5.813 s,
+     suffix 2.498 s, total 9.971 s.
+
+3. **Different-image isolation — PASS**
+   - image A SHA256:
+     `EBDC2AED7527E7C514D2A8C26B1E3ACD8C03AFC0C7D716BA414C743288BCBEBA`;
+   - horizontally flipped image B SHA256:
+     `24BCC634A19BA63EB302D77B0F187BE508807E69D2447C1EFC38E1EF07B76529`;
+   - image B correctly produced MISS, retained=true;
+   - full prefill was 9.992 s.
+
+4. **New-image repeat — PASS**
+   - repeated image B produced HIT, retained=true;
+   - prefix and image prefill were 0.000 s;
+   - suffix/total prefill was 2.438 s;
+   - end-to-end time was 17992.7 ms.
+
+### Stability certification
+
+A 10-request repeated-hit soak completed:
+
+- 10/10 requests returned HTTP 200;
+- no crash occurred;
+- final checkpoint remained HIT and retained=true;
+- final prefix and image prefill remained 0.000 s;
+- MLX peak remained 144 MiB;
+- end-to-end average: 21679.6 ms;
+- minimum: 17916.4 ms;
+- maximum: 26326.2 ms.
+
+The later soak requests showed lower 27B throughput. The final soak request had
+3.419 s suffix prefill and 6.129 tok/s decode throughput, but checkpoint
+correctness did not regress.
+
+A subsequent **same-session** recovery probe (the API request counter advanced
+from 19 to 22, so this must not be described as a proven clean restart) again
+produced:
+
+- second image request: 17970.4 ms;
+- end-to-end improvement: 29.70%;
+- 27B prefill: 2.439 s;
+- prefix/image prefill: 0.000 / 0.000 s;
+- HIT, retained=true;
+- exact `TEXT_RECOVERY_OK`.
+
+This recovery without a confirmed API-session reset is evidence against
+cumulative C2-B checkpoint leakage as the cause of the later soak slowdown.
+The slowdown is retained as an observed runtime/device throughput effect, not
+as a correctness failure.
+
+### Phase C2-B decision
+
+**ACCEPTED.**
+
+RC1.23.2 freezes build 41 as the validated performance baseline. Future work
+must preserve:
+
+- single-sequence `n_seq_max=1`;
+- C2-B ON_DEVICE sequence-state checkpoint semantics;
+- exact image/system reuse identity;
+- text/failure/unload invalidation;
+- zero prefix/image prefill on a true warm HIT;
+- RC1.23.1 API/error semantics;
+- RC1.22.5 MLX hard graph-cut behavior;
+- BVCACHE1 format and 5120 projection width.
+
+The experimental toggle remains default OFF in the frozen build. Enabling it
+activates the validated C2-B path.
+
+Executable baseline source commit:
+
+`990e8d6d90a660461fa14c4d391202efb2eb0bd5`
+
+Build-41 packaging CI:
+
+GitHub Actions run #23 / `37183223825`: **SUCCESS**.

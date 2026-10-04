@@ -272,7 +272,7 @@ jobs:
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: libmtmd / optional mmproj
           Safe preset: ctx=256, batch=16, ubatch=16, gpu_layers=99, swa_full=false
-          RC1.23.2 C2-B Prefix-KV candidate: preserves RC1.23.1 behavior by default and keeps n_seq_max=1. The experimental path snapshots sequence 0 prefix+image state with Prism ON_DEVICE state APIs, clears request-specific KV, and restores the checkpoint for a matching request. C2-A n_seq_max=2 was rejected after a target-device API startup crash. Real-device performance claims require controlled A/B evidence.
+          RC1.23.2 FROZEN C2-B baseline: build 41 keeps n_seq_max=1 and uses Prism ON_DEVICE sequence-state snapshot/restore for prefix+image KV reuse. Target-device performance, isolation and 10-hit stability certification passed. C1 partial trim and C2-A n_seq_max=2 are rejected. Future versions must preserve this behavior as a non-regression baseline.
           Model/mmproj are NOT bundled in the IPA.
           INFO
           echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
@@ -286,7 +286,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.23.2-C2B-State-Checkpoint-Candidate
+          name: BonsaiLab-iPad-v1-RC1.23.2-FROZEN-C2B-Build41
           path: |
             build/BonsaiLab-v1-RC1.23.2-c2b-state-checkpoint-unsigned.ipa
             build/BonsaiLab-v1-RC1.23.2-c2b-state-checkpoint-unsigned.ipa.sha256
@@ -308,6 +308,8 @@ jobs:
             RC1.23.1_OPENAI_MULTIMODAL_API.md
             RC1.23.1_SOURCE_MAP.md
             RC1.23.2_PERFORMANCE_SESSION_REUSE.md
+            RC1.23.2_FROZEN_BASELINE.md
+            NEXT_STAGE_AFTER_RC1.23.2.md
             tools/rc1232_observability_contract_tests.py
             THIRD_PARTY_MLX_VISION_NOTICE.md
             tools/extract_bonsai_vision_tower.py
