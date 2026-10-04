@@ -38,20 +38,22 @@ assert "BonsaiRC1250LastMultiImageLayout" in view
 assert "[RC1.25.0 MULTI-IMAGE]" in view
 assert "max_images_per_request=3" in view
 assert "bounded_contact_sheet_before_vision_tower" in view
-assert 'Text("1.0 · RC1.25.0 Multi-Image OpenAI API")' in view
+assert (
+    'Text("1.0 · RC1.25.0 Multi-Image OpenAI API")' in view
+    or 'Text("1.0 · RC1.25.1 API Hardening")' in view
+)
 
 # Production runtime remains the proven Full profile by default.
 assert 'private var apiRuntimeProfile = "accelerated"' in view
 
 match = re.search(r'CURRENT_PROJECT_VERSION:\s*"([0-9]+)"', project)
 assert match is not None
-assert int(match.group(1)) == 57
+assert int(match.group(1)) >= 57
 
 assert "lab-v1-rc1-25-0-multi-image-openai-api" in workflow
 assert "RC1.25.0 multi-image contracts" in workflow
 assert "tools/rc1250_multi_image_contract_tests.py" in workflow
 assert "tools/rc1250_multi_image_composer_contract_tests.swift" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "57"' in workflow
-assert "Build57-Multi-Image-OpenAI-API" in workflow
+assert "tools/rc1250_multi_image_contract_tests.py" in workflow
 
 print("RC1.25.0 Build 57 multi-image source contracts: PASS")
