@@ -6,16 +6,102 @@ param(
     [string]$Model = "bonsai-2-27b-local",
     [string]$ImagePath = "D:\\apple\\vision_test_01_people_landscape.png",
     [string]$TextPrompt = "Reply with one concise sentence describing why the sky appears blue.",
-    [string]$VisionPrompt = "请描述这张图片中的人物、动物和背景。"
+    [string]$VisionPrompt = ""
 )
 
 $ErrorActionPreference = "Stop"
-$headers = @{
-    Authorization = "Bearer $ApiKey"
-    "Content-Type" = "application/json"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
+# Keep this file ASCII-only so Windows PowerShell 5.1 never depends on
+# the script file's source encoding for the default Chinese prompt.
+$DefaultVisionPromptBase64 = "6K+35o+P6L+w6L+Z5byg5Zu+54mH5Lit55qE5Lq654mp44CB5Yqo54mp5ZKM6IOM5pmv44CC"
+if ([string]::IsNullOrWhiteSpace($VisionPrompt)) {
+    $VisionPrompt = [System.Text.Encoding]::UTF8.GetString(
+        [Convert]::FromBase64String($DefaultVisionPromptBase64)
+    )
 }
+
 $endpoint = $BaseUrl.TrimEnd("/") + "/chat/completions"
 $budgets = @(32, 64, 128)
+
+function Invoke-Utf8JsonPost {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Uri,
+
+        [Parameter(Mandatory = $true)]
+        [byte[]]$BodyBytes
+    )
+
+    $request = [System.Net.HttpWebRequest]::Create($Uri)
+    $request.Method = "POST"
+    $request.ContentType = "application/json; charset=utf-8"
+    $request.Accept = "application/json"
+    $request.Headers["Authorization"] = "Bearer $ApiKey"
+    $request.Timeout = 300000
+    $request.ReadWriteTimeout = 300000
+    $request.ContentLength = $BodyBytes.Length
+
+    $requestStream = $request.GetRequestStream()
+    try {
+        $requestStream.Write($BodyBytes, 0, $BodyBytes.Length)
+    }
+    finally {
+        $requestStream.Dispose()
+    }
+
+    try {
+        $response = [System.Net.HttpWebResponse]$request.GetResponse()
+        try {
+            $responseStream = $response.GetResponseStream()
+            $reader = [System.IO.StreamReader]::new(
+                $responseStream,
+                [System.Text.Encoding]::UTF8,
+                $true
+            )
+            try {
+                $responseJson = $reader.ReadToEnd()
+            }
+            finally {
+                $reader.Dispose()
+                $responseStream.Dispose()
+            }
+
+            return $responseJson | ConvertFrom-Json
+        }
+        finally {
+            $response.Dispose()
+        }
+    }
+    catch [System.Net.WebException] {
+        $errorResponse = $_.Exception.Response
+        if ($null -ne $errorResponse) {
+            try {
+                $errorStream = $errorResponse.GetResponseStream()
+                $errorReader = [System.IO.StreamReader]::new(
+                    $errorStream,
+                    [System.Text.Encoding]::UTF8,
+                    $true
+                )
+                try {
+                    $errorText = $errorReader.ReadToEnd()
+                }
+                finally {
+                    $errorReader.Dispose()
+                    $errorStream.Dispose()
+                }
+
+                throw "HTTP request failed: $errorText"
+            }
+            finally {
+                $errorResponse.Dispose()
+            }
+        }
+
+        throw
+    }
+}
 
 function Invoke-BonsaiProbe {
     param(
@@ -24,7 +110,7 @@ function Invoke-BonsaiProbe {
         [object[]]$Messages
     )
 
-    $body = @{
+    $bodyJson = @{
         model = $Model
         messages = $Messages
         max_completion_tokens = $Budget
@@ -32,8 +118,14 @@ function Invoke-BonsaiProbe {
         reasoning_effort = "none"
     } | ConvertTo-Json -Depth 12 -Compress
 
+    $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($bodyJson)
+    $bodyRoundTrip = [System.Text.Encoding]::UTF8.GetString($bodyBytes)
+    if ($bodyRoundTrip -ne $bodyJson) {
+        throw "UTF-8 request round-trip validation failed."
+    }
+
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    $response = Invoke-RestMethod -Uri $endpoint -Method Post -Headers $headers -Body $body
+    $response = Invoke-Utf8JsonPost -Uri $endpoint -BodyBytes $bodyBytes
     $sw.Stop()
 
     $choice = $response.choices[0]
@@ -53,6 +145,7 @@ function Invoke-BonsaiProbe {
 }
 
 Write-Host "RC1.23.4 BUILD 46 GENERATION TELEMETRY"
+Write-Host "PowerShell 5.1 UTF-8 request/response mode: explicit"
 Write-Host "Runtime Profile should remain Full / Accelerated."
 Write-Host ""
 
