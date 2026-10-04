@@ -30,6 +30,205 @@ private enum RC1232PerformanceDiagnostics {
     ) -> String {
         String(format: "%.3f", value)
     }
+
+    static func persistFailure(
+        requestID: String,
+        route: String,
+        stream: Bool,
+        requestStart: UInt64,
+        lastStage: String
+    ) {
+        let end = now()
+        persist([
+            "request_id=\(requestID)",
+            "route=\(route)",
+            "stream=\(stream)",
+            "result=failed_or_interrupted",
+            "total_ms="
+                + formatMilliseconds(
+                    milliseconds(
+                        from: requestStart,
+                        to: end
+                    )
+                ),
+            "last_stage=\(lastStage)",
+        ])
+    }
+
+    static func persistVisionSuccess(
+        requestID: String,
+        stream: Bool,
+        packet: MLXVisionEmbeddingPacket,
+        metrics: VisionMetrics,
+        imageOrdering: OpenAIImageOrdering,
+        prefixReuseEnabled: Bool,
+        imageWriteStart: UInt64,
+        imageWriteEnd: UInt64,
+        visionEncodeStart: UInt64,
+        visionEncodeEnd: UInt64,
+        cacheWriteStart: UInt64,
+        cacheWriteEnd: UInt64,
+        requestStart: UInt64,
+        requestEnd: UInt64
+    ) {
+        persist([
+            "request_id=\(requestID)",
+            "route=vision",
+            "stream=\(stream)",
+            "result=success",
+            "image_write_ms="
+                + formatMilliseconds(
+                    milliseconds(
+                        from: imageWriteStart,
+                        to: imageWriteEnd
+                    )
+                ),
+            "vision_encode_ms="
+                + formatMilliseconds(
+                    milliseconds(
+                        from: visionEncodeStart,
+                        to: visionEncodeEnd
+                    )
+                ),
+            "vision_encode_reported_ms="
+                + formatMilliseconds(
+                    packet.metrics.encodeSeconds * 1_000
+                ),
+            "cache_write_ms="
+                + formatMilliseconds(
+                    milliseconds(
+                        from: cacheWriteStart,
+                        to: cacheWriteEnd
+                    )
+                ),
+            "prefill_ms="
+                + formatMilliseconds(
+                    metrics.visionPrefillSeconds * 1_000
+                ),
+            "decode_ms="
+                + formatMilliseconds(
+                    metrics.generation.generationSeconds * 1_000
+                ),
+            "tokens_per_second="
+                + String(
+                    format: "%.3f",
+                    metrics.generation.tokensPerSecond
+                ),
+            "prompt_tokens=\(metrics.generation.promptTokens)",
+            "completion_tokens=\(metrics.generation.generatedTokens)",
+            "visual_rows=\(packet.metrics.outputTokens)",
+            "projection_dim=\(packet.metrics.outputDimension)",
+            "grid=\(packet.gridY)x\(packet.gridX)",
+            "n_pos=\(max(packet.gridX, packet.gridY))",
+            "image_ordering=\(imageOrdering.rawValue)",
+            "prefix_reuse_enabled=\(prefixReuseEnabled)",
+            "prefix_reuse_hit=\(metrics.prefixReuseHit)",
+            "prefix_retained=\(metrics.prefixRetainedForReuse)",
+            "prefix_positions=\(metrics.prefixPositions)",
+            "prefix_text_ms="
+                + formatMilliseconds(
+                    metrics.prefixTextSeconds * 1_000
+                ),
+            "image_prefill_ms="
+                + formatMilliseconds(
+                    metrics.imagePrefillSeconds * 1_000
+                ),
+            "suffix_prefill_ms="
+                + formatMilliseconds(
+                    metrics.suffixPrefillSeconds * 1_000
+                ),
+            "cache_reuse="
+                + (metrics.prefixReuseHit
+                    ? "vision_prefix_kv_hit"
+                    : "vision_prefix_kv_miss"),
+            "total_ms="
+                + formatMilliseconds(
+                    milliseconds(
+                        from: requestStart,
+                        to: requestEnd
+                    )
+                ),
+        ])
+    }
+
+    static func persistTextSuccess(
+        requestID: String,
+        stream: Bool,
+        metrics: GenerationMetrics,
+        textGenerationStart: UInt64,
+        textGenerationEnd: UInt64,
+        requestStart: UInt64
+    ) {
+        persist([
+            "request_id=\(requestID)",
+            "route=text",
+            "stream=\(stream)",
+            "result=success",
+            "text_generation_ms="
+                + formatMilliseconds(
+                    milliseconds(
+                        from: textGenerationStart,
+                        to: textGenerationEnd
+                    )
+                ),
+            "ttft_ms="
+                + formatMilliseconds(
+                    metrics.ttftSeconds * 1_000
+                ),
+            "decode_ms="
+                + formatMilliseconds(
+                    metrics.generationSeconds * 1_000
+                ),
+            "tokens_per_second="
+                + String(
+                    format: "%.3f",
+                    metrics.tokensPerSecond
+                ),
+            "prompt_tokens=\(metrics.promptTokens)",
+            "completion_tokens=\(metrics.generatedTokens)",
+            "total_ms="
+                + formatMilliseconds(
+                    milliseconds(
+                        from: requestStart,
+                        to: textGenerationEnd
+                    )
+                ),
+        ])
+    }
+
+    static func visionSummary(
+        packet: MLXVisionEmbeddingPacket,
+        imageOrdering: OpenAIImageOrdering,
+        metrics: VisionMetrics
+    ) -> String {
+        packet.metrics.summary
+            + "\nAPI image ordering: "
+            + imageOrdering.rawValue
+            + "\n27B prefill: "
+            + String(
+                format: "%.3f s",
+                metrics.visionPrefillSeconds
+            )
+            + "\nPrefix reuse: "
+            + (metrics.prefixReuseHit ? "HIT" : "MISS")
+            + " · retained="
+            + String(metrics.prefixRetainedForReuse)
+            + "\nPrefill split: prefix="
+            + String(
+                format: "%.3f s",
+                metrics.prefixTextSeconds
+            )
+            + " · image="
+            + String(
+                format: "%.3f s",
+                metrics.imagePrefillSeconds
+            )
+            + " · suffix="
+            + String(
+                format: "%.3f s",
+                metrics.suffixPrefillSeconds
+            )
+    }
 }
 
 struct ProductionView: View {
