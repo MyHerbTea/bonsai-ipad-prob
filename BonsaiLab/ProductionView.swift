@@ -51,6 +51,8 @@ struct ProductionView: View {
     @State private var answerLength = AnswerLengthPreset.standard
     @State private var question = "请描述这张图片的主要内容。"
     @State private var inferenceMode = VisionInferenceMode.accelerated
+    @AppStorage("BonsaiRC1232VisionPrefixKVReuseEnabled")
+    private var visionPrefixKVReuseEnabled = false
 
     @State private var output = ""
     @State private var status = "准备就绪"
@@ -356,6 +358,20 @@ struct ProductionView: View {
                             "资源保护",
                             value: "自动"
                         )
+
+                        Toggle(
+                            "实验：Vision Prefix KV Reuse",
+                            isOn:
+                                $visionPrefixKVReuseEnabled
+                        )
+                        Text(
+                            visionPrefixKVReuseEnabled
+                                ? "RC1.23.2 实验路径已启用：同图 + 同 system prompt 时尝试保留 prefix+image KV；partial trim 不受支持时会自动清空并回退。"
+                                : "默认关闭。用于与 RC1.23.1 baseline 做受控 A/B；不会改变 BVCACHE1 或 Vision Tower。"
+                        )
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
                         Text(
                             "缓存命中时保持 warm session；新图且可用内存偏低时优先释放常驻状态，必要时才自动降低视觉档位。设备认证不会启用该策略。"
                         )
@@ -1090,6 +1106,13 @@ struct ProductionView: View {
             "api_op_offload=false",
             "api_kv_unified=true",
             "api_load_mode=mmap",
+            "vision_prefix_kv_reuse_enabled="
+                + String(
+                    defaults.bool(
+                        forKey:
+                            "BonsaiRC1232VisionPrefixKVReuseEnabled"
+                    )
+                ),
             "",
             "[STAGES]",
             "last_stage=\(lastStage)",
@@ -1470,6 +1493,12 @@ struct ProductionView: View {
                                             payload.reasoningEffort,
                                         requireFullOutputBudget:
                                             true,
+                                        enablePrefixReuse:
+                                            UserDefaults.standard
+                                                .bool(
+                                                    forKey:
+                                                        "BonsaiRC1232VisionPrefixKVReuseEnabled"
+                                                ),
                                         onDelta: onDelta
                                     )
                         } catch let error as LabError {
@@ -1581,7 +1610,45 @@ struct ProductionView: View {
                             "grid=\(packet.gridY)x\(packet.gridX)",
                             "n_pos=\(max(packet.gridX, packet.gridY))",
                             "image_ordering=\(payload.imageOrdering.rawValue)",
-                            "cache_reuse=not_enabled_baseline",
+                            "prefix_reuse_enabled="
+                                + String(
+                                    UserDefaults.standard
+                                        .bool(
+                                            forKey:
+                                                "BonsaiRC1232VisionPrefixKVReuseEnabled"
+                                        )
+                                ),
+                            "prefix_reuse_hit="
+                                + String(
+                                    metrics.prefixReuseHit
+                                ),
+                            "prefix_retained="
+                                + String(
+                                    metrics.prefixRetainedForReuse
+                                ),
+                            "prefix_positions=\(metrics.prefixPositions)",
+                            "prefix_text_ms="
+                                + RC1232PerformanceDiagnostics
+                                    .formatMilliseconds(
+                                        metrics.prefixTextSeconds
+                                            * 1_000
+                                    ),
+                            "image_prefill_ms="
+                                + RC1232PerformanceDiagnostics
+                                    .formatMilliseconds(
+                                        metrics.imagePrefillSeconds
+                                            * 1_000
+                                    ),
+                            "suffix_prefill_ms="
+                                + RC1232PerformanceDiagnostics
+                                    .formatMilliseconds(
+                                        metrics.suffixPrefillSeconds
+                                            * 1_000
+                                    ),
+                            "cache_reuse="
+                                + (metrics.prefixReuseHit
+                                    ? "vision_prefix_kv_hit"
+                                    : "vision_prefix_kv_miss"),
                             "total_ms="
                                 + RC1232PerformanceDiagnostics
                                     .formatMilliseconds(
@@ -1604,6 +1671,29 @@ struct ProductionView: View {
                                 + String(
                                     format: "%.3f s",
                                     metrics.visionPrefillSeconds
+                                )
+                                + "\nPrefix reuse: "
+                                + (metrics.prefixReuseHit
+                                    ? "HIT"
+                                    : "MISS")
+                                + " · retained="
+                                + String(
+                                    metrics.prefixRetainedForReuse
+                                )
+                                + "\nPrefill split: prefix="
+                                + String(
+                                    format: "%.3f s",
+                                    metrics.prefixTextSeconds
+                                )
+                                + " · image="
+                                + String(
+                                    format: "%.3f s",
+                                    metrics.imagePrefillSeconds
+                                )
+                                + " · suffix="
+                                + String(
+                                    format: "%.3f s",
+                                    metrics.suffixPrefillSeconds
                                 ),
                             forKey:
                                 "BonsaiRC1231LastAPIVisionMetrics"
