@@ -256,6 +256,34 @@ final class CertificationRunRecorder: ObservableObject {
             name: "app_recovered_interrupted_run",
             fields: [
                 "recovered_at": Self.isoTimestamp(),
+                "last_stage":
+                    UserDefaults.standard.string(
+                        forKey: "BonsaiLabLastStage"
+                    ) ?? "无",
+                "engine_stage":
+                    persistedDiagnosticFile(
+                        "bonsai_engine_stage.txt"
+                    ),
+                "staged_vision_stage":
+                    persistedDiagnosticFile(
+                        "bonsai_staged_vision_stage.txt"
+                    ),
+                "two_phase_vision_stage":
+                    persistedDiagnosticFile(
+                        "bonsai_two_phase_vision_stage.txt"
+                    ),
+                "mlx_vision_stage":
+                    persistedDiagnosticFile(
+                        "bonsai_mlx_vision_stage.txt"
+                    ),
+                "mlx_injection_stage":
+                    persistedDiagnosticFile(
+                        "bonsai_mlx_injection_stage.txt"
+                    ),
+                "api_preflight":
+                    persistedDiagnosticFile(
+                        "bonsai_api_preflight.txt"
+                    ),
             ]
         )
 
@@ -285,6 +313,27 @@ final class CertificationRunRecorder: ObservableObject {
                 archiveURL: nil
             )
         }
+    }
+
+    private func persistedDiagnosticFile(
+        _ name: String
+    ) -> String {
+        let url =
+            FileManager.default.urls(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask
+            )[0]
+            .appendingPathComponent(name)
+
+        return (
+            try? String(
+                contentsOf: url,
+                encoding: .utf8
+            )
+        )?
+        .trimmingCharacters(
+            in: .whitespacesAndNewlines
+        ) ?? "无"
     }
 
     private func appendEventLocked(
