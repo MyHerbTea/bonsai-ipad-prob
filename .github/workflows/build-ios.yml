@@ -1,4 +1,4 @@
-name: Build Bonsai iPad Lab v1 RC1.23.5 Dynamic Context AB
+name: Build Bonsai iPad Lab v1 RC1.23.6 Certification Recorder
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
       - lab-v1-rc1-23-3-production-hardening
       - lab-v1-rc1-23-4-generation-decode-efficiency
       - lab-v1-rc1-23-5-ttft-suffix-prefill-efficiency
+      - lab-v1-rc1-23-6-api-runtime-lifecycle-restart-safety
   workflow_dispatch:
 
 concurrency:
@@ -68,7 +69,7 @@ jobs:
           grep -q 'warm.kvReuseHit' BonsaiLab/ProductionView.swift
           grep -q 'UIPasteboard.general.string' BonsaiLab/ProductionView.swift
           grep -q 'MARKETING_VERSION: "1.0.0"' project.yml
-          grep -q 'CURRENT_PROJECT_VERSION: "48"' project.yml
+          grep -q 'CURRENT_PROJECT_VERSION: "49"' project.yml
           grep -q 'reasoningEffort' BonsaiLab/BonsaiEngine.swift
           grep -q 'payload.reasoningEffort' BonsaiLab/ProductionView.swift
           grep -q '<think>\\n\\n</think>\\n\\n' BonsaiLab/BonsaiEngine.swift
@@ -215,6 +216,12 @@ jobs:
           set -euo pipefail
           python3 tools/rc1235_dynamic_context_ab_contract_tests.py
 
+      - name: RC1.23.6 certification recorder contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/rc1236_certification_recorder_contract_tests.py
+
       - name: Show Apple toolchain
         run: |
           set -euo pipefail
@@ -283,7 +290,7 @@ jobs:
           file "$FRAMEWORK"
           otool -L "$APP/BonsaiLab"
           test "$(plutil -extract CFBundleShortVersionString raw -o - "$APP/Info.plist")" = "1.0.0"
-          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "48"
+          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "49"
           nm -gU "$FRAMEWORK" > build/llama-symbols.txt
           grep -q '_mtmd_init_from_file' build/llama-symbols.txt
           grep -q '_mtmd_helper_eval_chunks' build/llama-symbols.txt
@@ -300,29 +307,29 @@ jobs:
           ditto "$APP" build/ipa/Payload/BonsaiLab.app
 
           cat > build/BUILD_INFO.txt <<'INFO'
-          Bonsai iPad Lab v1 RC1.23.5 Build 48
+          Bonsai iPad Lab v1 RC1.23.6 Build 49
           Prism: prism-b10743-adfffbe
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
-          Runtime: RC1.23.4 frozen Accelerated flags, batch=8, ubatch=8, n_seq_max=1, C2-B unchanged
-          Build 48 Phase B: explicit 512 Baseline vs 256 Experimental API context selector for controlled A/B only. Default remains 512. No automatic dynamic-context policy is enabled.
+          Production behavior remains RC1.23.4 frozen: Accelerated, ctx=512 default, batch=8, ubatch=8, n_seq_max=1, C2-B unchanged
+          Build 49 Phase A: crash-resilient single-file certification recorder infrastructure. No restart lifecycle fix is enabled yet.
           Model and Vision Tower weights are NOT bundled in the IPA.
           INFO
           echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.23.5-build48-dynamic-context-ab-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.23.6-build49-certification-recorder-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.23.5-build48-dynamic-context-ab-unsigned.ipa | tee build/BonsaiLab-v1-RC1.23.5-build48-dynamic-context-ab-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.23.6-build49-certification-recorder-unsigned.ipa | tee build/BonsaiLab-v1-RC1.23.6-build49-certification-recorder-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.23.5-Build48-Dynamic-Context-AB-Candidate
+          name: BonsaiLab-iPad-v1-RC1.23.6-Build49-Certification-Recorder-Candidate
           path: |
-            build/BonsaiLab-v1-RC1.23.5-build48-dynamic-context-ab-unsigned.ipa
-            build/BonsaiLab-v1-RC1.23.5-build48-dynamic-context-ab-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.23.6-build49-certification-recorder-unsigned.ipa
+            build/BonsaiLab-v1-RC1.23.6-build49-certification-recorder-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             RC1.20_RELEASE_ACCEPTANCE.md
             OPENAI_API_QUICKSTART_RC1.20.md
@@ -352,6 +359,10 @@ jobs:
             RC1.23.5_SUFFIX_PREFILL_PROFILING.md
             RC1.23.5_PHASE_A_DEVICE_EVIDENCE.md
             RC1.23.5_DYNAMIC_CONTEXT_AB.md
+            RC1.23.5_PHASE_B_DEVICE_EVIDENCE.md
+            RC1.23.5_NO_SAFE_WIN_CLOSURE.md
+            NEXT_STAGE_AFTER_RC1.23.5.md
+            RC1.23.6_CERTIFICATION_RECORDER.md
             tools/rc1232_observability_contract_tests.py
             tools/rc1233_long_run_observability_contract_tests.py
             tools/rc1233_thermal_recovery_probe.ps1
@@ -361,6 +372,7 @@ jobs:
             tools/rc1234_generation_probe.ps1
             tools/rc1235_suffix_prefill_profiling_contract_tests.py
             tools/rc1235_dynamic_context_ab_contract_tests.py
+            tools/rc1236_certification_recorder_contract_tests.py
             THIRD_PARTY_MLX_VISION_NOTICE.md
             tools/extract_bonsai_vision_tower.py
             build.log
