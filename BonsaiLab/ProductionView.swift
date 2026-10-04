@@ -684,6 +684,8 @@ struct ProductionView: View {
     @Environment(\.scenePhase) private var scenePhase
     private let engine = BonsaiEngine()
     @StateObject private var apiServer = LocalOpenAIServer()
+    @StateObject private var certificationRecorder =
+        CertificationRunRecorder()
 
     @State private var modelURL: URL?
     @State private var mmprojURL: URL?
@@ -988,6 +990,61 @@ struct ProductionView: View {
                     }
                 }
 
+                Section("RC1.23.6 Certification Recorder") {
+                    LabeledContent(
+                        "状态",
+                        value: certificationRecorder.statusText
+                    )
+
+                    LabeledContent(
+                        "已记录",
+                        value:
+                            "\(certificationRecorder.eventCount) events · "
+                            + "\(certificationRecorder.snapshotCount) snapshots"
+                    )
+
+                    if certificationRecorder.isRecording {
+                        Button("记录当前诊断快照") {
+                            certificationRecorder.recordSnapshot(
+                                label: "manual_snapshot",
+                                diagnostic: buildDiagnosticSnapshot()
+                            )
+                        }
+
+                        Button("完成并生成单文件存档") {
+                            certificationRecorder.recordSnapshot(
+                                label: "final_snapshot",
+                                diagnostic: buildDiagnosticSnapshot()
+                            )
+                            _ = certificationRecorder.finishRun(
+                                summary:
+                                    "Manual recorder infrastructure check completed."
+                            )
+                        }
+                    } else {
+                        Button("开始记录器（基础设施验证）") {
+                            startCertificationRecorder()
+                        }
+                        .disabled(modelURL == nil)
+                    }
+
+                    if let archiveURL =
+                        certificationRecorder.latestArchiveURL {
+                        ShareLink(item: archiveURL) {
+                            Label(
+                                "分享最近测试存档",
+                                systemImage: "square.and.arrow.up"
+                            )
+                        }
+                    }
+
+                    Text(
+                        "Build 49 先验证单文件、崩溃可恢复的记录基础设施。后续 Restart Certification Runner 会自动开始记录、自动抓取每轮诊断并自动完成存档，不要求逐轮手工复制。"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+
                 Section {
                     DisclosureGroup(
                         "高级与诊断",
@@ -1231,6 +1288,8 @@ struct ProductionView: View {
                     && apiContextProfile != "512" {
                     apiContextProfile = "512"
                 }
+                certificationRecorder
+                    .recoverInterruptedRunIfNeeded()
                 recoverPreviousFailureHint()
             }
             .onChange(of: scenePhase) { newPhase in
@@ -1897,6 +1956,57 @@ struct ProductionView: View {
             $0.contains("Optional(")
         }
         return lines.joined(separator: "\n")
+    }
+
+    private func startCertificationRecorder() {
+        let build =
+            Bundle.main.object(
+                forInfoDictionaryKey:
+                    "CFBundleVersion"
+            ) as? String ?? "?"
+
+        let environment: [String: String] = [
+            "device": UIDevice.current.model,
+            "os":
+                UIDevice.current.systemName
+                + " "
+                + UIDevice.current.systemVersion,
+            "physical_memory_mib":
+                String(
+                    ProcessInfo.processInfo.physicalMemory
+                    / 1_048_576
+                ),
+            "main_model": modelName,
+            "vision_tower": mlxVisionWeightsName,
+            "runtime_profile": apiRuntimeProfile,
+            "api_context_profile": apiContextProfile,
+            "vision_prefix_kv_reuse_enabled":
+                String(visionPrefixKVReuseEnabled),
+        ]
+
+        guard
+            certificationRecorder.startRun(
+                stage:
+                    "RC1.23.6 Certification Recorder",
+                build: build,
+                environment: environment
+            ) != nil
+        else {
+            return
+        }
+
+        certificationRecorder.recordEvent(
+            "environment_ready",
+            fields: [
+                "api_running":
+                    String(apiServer.isRunning),
+                "status": status,
+            ]
+        )
+        certificationRecorder.recordSnapshot(
+            label: "initial_snapshot",
+            diagnostic: buildDiagnosticSnapshot()
+        )
     }
 
     private func startAPIServer() {
