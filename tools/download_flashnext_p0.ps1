@@ -1,5 +1,5 @@
 param(
-    [string]$Destination = "D:\\models\\flashnext-p0"
+    [string]$Destination = "D:\models\flashnext-p0"
 )
 
 $ErrorActionPreference = "Stop"
