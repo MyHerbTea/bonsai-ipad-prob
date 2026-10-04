@@ -688,13 +688,28 @@ static std::string token_piece(
     return std::string(buf.data(), static_cast<size_t>(n));
 }
 
+struct TextChunkDecodeProfile {
+    int32_t token_count = 0;
+    int32_t decode_calls = 0;
+    int32_t batch_capacity = 0;
+    int32_t last_batch_tokens = 0;
+};
+
 static int32_t decode_text_chunk(
     llama_context * ctx,
     const PacketChunk & chunk,
     llama_pos & n_past,
     int32_t n_batch,
-    bool logits_last
+    bool logits_last,
+    TextChunkDecodeProfile * profile = nullptr
 ) {
+    if (profile != nullptr) {
+        profile->token_count = static_cast<int32_t>(chunk.tokens.size());
+        profile->decode_calls = 0;
+        profile->batch_capacity = n_batch;
+        profile->last_batch_tokens = 0;
+    }
+
     size_t offset = 0;
 
     while (offset < chunk.tokens.size()) {
@@ -704,6 +719,11 @@ static int32_t decode_text_chunk(
                 chunk.tokens.size() - offset
             )
         );
+
+        if (profile != nullptr) {
+            profile->decode_calls += 1;
+            profile->last_batch_tokens = count;
+        }
 
         llama_batch batch = llama_batch_init(count, 0, 1);
         batch.n_tokens = 0;
@@ -1558,6 +1578,8 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
     const size_t begin_index =
         can_reuse_prefix ? 2u : 0u;
 
+    TextChunkDecodeProfile suffix_profile;
+
     for (size_t i = begin_index; i < packet.size(); ++i) {
         const bool is_last = i + 1 == packet.size();
         const auto chunk_start =
@@ -1570,7 +1592,8 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
                     packet[i],
                     n_past,
                     n_batch,
-                    is_last
+                    is_last,
+                    i == 2 ? &suffix_profile : nullptr
                 )
                 : decode_image_chunk(
                     ctx,
@@ -1629,6 +1652,20 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
             );
         }
     }
+
+    result.suffix_token_count = suffix_profile.token_count;
+    result.suffix_decode_calls = suffix_profile.decode_calls;
+    result.suffix_batch_capacity = suffix_profile.batch_capacity;
+    result.suffix_last_batch_tokens = suffix_profile.last_batch_tokens;
+    result.suffix_batch_utilization =
+        suffix_profile.decode_calls > 0 &&
+        suffix_profile.batch_capacity > 0
+            ? static_cast<double>(suffix_profile.token_count) /
+                static_cast<double>(
+                    suffix_profile.decode_calls *
+                    suffix_profile.batch_capacity
+                )
+            : 0.0;
 
     result.prefill_ms = elapsed_ms(
         prefill_start,
