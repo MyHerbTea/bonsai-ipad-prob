@@ -526,6 +526,12 @@ struct VisionMetrics: Sendable {
     let prefixTextSeconds: Double
     let imagePrefillSeconds: Double
     let suffixPrefillSeconds: Double
+    let suffixTokenCount: Int
+    let suffixDecodeCalls: Int
+    let suffixBatchCapacity: Int
+    let suffixUBatchCapacity: Int
+    let suffixLastBatchTokens: Int
+    let suffixBatchUtilization: Double
     let prefixRetainedForReuse: Bool
 
     init(
@@ -537,6 +543,12 @@ struct VisionMetrics: Sendable {
         prefixTextSeconds: Double = 0,
         imagePrefillSeconds: Double = 0,
         suffixPrefillSeconds: Double = 0,
+        suffixTokenCount: Int = 0,
+        suffixDecodeCalls: Int = 0,
+        suffixBatchCapacity: Int = 0,
+        suffixUBatchCapacity: Int = 0,
+        suffixLastBatchTokens: Int = 0,
+        suffixBatchUtilization: Double = 0,
         prefixRetainedForReuse: Bool = false
     ) {
         self.generation = generation
@@ -547,6 +559,12 @@ struct VisionMetrics: Sendable {
         self.prefixTextSeconds = prefixTextSeconds
         self.imagePrefillSeconds = imagePrefillSeconds
         self.suffixPrefillSeconds = suffixPrefillSeconds
+        self.suffixTokenCount = suffixTokenCount
+        self.suffixDecodeCalls = suffixDecodeCalls
+        self.suffixBatchCapacity = suffixBatchCapacity
+        self.suffixUBatchCapacity = suffixUBatchCapacity
+        self.suffixLastBatchTokens = suffixLastBatchTokens
+        self.suffixBatchUtilization = suffixBatchUtilization
         self.prefixRetainedForReuse = prefixRetainedForReuse
     }
 }
