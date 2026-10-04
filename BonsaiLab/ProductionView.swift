@@ -1802,7 +1802,7 @@ struct ProductionView: View {
             "[LAST API REQUEST PERFORMANCE]",
             apiPerformanceMetrics,
             "",
-            "[RC1.23.4 GENERATION REQUEST HISTORY]",
+            "[RC1.23.3 LONG-RUN REQUEST HISTORY]",
             longRunRequestHistory,
             "",
             "[RESOURCE / MEMORY]",
