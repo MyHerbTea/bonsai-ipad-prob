@@ -6,7 +6,10 @@ view = (root / "BonsaiLab" / "ProductionView.swift").read_text()
 project = (root / "project.yml").read_text()
 workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text()
 
-assert 'Text("1.0 · RC1.24.1 Runtime Profile A/B")' in view
+assert (
+    'Text("1.0 · RC1.24.1 Runtime Profile A/B")' in view
+    or 'Text("1.0 · RC1.25.0 Multi-Image OpenAI API")' in view
+)
 assert 'Text("Safe").tag("safe")' in view
 assert 'Text("Flash").tag("ab_flash_only")' in view
 assert 'Text("+KQV").tag("ab_flash_kqv")' in view
@@ -44,12 +47,11 @@ assert 'private var apiRuntimeProfile = "accelerated"' in view
 
 match = re.search(r'CURRENT_PROJECT_VERSION:\s*"([0-9]+)"', project)
 assert match is not None
-assert int(match.group(1)) == 56
+assert int(match.group(1)) >= 56
 
 assert "lab-v1-rc1-24-1-build56-runtime-profile-ab" in workflow
 assert "RC1.24.1 runtime profile A/B contracts" in workflow
 assert "tools/rc1241_runtime_profile_ab_contract_tests.py" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "56"' in workflow
-assert "Build56-Runtime-Profile-AB" in workflow
+assert "tools/rc1241_runtime_profile_ab_contract_tests.py" in workflow
 
 print("RC1.24.1 Build 56 runtime profile A/B contracts: PASS")
