@@ -1031,15 +1031,21 @@ struct ProductionView: View {
                     if let archiveURL =
                         certificationRecorder.latestArchiveURL {
                         ShareLink(item: archiveURL) {
-                            Label(
-                                "分享测试结果",
-                                systemImage: "square.and.arrow.up"
-                            )
+                            Label("分享最近测试结果", systemImage: "square.and.arrow.up")
                         }
+                    } else {
+                        Text("暂无可分享的测试存档")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button("刷新测试存档") {
+                        certificationRecorder
+                            .refreshLatestArchiveFromDisk()
                     }
 
                     Text(
-                        "只需选择主模型、Vision Tower 和测试图片后点击一次。Build 50 固定使用 Accelerated + 512 context，自动执行 4 轮 stop → awaited unload → start → seed → warm，并把全部生命周期事件与诊断写入一个 BONSAI-RUN-*.json。"
+                        "只需选择主模型、Vision Tower 和测试图片后点击一次。Build 51 固定使用 Accelerated + 512 context，自动执行 4 轮 stop → awaited unload → start → seed → warm，并把全部生命周期事件与诊断写入一个 BONSAI-RUN-*.json。崩溃后重新打开 App 会自动恢复并扫描最近存档。"
                     )
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -1282,6 +1288,8 @@ struct ProductionView: View {
                 }
                 certificationRecorder
                     .recoverInterruptedRunIfNeeded()
+                certificationRecorder
+                    .refreshLatestArchiveFromDisk()
                 recoverPreviousFailureHint()
             }
             .onChange(of: scenePhase) { newPhase in
