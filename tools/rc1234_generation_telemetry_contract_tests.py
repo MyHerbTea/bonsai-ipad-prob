@@ -6,16 +6,19 @@ engine = (root / "BonsaiLab" / "BonsaiEngine.swift").read_text()
 view = (root / "BonsaiLab" / "ProductionView.swift").read_text()
 project = (root / "project.yml").read_text()
 
+metrics_start = types.index("struct GenerationMetrics: Sendable {")
+metrics_end = types.index("struct ModelMetrics: Sendable {", metrics_start)
+metrics = types[metrics_start:metrics_end]
+
 assert "enum GenerationTerminationReason: String, Sendable" in types
 assert "case eog" in types
 assert "case length" in types
 assert "var openAIFinishReason: String" in types
 
-assert "let requestedMaxTokens: Int" in types
-assert "let effectiveMaxTokens: Int" in types
-assert "let terminationReason: GenerationTerminationReason" in types
+assert "let requestedMaxTokens: Int" in metrics
+assert "let effectiveMaxTokens: Int" in metrics
+assert "let terminationReason: GenerationTerminationReason" in metrics
 
-assert "terminationReason: generated.terminationReason" in engine
 assert engine.count("terminationReason: generated.terminationReason") >= 3
 assert "var terminationReason: GenerationTerminationReason = .length" in engine
 assert "terminationReason = .eog" in engine
