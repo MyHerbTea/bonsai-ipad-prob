@@ -2973,10 +2973,14 @@ struct ProductionView: View {
                             .beginRequest()
                     let requestStart =
                         requestObservation.start
-                    let requestRoute =
-                        payload.imageData == nil
-                        ? "text"
-                        : "vision"
+                    let requestRoute: String
+                    if payload.images.isEmpty {
+                        requestRoute = "text"
+                    } else if payload.imageCount == 1 {
+                        requestRoute = "vision"
+                    } else {
+                        requestRoute = "vision_multi"
+                    }
                     let requestResourceSnapshotStart =
                         await sharedEngine
                             .apiAdmissionSnapshot()
@@ -3037,7 +3041,7 @@ struct ProductionView: View {
                             + reasoningInstruction
                     }
 
-                    if let imageData = payload.imageData {
+                    if !payload.images.isEmpty {
                         guard
                             let selectedMLXVisionWeightsURL
                         else {
@@ -3051,6 +3055,60 @@ struct ProductionView: View {
                             )
                         }
 
+                        let preparedImageData: Data
+                        let preparedImageExtension: String
+                        let multiImageLayout: String
+                        let visionQuestion: String
+
+                        if payload.imageCount == 1,
+                           let firstImage = payload.images.first {
+                            preparedImageData = firstImage.data
+                            preparedImageExtension =
+                                firstImage.fileExtension
+                            multiImageLayout = "single"
+                            visionQuestion = payload.userPrompt
+                        } else {
+                            let composition:
+                                OpenAIMultiImageComposition
+                            do {
+                                composition =
+                                    try OpenAIMultiImageComposer
+                                        .compose(payload.images)
+                            } catch {
+                                throw OpenAIHandlerHTTPError(
+                                    status: 400,
+                                    code:
+                                        "multi_image_compose_failed",
+                                    message:
+                                        error.localizedDescription
+                                )
+                            }
+
+                            preparedImageData = composition.data
+                            preparedImageExtension =
+                                composition.fileExtension
+                            multiImageLayout = composition.layout
+                            visionQuestion =
+                                OpenAIMultiImageComposer
+                                    .promptPrefix(
+                                        imageCount:
+                                            payload.imageCount
+                                    )
+                                + "\n\n"
+                                + payload.userPrompt
+                        }
+
+                        UserDefaults.standard.set(
+                            payload.imageCount,
+                            forKey:
+                                "BonsaiRC1250LastAPIImageCount"
+                        )
+                        UserDefaults.standard.set(
+                            multiImageLayout,
+                            forKey:
+                                "BonsaiRC1250LastMultiImageLayout"
+                        )
+
                         let imageURL = FileManager.default
                             .temporaryDirectory
                             .appendingPathComponent(
@@ -3058,13 +3116,13 @@ struct ProductionView: View {
                                 + UUID().uuidString
                             )
                             .appendingPathExtension(
-                                payload.imageExtension
+                                preparedImageExtension
                             )
 
                         let imageWriteStart =
                             RC1232PerformanceDiagnostics.now()
                         do {
-                            try imageData.write(
+                            try preparedImageData.write(
                                 to: imageURL,
                                 options: .atomic
                             )
@@ -3253,7 +3311,7 @@ struct ProductionView: View {
                                         systemPrompt:
                                             apiSystemPrompt,
                                         question:
-                                            payload.userPrompt,
+                                            visionQuestion,
                                         generation: gen,
                                         reasoningEffort:
                                             payload.reasoningEffort,
