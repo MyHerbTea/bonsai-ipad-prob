@@ -505,6 +505,34 @@ struct VisionMetrics: Sendable {
     let generation: GenerationMetrics
     let mediaTokens: Int
     let visionPrefillSeconds: Double
+    let prefixReuseHit: Bool
+    let prefixPositions: Int
+    let prefixTextSeconds: Double
+    let imagePrefillSeconds: Double
+    let suffixPrefillSeconds: Double
+    let prefixRetainedForReuse: Bool
+
+    init(
+        generation: GenerationMetrics,
+        mediaTokens: Int,
+        visionPrefillSeconds: Double,
+        prefixReuseHit: Bool = false,
+        prefixPositions: Int = 0,
+        prefixTextSeconds: Double = 0,
+        imagePrefillSeconds: Double = 0,
+        suffixPrefillSeconds: Double = 0,
+        prefixRetainedForReuse: Bool = false
+    ) {
+        self.generation = generation
+        self.mediaTokens = mediaTokens
+        self.visionPrefillSeconds = visionPrefillSeconds
+        self.prefixReuseHit = prefixReuseHit
+        self.prefixPositions = prefixPositions
+        self.prefixTextSeconds = prefixTextSeconds
+        self.imagePrefillSeconds = imagePrefillSeconds
+        self.suffixPrefillSeconds = suffixPrefillSeconds
+        self.prefixRetainedForReuse = prefixRetainedForReuse
+    }
 }
 
 enum LabError: LocalizedError {
