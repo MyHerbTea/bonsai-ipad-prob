@@ -17,7 +17,12 @@ assert "cancelListenerForRestart" in server
 assert "withCheckedContinuation" in server
 assert ".cancelled" in server
 assert "listenerGeneration" in server
-assert "guard self.listenerGeneration == generation" in server
+assert re.search(
+    r'guard\s+self\.listenerGeneration\s*==\s*generation\s*'
+    r'else\s*\{\s*return\s*\}',
+    server,
+    flags=re.S,
+)
 
 restart_start = server.index("func restartListenerPreservingHandler(")
 restart_end = server.index("func stop()", restart_start)
