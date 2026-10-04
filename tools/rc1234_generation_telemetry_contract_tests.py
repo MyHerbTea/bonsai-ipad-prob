@@ -15,14 +15,16 @@ assert "case eog" in types
 assert "case length" in types
 assert "var openAIFinishReason: String" in types
 
-assert "let requestedMaxTokens: Int" in metrics
 assert "let effectiveMaxTokens: Int" in metrics
 assert "let terminationReason: GenerationTerminationReason" in metrics
 
 assert engine.count("terminationReason: generated.terminationReason") >= 3
 assert "var terminationReason: GenerationTerminationReason = .length" in engine
 assert "terminationReason = .eog" in engine
+assert engine.count("effectiveMaxTokens:") >= 3
 
+assert view.count("requestedMaxTokens: Int") >= 2
+assert view.count("requestedMaxTokens: payload.maxTokens") >= 2
 assert "requested_max_tokens=" in view
 assert "effective_max_tokens=" in view
 assert "termination_reason=" in view
