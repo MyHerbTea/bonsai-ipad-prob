@@ -295,10 +295,26 @@ struct VisionConfig: Equatable, Sendable {
     }
 }
 
+enum GenerationTerminationReason: String, Sendable {
+    case eog
+    case length
+
+    var openAIFinishReason: String {
+        switch self {
+        case .eog:
+            return "stop"
+        case .length:
+            return "length"
+        }
+    }
+}
+
 struct GenerationMetrics: Sendable {
     let text: String
     let generatedTokens: Int
     let promptTokens: Int
+    let effectiveMaxTokens: Int
+    let terminationReason: GenerationTerminationReason
     let ttftSeconds: Double
     let generationSeconds: Double
     let tokensPerSecond: Double
