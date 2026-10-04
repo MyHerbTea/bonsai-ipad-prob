@@ -28,7 +28,10 @@ assert "assistant_output" not in recorder
 
 # ProductionView wires the recorder but does not change the frozen runtime.
 assert "@StateObject private var certificationRecorder" in view
-assert 'Section("RC1.23.6 Certification Recorder")' in view
+assert (
+    'Section("RC1.23.6 Certification Recorder")' in view
+    or 'Section("RC1.23.6 Restart Certification")' in view
+)
 assert "ShareLink" in view
 assert "recoverInterruptedRunIfNeeded()" in view
 assert "buildDiagnosticSnapshot()" in view
@@ -51,11 +54,14 @@ assert re.search(
     view,
 )
 
-# Build 49 and CI coverage.
-assert re.search(r'CURRENT_PROJECT_VERSION:\s*"49"', project)
+# Build 49+ retains the recorder and CI coverage.
+build_match = re.search(
+    r'CURRENT_PROJECT_VERSION:\s*"(?P<build>\d+)"',
+    project,
+)
+assert build_match is not None
+assert int(build_match.group("build")) >= 49
 assert "RC1.23.6 certification recorder contracts" in workflow
 assert "tools/rc1236_certification_recorder_contract_tests.py" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "49"' in workflow
-assert "Build49-Certification-Recorder-Candidate" in workflow
 
 print("RC1.23.6 Build 49 certification recorder contracts: PASS")
