@@ -703,6 +703,8 @@ struct ProductionView: View {
     private var visionPrefixKVReuseEnabled = false
     @AppStorage("BonsaiRC1233APIRuntimeProfile")
     private var apiRuntimeProfile = "accelerated"
+    @AppStorage("BonsaiRC1235APIContextProfile")
+    private var apiContextProfile = "512"
 
     @State private var output = ""
     @State private var status = "准备就绪"
@@ -1027,6 +1029,24 @@ struct ProductionView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
+                        Picker(
+                            "实验：API Context",
+                            selection: $apiContextProfile
+                        ) {
+                            Text("512 Baseline").tag("512")
+                            Text("256 Experimental").tag("256")
+                        }
+                        .pickerStyle(.segmented)
+                        .disabled(apiServer.isRunning)
+
+                        Text(
+                            apiContextProfile == "256"
+                                ? "256：RC1.23.5 Phase B 真机 A/B 实验；仅用于验证更小 context 是否降低 TTFT / suffix prefill。"
+                                : "512：RC1.23.4 冻结基线。Build 48 默认保持此档。"
+                        )
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
                         Toggle(
                             "实验：Vision Prefix KV Reuse",
                             isOn:
@@ -1206,6 +1226,10 @@ struct ProductionView: View {
             .onAppear {
                 if apiRuntimeProfile == "flash" {
                     apiRuntimeProfile = "accelerated"
+                }
+                if apiContextProfile != "256"
+                    && apiContextProfile != "512" {
+                    apiContextProfile = "512"
                 }
                 recoverPreviousFailureHint()
             }
@@ -1760,6 +1784,23 @@ struct ProductionView: View {
         let apiOpOffload =
             effectiveAPIRuntimeProfile == "accelerated"
 
+        let requestedAPIContextProfile =
+            defaults.string(
+                forKey: "BonsaiRC1235APIContextProfile"
+            ) ?? "512"
+        let requestedAPIContext =
+            requestedAPIContextProfile == "256"
+                ? 256
+                : 512
+        let activeAPIContext =
+            defaults.integer(
+                forKey: "BonsaiRC1235ActiveAPIContext"
+            )
+        let effectiveAPIContext =
+            apiServer.isRunning && activeAPIContext > 0
+                ? activeAPIContext
+                : requestedAPIContext
+
         var lines: [String] = [
             "=== BONSAILAB DIAGNOSTIC SNAPSHOT v1 ===",
             "captured_at=\(capturedAt)",
@@ -1795,7 +1836,10 @@ struct ProductionView: View {
             "ui_image_tokens=\(vision.imageMaxTokens)",
             "ui_batch=\(vision.contextBatch)",
             "ui_ubatch=\(vision.contextUBatch)",
-            "api_context=512",
+            "api_context=\(effectiveAPIContext)",
+            "rc1235_api_context_requested=\(requestedAPIContext)",
+            "rc1235_api_context_active=\(activeAPIContext)",
+            "rc1235_api_context_profile=\(requestedAPIContextProfile)",
             "api_batch=8",
             "api_ubatch=8",
             "api_runtime_profile=\(effectiveAPIRuntimeProfile)",
@@ -1868,6 +1912,10 @@ struct ProductionView: View {
             apiRuntimeProfile == "safe"
                 ? "safe"
                 : "accelerated"
+        let selectedAPIContext =
+            apiContextProfile == "256"
+                ? 256
+                : 512
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
@@ -1884,7 +1932,7 @@ struct ProductionView: View {
                 await sharedEngine.unloadAll()
 
                 var apiRuntime = selectedRuntime
-                apiRuntime.context = 512
+                apiRuntime.context = selectedAPIContext
                 apiRuntime.batch = 8
                 apiRuntime.ubatch = 8
 
@@ -1905,6 +1953,12 @@ struct ProductionView: View {
                 _ = try await sharedEngine.loadModel(
                     url: selectedModelURL,
                     runtime: apiRuntime
+                )
+
+                UserDefaults.standard.set(
+                    selectedAPIContext,
+                    forKey:
+                        "BonsaiRC1235ActiveAPIContext"
                 )
 
                 UserDefaults.standard.set(
@@ -2385,7 +2439,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.23.4 Generation Telemetry 已预热"
+                        "RC1.23.5 Dynamic Context A/B 已预热"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
@@ -2397,6 +2451,8 @@ struct ProductionView: View {
                         )
                         + " Runtime Profile="
                         + profileText
+                        + " · API Context="
+                        + String(selectedAPIContext)
                 }
             } catch {
                 apiServer.stop()
