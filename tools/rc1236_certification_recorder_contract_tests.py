@@ -14,6 +14,13 @@ assert "bonsai_certification_active.json" in recorder
 assert "Application Support" not in recorder  # path is generated via FileManager API
 assert "status = \"interrupted\"" in recorder
 assert "recoverInterruptedRunIfNeeded" in recorder
+assert "app_recovered_interrupted_run" in recorder
+assert "bonsai_engine_stage.txt" in recorder
+assert "bonsai_staged_vision_stage.txt" in recorder
+assert "bonsai_two_phase_vision_stage.txt" in recorder
+assert "bonsai_mlx_vision_stage.txt" in recorder
+assert "bonsai_mlx_injection_stage.txt" in recorder
+assert "bonsai_api_preflight.txt" in recorder
 assert "recordEvent" in recorder
 assert "recordSnapshot" in recorder
 assert "finishRun" in recorder
