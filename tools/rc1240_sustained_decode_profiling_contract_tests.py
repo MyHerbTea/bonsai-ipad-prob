@@ -13,6 +13,7 @@ engine = (root / "BonsaiLab" / "BonsaiEngine.swift").read_text()
 assert (
     'Text("1.0 · RC1.24.0 Sustained Decode Profiling")' in view
     or 'Text("1.0 · RC1.24.1 Runtime Profile A/B")' in view
+    or 'Text("1.0 · RC1.25.0 Multi-Image OpenAI API")' in view
 )
 assert "[RC1.24.0 SUSTAINED DECODE PROFILING]" in view
 assert "[RC1.23.3 LONG-RUN REQUEST HISTORY]" in view
