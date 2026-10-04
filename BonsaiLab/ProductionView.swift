@@ -2891,14 +2891,13 @@ struct ProductionView: View {
             mlxVisionWeightsURL
         let selectedRuntime = runtime
         let selectedAPIRuntimeProfile: String
-        switch apiRuntimeProfile {
-        case "safe":
+        if apiRuntimeProfile == "safe" {
             selectedAPIRuntimeProfile = "safe"
-        case "ab_flash_only":
+        } else if apiRuntimeProfile == "ab_flash_only" {
             selectedAPIRuntimeProfile = "ab_flash_only"
-        case "ab_flash_kqv":
+        } else if apiRuntimeProfile == "ab_flash_kqv" {
             selectedAPIRuntimeProfile = "ab_flash_kqv"
-        default:
+        } else {
             selectedAPIRuntimeProfile = "accelerated"
         }
         let selectedAPIContext = 512
