@@ -1920,7 +1920,7 @@ struct ProductionView: View {
         let sharedVisionSidecar = mlxVisionSidecar
 
         busy = true
-        status = "正在预热 RC1.23.1 Runtime…"
+        status = "正在预热 RC1.23.5 Dynamic Context A/B Runtime…"
         detail = """
         Text API 继续使用冻结的 RC1.20.7 路径。
         单图请求使用 RC1.23.0 MLX Live Vision Injection；
@@ -2461,7 +2461,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.23.1 Runtime 预热失败"
+                        "RC1.23.5 Dynamic Context A/B Runtime 预热失败"
                     detail = error.localizedDescription
                 }
             }
