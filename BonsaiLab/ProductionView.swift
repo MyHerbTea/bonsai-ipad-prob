@@ -921,12 +921,24 @@ struct ProductionView: View {
                 Section("局域网 OpenAI API") {
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(apiServer.isRunning ? "服务运行中" : "服务已停止")
-                                .font(.headline)
+                            Text(
+                                apiServer.isRunning
+                                    ? "服务运行中"
+                                    : (
+                                        apiServer.canResumePreservedRuntime
+                                            ? "API 已停止 · Runtime 常驻"
+                                            : "服务已停止"
+                                    )
+                            )
+                            .font(.headline)
                             Text(
                                 apiServer.isRunning
                                     ? apiServer.baseURL
-                                    : "启动后可由同一局域网内的设备调用"
+                                    : (
+                                        apiServer.canResumePreservedRuntime
+                                            ? "可直接恢复 listener，无需重新加载 27B"
+                                            : "启动后可由同一局域网内的设备调用"
+                                    )
                             )
                             .font(.footnote.monospaced())
                             .foregroundStyle(.secondary)
@@ -961,11 +973,9 @@ struct ProductionView: View {
                         .foregroundStyle(.secondary)
 
                         Button("停止 API") {
-                            apiServer.stop()
-                            Task {
-                                await engine.unloadAll()
-                            }
+                            pauseAPIServerPreservingRuntime()
                         }
+                        .disabled(busy)
                         .foregroundStyle(.red)
 
                         Button("复制 API 配置") {
@@ -976,13 +986,25 @@ struct ProductionView: View {
                             apiServer.regenerateKey()
                         }
                     } else {
-                        Button("启动 OpenAI API") {
-                            startAPIServer()
+                        Button(
+                            apiServer.canResumePreservedRuntime
+                                ? "恢复 OpenAI API"
+                                : "启动 OpenAI API"
+                        ) {
+                            startOrResumeAPIServer()
                         }
                         .disabled(
                             busy ||
                             modelURL == nil
                         )
+
+                        if apiServer.canResumePreservedRuntime {
+                            Text(
+                                "27B Runtime 仍保持常驻；进入后台或更换关键模型资产时才会完整释放。"
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
                     }
 
                     if !apiServer.lastError.isEmpty {
@@ -1351,12 +1373,12 @@ struct ProductionView: View {
             guard let url = urls.first else { return }
             switch kind {
             case .model:
-                if apiServer.isRunning { apiServer.stop() }
+                apiServer.stop()
                 Task { await engine.unloadAll() }
                 modelURL = url
                 modelName = url.lastPathComponent
             case .mmproj:
-                if apiServer.isRunning { apiServer.stop() }
+                apiServer.stop()
                 Task { await engine.unloadAll() }
                 mmprojURL = url
                 mmprojName = url.lastPathComponent
@@ -1364,6 +1386,8 @@ struct ProductionView: View {
                 imageURL = url
                 imageName = url.lastPathComponent
             case .mlxVision:
+                apiServer.stop()
+                Task { await engine.unloadAll() }
                 mlxVisionWeightsURL = url
                 mlxVisionWeightsName = url.lastPathComponent
                 mlxVisionSummary = ""
@@ -2030,15 +2054,17 @@ struct ProductionView: View {
             "vision_prefix_kv_reuse_enabled": "true",
             "cycles": String(certificationCycles),
             "restart_strategy":
-                "cycle1_full_load_then_listener_only",
+                "cycle1_full_load_then_product_stop_resume",
             "listener_rebind":
                 "await_cancelled_then_bind_same_port",
+            "product_lifecycle":
+                "stop_listener_preserve_runtime_then_resume",
         ]
 
         guard
             certificationRecorder.startRun(
                 stage:
-                    "RC1.23.6 Build 53 Awaited Listener Rebind",
+                    "RC1.23.6 Build 54 Production Stop Resume",
                 build: build,
                 environment: environment
             ) != nil
@@ -2125,7 +2151,7 @@ struct ProductionView: View {
                         startAPIServer()
                     } else {
                         certificationRunnerProgress =
-                            "Cycle \(cycle)/\(certificationCycles) · resident listener restart"
+                            "Cycle \(cycle)/\(certificationCycles) · product stop"
 
                         certificationRecorder.recordEvent(
                             "resident_restart_requested",
@@ -2136,31 +2162,39 @@ struct ProductionView: View {
                                 "restart_mode": restartMode,
                             ]
                         )
-
                         certificationRecorder.recordEvent(
-                            "listener_cancel_await_begin",
+                            "product_stop_requested",
                             fields: [
                                 "cycle": String(cycle),
                             ]
                         )
 
-                        try await apiServer
-                            .restartListenerPreservingHandler(
-                                port: 8080
-                            )
+                        await pauseAPIListenerPreservingRuntime()
 
                         certificationRecorder.recordEvent(
-                            "listener_cancel_await_finished",
+                            "product_stop_completed",
                             fields: [
                                 "cycle": String(cycle),
+                                "api_running":
+                                    String(apiServer.isRunning),
+                                "runtime_resumable":
+                                    String(
+                                        apiServer
+                                            .canResumePreservedRuntime
+                                    ),
                             ]
                         )
+
+                        certificationRunnerProgress =
+                            "Cycle \(cycle)/\(certificationCycles) · product resume"
                         certificationRecorder.recordEvent(
-                            "resident_restart_listener_started",
+                            "product_resume_requested",
                             fields: [
                                 "cycle": String(cycle),
                             ]
                         )
+
+                        try await resumeAPIListenerPreservingRuntime()
                     }
 
                     try await waitForCertificationAPIReady(
@@ -2168,6 +2202,19 @@ struct ProductionView: View {
                     )
 
                     if cycle > 1 {
+                        certificationRecorder.recordEvent(
+                            "product_resume_ready",
+                            fields: [
+                                "cycle": String(cycle),
+                                "runtime_resumable":
+                                    String(
+                                        apiServer
+                                            .canResumePreservedRuntime
+                                    ),
+                                "api_running":
+                                    String(apiServer.isRunning),
+                            ]
+                        )
                         certificationRecorder.recordEvent(
                             "resident_restart_ready",
                             fields: [
@@ -2270,7 +2317,7 @@ struct ProductionView: View {
 
                 _ = certificationRecorder.finishRun(
                     summary:
-                        "PASS: completed \(certificationCycles) cycles with one full runtime load followed by resident listener restarts."
+                        "PASS: completed \(certificationCycles) cycles with one full runtime load followed by product stop/resume while preserving the resident runtime."
                 )
 
                 certificationRunnerProgress =
@@ -2562,6 +2609,62 @@ struct ProductionView: View {
             label: "initial_snapshot",
             diagnostic: buildDiagnosticSnapshot()
         )
+    }
+
+    private func pauseAPIListenerPreservingRuntime() async {
+        await apiServer.stopListenerPreservingHandler()
+    }
+
+    private func resumeAPIListenerPreservingRuntime() async throws {
+        try await apiServer
+            .restartListenerPreservingHandler(
+                port: 8080
+            )
+    }
+
+    private func pauseAPIServerPreservingRuntime() {
+        guard apiServer.isRunning else {
+            return
+        }
+
+        busy = true
+        status = "正在停止 API listener，保留 27B Runtime…"
+
+        Task { @MainActor in
+            await pauseAPIListenerPreservingRuntime()
+            busy = false
+            status = "API 已停止；27B Runtime 保持常驻"
+            detail =
+                "再次点击“恢复 OpenAI API”将只恢复 listener，不重新加载模型。"
+        }
+    }
+
+    private func startOrResumeAPIServer() {
+        guard apiServer.canResumePreservedRuntime else {
+            startAPIServer()
+            return
+        }
+
+        busy = true
+        status = "正在恢复 OpenAI API listener…"
+        detail = ""
+
+        Task { @MainActor in
+            do {
+                try await resumeAPIListenerPreservingRuntime()
+                try await waitForCertificationAPIReady(
+                    timeoutSeconds: 30
+                )
+                busy = false
+                status = "OpenAI API 已恢复；27B Runtime 未重载"
+                detail =
+                    "Build 54 Production Lifecycle：listener 已恢复，resident runtime 保持不变。"
+            } catch {
+                busy = false
+                status = "OpenAI API 恢复失败"
+                detail = error.localizedDescription
+            }
+        }
     }
 
     private func startAPIServer() {
