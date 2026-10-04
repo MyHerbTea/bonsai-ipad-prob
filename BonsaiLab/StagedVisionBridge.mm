@@ -111,6 +111,8 @@ static constexpr char kVisionCacheMagic[8] = {
 static constexpr uint32_t kVisionCacheVersion = 1;
 
 static std::mutex g_staged_mutex;
+static constexpr llama_seq_id kVisionWorkSeq = 0;
+static constexpr llama_seq_id kVisionPrefixCheckpointSeq = 1;
 static llama_model * g_resident_model = nullptr;
 static std::string g_resident_model_path;
 static int32_t g_resident_gpu_layers = -1;
@@ -1417,10 +1419,53 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
 
     const llama_pos prefix_positions =
         packet[0].n_pos + packet[1].n_pos;
-    const bool can_reuse_prefix =
-        reuse_prefix != 0 &&
+    const bool prefix_checkpoint_enabled =
+        reuse_prefix != 0;
+
+    llama_memory_t mem = llama_get_memory(ctx);
+    if (mem == nullptr) {
+        set_error(
+            out_error,
+            out_error_cap,
+            "llama memory unavailable for cached vision"
+        );
+        result.code = 7;
+        return result;
+    }
+
+    bool can_reuse_prefix =
+        prefix_checkpoint_enabled &&
         expected_prefix_positions > 0 &&
-        expected_prefix_positions == prefix_positions;
+        expected_prefix_positions == prefix_positions &&
+        llama_memory_seq_pos_max(
+            mem,
+            kVisionPrefixCheckpointSeq
+        ) >= 0;
+
+    if (can_reuse_prefix) {
+        const bool work_removed = llama_memory_seq_rm(
+            mem,
+            kVisionWorkSeq,
+            -1,
+            -1
+        );
+        if (work_removed) {
+            llama_memory_seq_cp(
+                mem,
+                kVisionPrefixCheckpointSeq,
+                kVisionWorkSeq,
+                0,
+                prefix_positions
+            );
+            can_reuse_prefix =
+                llama_memory_seq_pos_max(
+                    mem,
+                    kVisionWorkSeq
+                ) >= 0;
+        } else {
+            can_reuse_prefix = false;
+        }
+    }
 
     llama_pos n_past = 0;
     if (can_reuse_prefix) {
@@ -1431,10 +1476,7 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
             "TWOPHASE_B03_PREFIX_REUSE_HIT"
         );
     } else {
-        llama_memory_clear(
-            llama_get_memory(ctx),
-            true
-        );
+        llama_memory_clear(mem, true);
         result.prefix_reuse_hit = 0;
         write_stage(
             stage_path,
@@ -1486,10 +1528,7 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
         }
 
         if (rc != 0) {
-            llama_memory_clear(
-                llama_get_memory(ctx),
-                true
-            );
+            llama_memory_clear(mem, true);
             write_stage(
                 stage_path,
                 "TWOPHASE_B03_PREFILL_FAIL_CLEANED"
@@ -1500,8 +1539,32 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
                 "cached vision prefill failed: "
                     + std::to_string(rc)
             );
-            result.code = 7;
+            result.code = 8;
             return result;
+        }
+
+        if (
+            prefix_checkpoint_enabled &&
+            !can_reuse_prefix &&
+            i == 1
+        ) {
+            llama_memory_seq_cp(
+                mem,
+                kVisionWorkSeq,
+                kVisionPrefixCheckpointSeq,
+                0,
+                prefix_positions
+            );
+
+            write_stage(
+                stage_path,
+                llama_memory_seq_pos_max(
+                    mem,
+                    kVisionPrefixCheckpointSeq
+                ) >= 0
+                    ? "TWOPHASE_B04_PREFIX_CHECKPOINT_READY"
+                    : "TWOPHASE_B04_PREFIX_CHECKPOINT_UNAVAILABLE"
+            );
         }
     }
 
@@ -1545,14 +1608,39 @@ int32_t BonsaiRetainVisionPrefixKV(
         return 0;
     }
 
-    const bool ok = llama_memory_seq_rm(
+    const bool work_removed = llama_memory_seq_rm(
         mem,
-        0,
-        static_cast<llama_pos>(prefix_positions),
+        kVisionWorkSeq,
+        -1,
         -1
     );
 
-    if (!ok) {
+    if (!work_removed) {
+        llama_memory_clear(mem, true);
+        return 0;
+    }
+
+    if (
+        llama_memory_seq_pos_max(
+            mem,
+            kVisionPrefixCheckpointSeq
+        ) < 0
+    ) {
+        llama_memory_clear(mem, true);
+        return 0;
+    }
+
+    llama_memory_seq_keep(
+        mem,
+        kVisionPrefixCheckpointSeq
+    );
+
+    if (
+        llama_memory_seq_pos_max(
+            mem,
+            kVisionPrefixCheckpointSeq
+        ) < 0
+    ) {
         llama_memory_clear(mem, true);
         return 0;
     }

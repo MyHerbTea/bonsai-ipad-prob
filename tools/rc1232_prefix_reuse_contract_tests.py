@@ -18,16 +18,25 @@ assert "BonsaiRetainVisionPrefixKV" in header
 
 assert "TWOPHASE_B03_PREFIX_REUSE_HIT" in bridge
 assert "TWOPHASE_B03_PREFIX_REUSE_MISS" in bridge
+assert "TWOPHASE_B04_PREFIX_CHECKPOINT_READY" in bridge
+assert "llama_memory_seq_cp" in bridge
+assert "llama_memory_seq_keep" in bridge
+assert "llama_memory_seq_pos_max" in bridge
 assert "llama_memory_seq_rm" in bridge
 assert "llama_memory_clear(mem, true)" in bridge
+assert "kVisionPrefixCheckpointSeq" in bridge
 assert "can_reuse_prefix ? 2u : 0u" in " ".join(bridge.split())
 
 assert "apiVisionPrefixReuseKey" in engine
 assert "apiVisionPrefixPositions" in engine
 assert "enablePrefixReuse: Bool = false" in engine
+assert "effectivePrefixReuse" in engine
+assert "apiVisionPrefixReuseContextCapable" in engine
+assert "prefixReuseContextCapable ? 2 : 1" in " ".join(engine.split())
 assert "BonsaiRetainVisionPrefixKV" in engine
 assert "TWOPHASE_VISION_95_PREFIX_RETAINED" in engine
-assert "TWOPHASE_VISION_96_PREFIX_RETAIN_UNSUPPORTED" in engine
+assert "TWOPHASE_VISION_96_PREFIX_CHECKPOINT_UNAVAILABLE" in engine
+assert "TWOPHASE_VISION_94_PREFIX_CHECKPOINT_RESTART_REQUIRED" in engine
 assert "apiVisionPrefixReuseKey = nil" in engine
 
 assert "prefixReuseHit" in types

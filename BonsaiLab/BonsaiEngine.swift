@@ -60,6 +60,7 @@ actor BonsaiEngine {
     // This is valid only for the currently resident llama context.
     private var apiVisionPrefixReuseKey: String?
     private var apiVisionPrefixPositions: Int32 = 0
+    private var apiVisionPrefixReuseContextCapable = false
 
     private let stageKey = "BonsaiLabLastStage"
 
@@ -134,7 +135,13 @@ actor BonsaiEngine {
         contextParams.n_ctx = UInt32(config.context)
         contextParams.n_batch = UInt32(config.batch)
         contextParams.n_ubatch = UInt32(config.ubatch)
-        contextParams.n_seq_max = 1
+        let prefixReuseContextCapable =
+            UserDefaults.standard.bool(
+                forKey:
+                    "BonsaiRC1232VisionPrefixKVReuseEnabled"
+            )
+        contextParams.n_seq_max =
+            prefixReuseContextCapable ? 2 : 1
         contextParams.n_outputs_max = 1
         contextParams.n_outputs_max_per_seq = 1
         contextParams.swa_full = config.swaFull
@@ -163,6 +170,8 @@ actor BonsaiEngine {
         context = loadedContext
         vocab = llama_model_get_vocab(loadedModel)
         appliedRuntime = config
+        apiVisionPrefixReuseContextCapable =
+            prefixReuseContextCapable
 
         var descBuffer = [CChar](repeating: 0, count: 512)
         _ = llama_model_desc(loadedModel, &descBuffer, descBuffer.count)
@@ -1023,12 +1032,23 @@ actor BonsaiEngine {
 
         let reuseKey =
             cacheURL.path + "\n" + systemPrompt
-        let requestPrefixReuse =
+        let effectivePrefixReuse =
             enablePrefixReuse &&
+            apiVisionPrefixReuseContextCapable
+
+        if enablePrefixReuse &&
+           !apiVisionPrefixReuseContextCapable {
+            mark(
+                "TWOPHASE_VISION_94_PREFIX_CHECKPOINT_RESTART_REQUIRED"
+            )
+        }
+
+        let requestPrefixReuse =
+            effectivePrefixReuse &&
             apiVisionPrefixReuseKey == reuseKey &&
             apiVisionPrefixPositions > 0
 
-        if !enablePrefixReuse {
+        if !effectivePrefixReuse {
             apiVisionPrefixReuseKey = nil
             apiVisionPrefixPositions = 0
         }
@@ -1052,7 +1072,7 @@ actor BonsaiEngine {
                             reasoningEffort == "none"
                                 ? 1
                                 : 0,
-                            requestPrefixReuse
+                            effectivePrefixReuse
                                 ? 1
                                 : 0,
                             requestPrefixReuse
@@ -1151,7 +1171,7 @@ actor BonsaiEngine {
         )
 
         var prefixRetainedForReuse = false
-        if enablePrefixReuse,
+        if effectivePrefixReuse,
            prefill.prefix_positions > 0 {
             prefixRetainedForReuse =
                 BonsaiRetainVisionPrefixKV(
@@ -1170,7 +1190,7 @@ actor BonsaiEngine {
                 apiVisionPrefixReuseKey = nil
                 apiVisionPrefixPositions = 0
                 mark(
-                    "TWOPHASE_VISION_96_PREFIX_RETAIN_UNSUPPORTED"
+                    "TWOPHASE_VISION_96_PREFIX_CHECKPOINT_UNAVAILABLE"
                 )
             }
         } else {
@@ -2014,6 +2034,7 @@ actor BonsaiEngine {
     ) {
         apiVisionPrefixReuseKey = nil
         apiVisionPrefixPositions = 0
+        apiVisionPrefixReuseContextCapable = false
         unloadVision()
 
         if let context {
@@ -2044,7 +2065,13 @@ actor BonsaiEngine {
         params.n_ctx = UInt32(validated.context)
         params.n_batch = UInt32(validated.batch)
         params.n_ubatch = UInt32(validated.ubatch)
-        params.n_seq_max = 1
+        let prefixReuseContextCapable =
+            UserDefaults.standard.bool(
+                forKey:
+                    "BonsaiRC1232VisionPrefixKVReuseEnabled"
+            )
+        params.n_seq_max =
+            prefixReuseContextCapable ? 2 : 1
         params.n_outputs_max = 1
         params.n_outputs_max_per_seq = 1
         params.swa_full = validated.swaFull
@@ -2063,6 +2090,8 @@ actor BonsaiEngine {
         guard let created = llama_init_from_model(model, params) else {
             throw LabError.contextCreateFailed
         }
+        apiVisionPrefixReuseContextCapable =
+            prefixReuseContextCapable
         return created
     }
 
