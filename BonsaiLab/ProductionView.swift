@@ -321,6 +321,19 @@ private enum RC1232PerformanceDiagnostics {
             formatMilliseconds(
                 metrics.suffixPrefillSeconds * 1_000
             )
+        let suffixBatchUtilization =
+            String(
+                format: "%.4f",
+                metrics.suffixBatchUtilization
+            )
+        let suffixMillisecondsPerDecodeCall =
+            metrics.suffixDecodeCalls > 0
+                ? formatMilliseconds(
+                    metrics.suffixPrefillSeconds
+                        * 1_000
+                        / Double(metrics.suffixDecodeCalls)
+                )
+                : "0.000"
         let decodeMilliseconds =
             formatMilliseconds(
                 metrics.generation.generationSeconds * 1_000
@@ -411,6 +424,14 @@ private enum RC1232PerformanceDiagnostics {
                     metrics.imagePrefillSeconds * 1_000
                 ),
             "suffix_prefill_ms=" + suffixPrefillMilliseconds,
+            "rc1235_suffix_tokens=\(metrics.suffixTokenCount)",
+            "rc1235_suffix_decode_calls=\(metrics.suffixDecodeCalls)",
+            "rc1235_suffix_batch_capacity=\(metrics.suffixBatchCapacity)",
+            "rc1235_suffix_ubatch_capacity=\(metrics.suffixUBatchCapacity)",
+            "rc1235_suffix_last_batch_tokens=\(metrics.suffixLastBatchTokens)",
+            "rc1235_suffix_batch_utilization=" + suffixBatchUtilization,
+            "rc1235_suffix_ms_per_decode_call="
+                + suffixMillisecondsPerDecodeCall,
             "cache_reuse="
                 + (metrics.prefixReuseHit
                     ? "vision_prefix_kv_hit"
@@ -432,6 +453,13 @@ private enum RC1232PerformanceDiagnostics {
             "total_ms=\(totalMilliseconds)",
             "prefill_ms=\(prefillMilliseconds)",
             "suffix_prefill_ms=\(suffixPrefillMilliseconds)",
+            "rc1235_suffix_tokens=\(metrics.suffixTokenCount)",
+            "rc1235_suffix_decode_calls=\(metrics.suffixDecodeCalls)",
+            "rc1235_suffix_batch_capacity=\(metrics.suffixBatchCapacity)",
+            "rc1235_suffix_ubatch_capacity=\(metrics.suffixUBatchCapacity)",
+            "rc1235_suffix_last_batch_tokens=\(metrics.suffixLastBatchTokens)",
+            "rc1235_suffix_batch_utilization=\(suffixBatchUtilization)",
+            "rc1235_suffix_ms_per_decode_call=\(suffixMillisecondsPerDecodeCall)",
             "decode_ms=\(decodeMilliseconds)",
             "tokens_per_second=\(tokensPerSecond)",
             "vision_encode_ms=\(visionEncodeMilliseconds)",
