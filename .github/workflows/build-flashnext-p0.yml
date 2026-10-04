@@ -39,11 +39,11 @@ jobs:
           fi
           echo "Bonsai zero-touch isolation: PASS"
 
-      - name: Select Xcode 26.3
+      - name: Select Xcode 26.6
         shell: bash
         run: |
           set -euo pipefail
-          sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+          sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
           swift --version
