@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 root = Path(__file__).resolve().parents[1]
 types = (root / "BonsaiLab" / "LabTypes.swift").read_text()
@@ -18,7 +19,7 @@ assert "var openAIFinishReason: String" in types
 assert "let effectiveMaxTokens: Int" in metrics
 assert "let terminationReason: GenerationTerminationReason" in metrics
 
-assert engine.count("terminationReason: generated.terminationReason") >= 3
+assert len(re.findall(r"terminationReason:\\s*generated\\.terminationReason", engine)) >= 3
 assert "var terminationReason: GenerationTerminationReason = .length" in engine
 assert "terminationReason = .eog" in engine
 assert engine.count("effectiveMaxTokens:") >= 3
