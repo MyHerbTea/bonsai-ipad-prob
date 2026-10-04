@@ -49,7 +49,13 @@ assert re.search(
     view,
     flags=re.S,
 )
-assert "mmprojURL" not in view[view.index("private func runRestartCertification()"):]
+runner_start = view.index("private func runRestartCertification()")
+runner_end = view.index(
+    "private func waitForCertificationAPIReady",
+    runner_start,
+)
+runner_body = view[runner_start:runner_end]
+assert "mmprojURL" not in runner_body
 
 # Teardown is awaited inside the runner.
 assert re.search(
