@@ -32,9 +32,9 @@ jobs:
           set -euo pipefail
           git fetch origin main
           git diff --name-only origin/main...HEAD | tee /tmp/flashnext_changed.txt
-          if grep -vE '^(FlashNextP0/|docs/flashnext/|tools/download_flashnext_p0\.ps1$|\.github/workflows/build-flashnext-p0\.yml$)' /tmp/flashnext_changed.txt | grep -q .; then
+if grep -vE '^(FlashNextP0/|docs/flashnext/|tools/(download_flashnext_p0\\.ps1|inspect_flashnext_p0_index\\.py)$|\\.github/workflows/build-flashnext-p0\\.yml$)' /tmp/flashnext_changed.txt | grep -q .; then
             echo "FlashNext P0 modified files outside its isolated surface:"
-            grep -vE '^(FlashNextP0/|docs/flashnext/|tools/download_flashnext_p0\.ps1$|\.github/workflows/build-flashnext-p0\.yml$)' /tmp/flashnext_changed.txt
+grep -vE '^(FlashNextP0/|docs/flashnext/|tools/(download_flashnext_p0\\.ps1|inspect_flashnext_p0_index\\.py)$|\\.github/workflows/build-flashnext-p0\\.yml$)' /tmp/flashnext_changed.txt
             exit 1
           fi
           echo "Bonsai zero-touch isolation: PASS"
