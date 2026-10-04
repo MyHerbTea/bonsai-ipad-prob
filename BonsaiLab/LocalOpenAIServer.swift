@@ -855,7 +855,7 @@ final class LocalOpenAIServer: ObservableObject {
         sendRaw(
             connection,
             status: status,
-            contentType: "application/json",
+            contentType: "application/json; charset=utf-8",
             body: body
         )
     }
