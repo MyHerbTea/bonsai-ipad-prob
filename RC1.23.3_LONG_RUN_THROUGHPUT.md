@@ -74,3 +74,24 @@ or assistant output.
 5. Controlled warm-load → cool-down → warm-load data is interpretable from the
    app telemetry itself.
 6. No thermal conclusion is claimed before true-device A2 evidence.
+
+## Phase B — build 44 runtime-profile A/B
+
+Build 43 A2 device evidence established a reversible, cooldown-sensitive
+performance loss: after a ~45.3 s idle gap, decode recovered from roughly
+6.08 tok/s to 8.57 tok/s with no meaningful memory or Metal allocation change.
+The public iPadOS thermal state remained nominal, so the exact underlying
+mechanism (DVFS, GPU power state, scheduler, or another device-level policy)
+is not exposed by that coarse signal.
+
+Build 44 therefore stops adding observability and starts controlled performance
+optimization. The current safe runtime remains the default and two opt-in
+profiles are added:
+
+- `safe`: Flash Attention OFF, KQV OFF, Op Offload OFF;
+- `flash`: Flash Attention ON, KQV OFF, Op Offload OFF;
+- `accelerated`: Flash Attention ON, KQV ON, Op Offload ON.
+
+Changing profile is disabled while the API server is running and requires an
+API restart, ensuring each run uses one immutable context configuration.
+C2-B checkpoint identity/save/restore and `n_seq_max=1` are unchanged.

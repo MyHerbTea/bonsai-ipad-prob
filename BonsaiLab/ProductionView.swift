@@ -649,6 +649,8 @@ struct ProductionView: View {
     @State private var inferenceMode = VisionInferenceMode.accelerated
     @AppStorage("BonsaiRC1232VisionPrefixKVReuseEnabled")
     private var visionPrefixKVReuseEnabled = false
+    @AppStorage("BonsaiRC1233APIRuntimeProfile")
+    private var apiRuntimeProfile = "safe"
 
     @State private var output = ""
     @State private var status = "准备就绪"
@@ -954,6 +956,29 @@ struct ProductionView: View {
                             "资源保护",
                             value: "自动"
                         )
+
+                        Picker(
+                            "实验：API Runtime Profile",
+                            selection: $apiRuntimeProfile
+                        ) {
+                            Text("Safe").tag("safe")
+                            Text("Flash").tag("flash")
+                            Text("Full").tag("accelerated")
+                        }
+                        .pickerStyle(.segmented)
+                        .disabled(apiServer.isRunning)
+
+                        Text(
+                            apiRuntimeProfile == "safe"
+                                ? "Safe：保持 build 43 冻结运行参数，Flash/KQV/Op Offload 均关闭。"
+                                : (
+                                    apiRuntimeProfile == "flash"
+                                        ? "Flash：仅开启 Flash Attention；停止并重新启动 API 后生效。"
+                                        : "Full：开启 Flash Attention + KQV/Op Offload；实验候选，停止并重新启动 API 后生效。"
+                                )
+                        )
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
 
                         Toggle(
                             "实验：Vision Prefix KV Reuse",
@@ -1665,6 +1690,26 @@ struct ProductionView: View {
                 ? "无"
                 : persistedAPIPreflight()
 
+        let requestedAPIRuntimeProfile =
+            defaults.string(
+                forKey: "BonsaiRC1233APIRuntimeProfile"
+            ) ?? "safe"
+        let activeAPIRuntimeProfile =
+            defaults.string(
+                forKey: "BonsaiRC1233ActiveAPIRuntimeProfile"
+            ) ?? "none"
+        let effectiveAPIRuntimeProfile =
+            apiServer.isRunning
+                ? activeAPIRuntimeProfile
+                : requestedAPIRuntimeProfile
+        let apiFlashAttention =
+            effectiveAPIRuntimeProfile == "flash"
+            || effectiveAPIRuntimeProfile == "accelerated"
+        let apiOffloadKQV =
+            effectiveAPIRuntimeProfile == "accelerated"
+        let apiOpOffload =
+            effectiveAPIRuntimeProfile == "accelerated"
+
         var lines: [String] = [
             "=== BONSAILAB DIAGNOSTIC SNAPSHOT v1 ===",
             "captured_at=\(capturedAt)",
@@ -1703,9 +1748,11 @@ struct ProductionView: View {
             "api_context=512",
             "api_batch=8",
             "api_ubatch=8",
-            "api_flash_attention=false",
-            "api_offload_kqv=false",
-            "api_op_offload=false",
+            "api_runtime_profile=\(effectiveAPIRuntimeProfile)",
+            "api_runtime_profile_requested=\(requestedAPIRuntimeProfile)",
+            "api_flash_attention=\(apiFlashAttention)",
+            "api_offload_kqv=\(apiOffloadKQV)",
+            "api_op_offload=\(apiOpOffload)",
             "api_kv_unified=true",
             "api_load_mode=mmap",
             "vision_prefix_kv_reuse_enabled="
@@ -1767,6 +1814,8 @@ struct ProductionView: View {
         let selectedMLXVisionWeightsURL =
             mlxVisionWeightsURL
         let selectedRuntime = runtime
+        let selectedAPIRuntimeProfile =
+            apiRuntimeProfile
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
@@ -1786,15 +1835,34 @@ struct ProductionView: View {
                 apiRuntime.context = 512
                 apiRuntime.batch = 8
                 apiRuntime.ubatch = 8
-                apiRuntime.flashAttention = false
-                apiRuntime.offloadKQV = false
-                apiRuntime.opOffload = false
+
+                switch selectedAPIRuntimeProfile {
+                case "flash":
+                    apiRuntime.flashAttention = true
+                    apiRuntime.offloadKQV = false
+                    apiRuntime.opOffload = false
+                case "accelerated":
+                    apiRuntime.flashAttention = true
+                    apiRuntime.offloadKQV = true
+                    apiRuntime.opOffload = true
+                default:
+                    apiRuntime.flashAttention = false
+                    apiRuntime.offloadKQV = false
+                    apiRuntime.opOffload = false
+                }
+
                 apiRuntime.kvUnified = true
                 apiRuntime.loadMode = .mmap
 
                 _ = try await sharedEngine.loadModel(
                     url: selectedModelURL,
                     runtime: apiRuntime
+                )
+
+                UserDefaults.standard.set(
+                    selectedAPIRuntimeProfile,
+                    forKey:
+                        "BonsaiRC1233ActiveAPIRuntimeProfile"
                 )
 
                 RC1232PerformanceDiagnostics.beginSession()
@@ -2269,11 +2337,18 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.23.1 API Runtime 已预热"
+                        "RC1.23.3 API Runtime 已预热"
+                    let profileText =
+                        selectedAPIRuntimeProfile
+                            .uppercased()
                     detail =
-                        selectedMLXVisionWeightsURL == nil
-                        ? "文本 API 可用；选择 vision_tower.safetensors 后启用单图 MLX 多模态 API。"
-                        : "文本 + MLX Live Vision OpenAI API 已就绪。"
+                        (
+                            selectedMLXVisionWeightsURL == nil
+                            ? "文本 API 可用；选择 vision_tower.safetensors 后启用单图 MLX 多模态 API。"
+                            : "文本 + MLX Live Vision OpenAI API 已就绪。"
+                        )
+                        + " Runtime Profile="
+                        + profileText
                 }
             } catch {
                 apiServer.stop()
