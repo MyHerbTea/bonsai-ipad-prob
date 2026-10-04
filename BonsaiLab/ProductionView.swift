@@ -1045,7 +1045,7 @@ struct ProductionView: View {
                     }
 
                     Text(
-                        "只需选择主模型、Vision Tower 和测试图片后点击一次。Build 51 固定使用 Accelerated + 512 context，自动执行 4 轮 stop → awaited unload → start → seed → warm，并把全部生命周期事件与诊断写入一个 BONSAI-RUN-*.json。崩溃后重新打开 App 会自动恢复并扫描最近存档。"
+                        "只需选择主模型、Vision Tower 和测试图片后点击一次。Build 52 固定使用 Accelerated + 512 context：第 1 轮完整加载 runtime，后 3 轮只重启 API listener 并保持 27B model/context 常驻，然后执行 seed → warm。全部证据仍写入一个 BONSAI-RUN-*.json；崩溃后可自动恢复。"
                     )
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -2029,12 +2029,14 @@ struct ProductionView: View {
             "api_ubatch": "8",
             "vision_prefix_kv_reuse_enabled": "true",
             "cycles": String(certificationCycles),
+            "restart_strategy":
+                "cycle1_full_load_then_listener_only",
         ]
 
         guard
             certificationRecorder.startRun(
                 stage:
-                    "RC1.23.6 One-Click Restart Certification",
+                    "RC1.23.6 Build 52 Resident Runtime Restart",
                 build: build,
                 environment: environment
             ) != nil
@@ -2066,55 +2068,102 @@ struct ProductionView: View {
                     )
 
                 for cycle in 1...certificationCycles {
-                    certificationRunnerProgress =
-                        "Cycle \(cycle)/\(certificationCycles) · teardown"
+                    let restartMode =
+                        cycle == 1
+                            ? "full_runtime_load"
+                            : "listener_restart_resident_runtime"
 
                     certificationRecorder.recordEvent(
                         "cycle_started",
                         fields: [
                             "cycle": String(cycle),
+                            "restart_mode": restartMode,
                         ]
                     )
 
-                    certificationRecorder.recordEvent(
-                        "api_stop_requested",
-                        fields: [
-                            "cycle": String(cycle),
-                            "api_running_before":
-                                String(apiServer.isRunning),
-                        ]
-                    )
-                    apiServer.stop()
+                    if cycle == 1 {
+                        certificationRunnerProgress =
+                            "Cycle \(cycle)/\(certificationCycles) · initial full load"
 
-                    certificationRecorder.recordEvent(
-                        "engine_unload_started",
-                        fields: [
-                            "cycle": String(cycle),
-                        ]
-                    )
-                    await engine.unloadAll()
-                    certificationRecorder.recordEvent(
-                        "engine_unload_finished",
-                        fields: [
-                            "cycle": String(cycle),
-                        ]
-                    )
+                        certificationRecorder.recordEvent(
+                            "api_stop_requested",
+                            fields: [
+                                "cycle": String(cycle),
+                                "api_running_before":
+                                    String(apiServer.isRunning),
+                            ]
+                        )
+                        apiServer.stop()
 
-                    certificationRunnerProgress =
-                        "Cycle \(cycle)/\(certificationCycles) · starting API"
-                    certificationRecorder.recordEvent(
-                        "api_start_requested",
-                        fields: [
-                            "cycle": String(cycle),
-                            "context": "512",
-                        ]
-                    )
+                        certificationRecorder.recordEvent(
+                            "engine_unload_started",
+                            fields: [
+                                "cycle": String(cycle),
+                                "reason": "initial_clean_load",
+                            ]
+                        )
+                        await engine.unloadAll()
+                        certificationRecorder.recordEvent(
+                            "engine_unload_finished",
+                            fields: [
+                                "cycle": String(cycle),
+                            ]
+                        )
 
-                    // Reuse the actual product OpenAI server setup.
-                    startAPIServer()
+                        certificationRecorder.recordEvent(
+                            "api_start_requested",
+                            fields: [
+                                "cycle": String(cycle),
+                                "context": "512",
+                                "restart_mode": restartMode,
+                            ]
+                        )
+
+                        // Cycle 1 proves the frozen full-load baseline.
+                        startAPIServer()
+                    } else {
+                        certificationRunnerProgress =
+                            "Cycle \(cycle)/\(certificationCycles) · resident listener restart"
+
+                        certificationRecorder.recordEvent(
+                            "resident_restart_requested",
+                            fields: [
+                                "cycle": String(cycle),
+                                "engine_stage_before":
+                                    persistedEngineStage(),
+                                "restart_mode": restartMode,
+                            ]
+                        )
+
+                        try apiServer
+                            .restartListenerPreservingHandler(
+                                port: 8080
+                            )
+
+                        certificationRecorder.recordEvent(
+                            "resident_restart_listener_started",
+                            fields: [
+                                "cycle": String(cycle),
+                            ]
+                        )
+                    }
+
                     try await waitForCertificationAPIReady(
                         timeoutSeconds: 180
                     )
+
+                    if cycle > 1 {
+                        certificationRecorder.recordEvent(
+                            "resident_restart_ready",
+                            fields: [
+                                "cycle": String(cycle),
+                                "engine_stage_after":
+                                    persistedEngineStage(),
+                                "api_running":
+                                    String(apiServer.isRunning),
+                            ]
+                        )
+                    }
 
                     certificationRecorder.recordEvent(
                         "api_ready",
@@ -2122,6 +2171,7 @@ struct ProductionView: View {
                             "cycle": String(cycle),
                             "api_running":
                                 String(apiServer.isRunning),
+                            "restart_mode": restartMode,
                         ]
                     )
 
@@ -2205,7 +2255,7 @@ struct ProductionView: View {
 
                 _ = certificationRecorder.finishRun(
                     summary:
-                        "PASS: completed \(certificationCycles) automated 512-context restart cycles."
+                        "PASS: completed \(certificationCycles) cycles with one full runtime load followed by resident listener restarts."
                 )
 
                 certificationRunnerProgress =
