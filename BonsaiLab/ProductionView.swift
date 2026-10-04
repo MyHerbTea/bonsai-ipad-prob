@@ -1086,20 +1086,13 @@ struct ProductionView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
-                        Picker(
-                            "实验：API Context",
-                            selection: $apiContextProfile
-                        ) {
-                            Text("512 Baseline").tag("512")
-                            Text("256 Experimental").tag("256")
-                        }
-                        .pickerStyle(.segmented)
-                        .disabled(apiServer.isRunning)
+                        LabeledContent(
+                            "API Context",
+                            value: "512 · RC1.23.4 Frozen"
+                        )
 
                         Text(
-                            apiContextProfile == "256"
-                                ? "256：RC1.23.5 Phase B 真机 A/B 实验；仅用于验证更小 context 是否降低 TTFT / suffix prefill。"
-                                : "512：RC1.23.4 冻结基线。Build 48 默认保持此档。"
+                            "RC1.23.5 的 256 Dynamic Context 实验已被真机 A/B 拒绝。RC1.23.6 固定回到 512，不再暴露 256 选择入口。"
                         )
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -1284,8 +1277,7 @@ struct ProductionView: View {
                 if apiRuntimeProfile == "flash" {
                     apiRuntimeProfile = "accelerated"
                 }
-                if apiContextProfile != "256"
-                    && apiContextProfile != "512" {
+                if apiContextProfile != "512" {
                     apiContextProfile = "512"
                 }
                 certificationRecorder
@@ -1843,14 +1835,8 @@ struct ProductionView: View {
         let apiOpOffload =
             effectiveAPIRuntimeProfile == "accelerated"
 
-        let requestedAPIContextProfile =
-            defaults.string(
-                forKey: "BonsaiRC1235APIContextProfile"
-            ) ?? "512"
-        let requestedAPIContext =
-            requestedAPIContextProfile == "256"
-                ? 256
-                : 512
+        let requestedAPIContextProfile = "512"
+        let requestedAPIContext = 512
         let activeAPIContext =
             defaults.integer(
                 forKey: "BonsaiRC1235ActiveAPIContext"
@@ -2022,10 +2008,7 @@ struct ProductionView: View {
             apiRuntimeProfile == "safe"
                 ? "safe"
                 : "accelerated"
-        let selectedAPIContext =
-            apiContextProfile == "256"
-                ? 256
-                : 512
+        let selectedAPIContext = 512
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
