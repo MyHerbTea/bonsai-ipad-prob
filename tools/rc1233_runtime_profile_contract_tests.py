@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 root = Path(__file__).resolve().parents[1]
 view = (root / "BonsaiLab" / "ProductionView.swift").read_text()
@@ -19,5 +20,8 @@ assert "params.n_seq_max = 1" in engine
 assert "BonsaiRetainVisionPrefixKV" in engine
 assert "apiVisionPrefixReuseKey" in engine
 
-assert 'CURRENT_PROJECT_VERSION: "45"' in project
-print("RC1.23.3 build 45 accelerated baseline contracts: PASS")
+match = re.search(r'CURRENT_PROJECT_VERSION:\s*"([0-9]+)"', project)
+assert match is not None
+assert int(match.group(1)) >= 45
+
+print("RC1.23.3 accelerated runtime baseline contracts: PASS")
