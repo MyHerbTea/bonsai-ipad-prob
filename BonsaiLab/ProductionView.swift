@@ -286,6 +286,7 @@ private enum RC1232PerformanceDiagnostics {
         stream: Bool,
         packet: MLXVisionEmbeddingPacket,
         metrics: VisionMetrics,
+        requestedMaxTokens: Int,
         imageOrdering: OpenAIImageOrdering,
         prefixReuseEnabled: Bool,
         resourceSnapshot: String,
@@ -360,6 +361,14 @@ private enum RC1232PerformanceDiagnostics {
             "route=vision",
             "stream=\(stream)",
             "result=success",
+            "requested_max_tokens=\(requestedMaxTokens)",
+            "effective_max_tokens=\(metrics.generation.effectiveMaxTokens)",
+            "termination_reason=\(metrics.generation.terminationReason.rawValue)",
+            "finish_reason=\(metrics.generation.terminationReason.openAIFinishReason)",
+            "ttft_ms="
+                + formatMilliseconds(
+                    metrics.generation.ttftSeconds * 1_000
+                ),
             "image_write_ms="
                 + formatMilliseconds(
                     milliseconds(
@@ -413,6 +422,11 @@ private enum RC1232PerformanceDiagnostics {
             "ordinal=\(observation.ordinal)",
             "route=vision",
             "result=success",
+            "requested_max_tokens=\(requestedMaxTokens)",
+            "effective_max_tokens=\(metrics.generation.effectiveMaxTokens)",
+            "completion_tokens=\(metrics.generation.generatedTokens)",
+            "termination_reason=\(metrics.generation.terminationReason.rawValue)",
+            "finish_reason=\(metrics.generation.terminationReason.openAIFinishReason)",
             "hit=\(metrics.prefixReuseHit)",
             "retained=\(metrics.prefixRetainedForReuse)",
             "total_ms=\(totalMilliseconds)",
@@ -471,6 +485,7 @@ private enum RC1232PerformanceDiagnostics {
         observation: RequestObservation,
         stream: Bool,
         metrics: GenerationMetrics,
+        requestedMaxTokens: Int,
         resourceSnapshot: String,
         textGenerationStart: UInt64,
         textGenerationEnd: UInt64,
@@ -523,6 +538,10 @@ private enum RC1232PerformanceDiagnostics {
             "route=text",
             "stream=\(stream)",
             "result=success",
+            "requested_max_tokens=\(requestedMaxTokens)",
+            "effective_max_tokens=\(metrics.effectiveMaxTokens)",
+            "termination_reason=\(metrics.terminationReason.rawValue)",
+            "finish_reason=\(metrics.terminationReason.openAIFinishReason)",
             "text_generation_ms="
                 + formatMilliseconds(
                     milliseconds(
@@ -545,6 +564,11 @@ private enum RC1232PerformanceDiagnostics {
             "ordinal=\(observation.ordinal)",
             "route=text",
             "result=success",
+            "requested_max_tokens=\(requestedMaxTokens)",
+            "effective_max_tokens=\(metrics.effectiveMaxTokens)",
+            "completion_tokens=\(metrics.generatedTokens)",
+            "termination_reason=\(metrics.terminationReason.rawValue)",
+            "finish_reason=\(metrics.terminationReason.openAIFinishReason)",
             "total_ms=\(totalMilliseconds)",
             "decode_ms=\(decodeMilliseconds)",
             "tokens_per_second=\(tokensPerSecond)",
@@ -1778,7 +1802,7 @@ struct ProductionView: View {
             "[LAST API REQUEST PERFORMANCE]",
             apiPerformanceMetrics,
             "",
-            "[RC1.23.3 LONG-RUN REQUEST HISTORY]",
+            "[RC1.23.4 GENERATION REQUEST HISTORY]",
             longRunRequestHistory,
             "",
             "[RESOURCE / MEMORY]",
@@ -2222,6 +2246,8 @@ struct ProductionView: View {
                                 stream: payload.stream,
                                 packet: packet,
                                 metrics: metrics,
+                                requestedMaxTokens:
+                                    payload.maxTokens,
                                 imageOrdering:
                                     payload.imageOrdering,
                                 prefixReuseEnabled:
@@ -2270,10 +2296,8 @@ struct ProductionView: View {
                                     .generatedTokens,
                             finishReason:
                                 metrics.generation
-                                    .generatedTokens
-                                    >= gen.maxTokens
-                                    ? "length"
-                                    : "stop"
+                                    .terminationReason
+                                    .openAIFinishReason
                         )
                     }
 
@@ -2305,6 +2329,8 @@ struct ProductionView: View {
                                 requestObservation,
                             stream: payload.stream,
                             metrics: metrics,
+                            requestedMaxTokens:
+                                payload.maxTokens,
                             resourceSnapshot:
                                 resourceSnapshot,
                             textGenerationStart:
@@ -2323,17 +2349,15 @@ struct ProductionView: View {
                         completionTokens:
                             metrics.generatedTokens,
                         finishReason:
-                            metrics.generatedTokens
-                                >= gen.maxTokens
-                                ? "length"
-                                : "stop"
+                            metrics.terminationReason
+                                .openAIFinishReason
                     )
                 }
 
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.23.3 API Runtime 已预热"
+                        "RC1.23.4 Generation Telemetry 已预热"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
