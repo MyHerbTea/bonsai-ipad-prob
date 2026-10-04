@@ -1,0 +1,131 @@
+name: Build FlashNext iPad P0-A
+
+on:
+  push:
+    branches:
+      - experiment/flashnext-ipad-p0
+    paths:
+      - "FlashNextP0/**"
+      - "docs/flashnext/**"
+      - "tools/download_flashnext_p0.ps1"
+      - ".github/workflows/build-flashnext-p0.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Enforce Bonsai zero-touch isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git diff --name-only origin/main...HEAD | tee /tmp/flashnext_changed.txt
+          if grep -vE '^(FlashNextP0/|docs/flashnext/|tools/download_flashnext_p0\.ps1$|\.github/workflows/build-flashnext-p0\.yml$)' /tmp/flashnext_changed.txt | grep -q .; then
+            echo "FlashNext P0 modified files outside its isolated surface:"
+            grep -vE '^(FlashNextP0/|docs/flashnext/|tools/download_flashnext_p0\.ps1$|\.github/workflows/build-flashnext-p0\.yml$)' /tmp/flashnext_changed.txt
+            exit 1
+          fi
+          echo "Bonsai zero-touch isolation: PASS"
+
+      - name: Select Xcode 26.3
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          swift --version
+
+      - name: Install XcodeGen
+        run: |
+          set -euo pipefail
+          brew install xcodegen
+          xcodegen --version
+
+      - name: P0 source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'exactVersion: 0.32.3' FlashNextP0/project.yml
+          grep -q 'static let bits = 3' FlashNextP0/Sources/FlashNextExpertProbe.swift
+          grep -q 'static let groupSize = 64' FlashNextP0/Sources/FlashNextExpertProbe.swift
+          grep -q 'quantizedMM(' FlashNextP0/Sources/FlashNextExpertProbe.swift
+          grep -q 'switch_mlp' FlashNextP0/Sources/FlashNextExpertProbe.swift
+          grep -q 'FlashNextReadSystemProbe' FlashNextP0/Sources/FlashNextExpertProbe.swift
+          grep -q 'model-00008-of-00008.safetensors' FlashNextP0/README.md
+          echo "FlashNext P0-A source contracts: PASS"
+
+      - name: Generate isolated Xcode project
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd FlashNextP0
+          xcodegen generate
+          test -d FlashNextP0.xcodeproj
+
+      - name: Build iPad app
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          xcodebuild \
+            -project FlashNextP0/FlashNextP0.xcodeproj \
+            -scheme FlashNextP0 \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$PWD/build/FlashNextP0DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            build | tee build/flashnext-p0-build.log
+
+      - name: Package unsigned IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="$PWD/build/FlashNextP0DerivedData/Build/Products/Release-iphoneos/FlashNextP0.app"
+          test -d "$APP"
+          test -f "$APP/FlashNextP0"
+          rm -rf build/flashnext-p0-ipa
+          mkdir -p build/flashnext-p0-ipa/Payload
+          ditto "$APP" build/flashnext-p0-ipa/Payload/FlashNextP0.app
+          cat > build/FLASHNEXT_P0_BUILD_INFO.txt <<'INFO'
+          FlashNext-iPad / Bonsai-Niwaki
+          Phase: P0-A real 3-bit expert compatibility probe
+          App: standalone; Bonsai runtime is not linked
+          MLX Swift: 0.32.3
+          Expected asset: model-00008-of-00008.safetensors
+          Full 37.5 GB checkpoint is not required for P0-A
+          INFO
+          echo "Commit: $GITHUB_SHA" >> build/FLASHNEXT_P0_BUILD_INFO.txt
+          cd build/flashnext-p0-ipa
+          zip -qry ../FlashNextP0-A-unsigned.ipa Payload
+          cd ../..
+          shasum -a 256 build/FlashNextP0-A-unsigned.ipa | tee build/FlashNextP0-A-unsigned.ipa.sha256
+
+      - name: Upload P0 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlashNext-iPad-P0-A
+          path: |
+            build/FlashNextP0-A-unsigned.ipa
+            build/FlashNextP0-A-unsigned.ipa.sha256
+            build/FLASHNEXT_P0_BUILD_INFO.txt
+            build/flashnext-p0-build.log
+            FlashNextP0/README.md
+            docs/flashnext/P0A_EXECUTION.md
+          if-no-files-found: error
+          retention-days: 14
