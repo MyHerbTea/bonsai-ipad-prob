@@ -88,7 +88,12 @@ for field in [
     assert field in view
 
 # The new build must be distinct from the frozen Build 46 executable.
-assert re.search(r'CURRENT_PROJECT_VERSION:\s*"47"', project)
+build_match = re.search(
+    r'CURRENT_PROJECT_VERSION:\s*"(?P<build>\d+)"',
+    project,
+)
+assert build_match is not None
+assert int(build_match.group("build")) >= 47
 
 # The new branch and contract must be covered by CI.
 assert "lab-v1-rc1-23-5-ttft-suffix-prefill-efficiency" in workflow
