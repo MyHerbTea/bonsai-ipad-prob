@@ -577,6 +577,11 @@ enum LabError: LocalizedError {
     case noVision
     case tokenizerFailed
     case promptTooLong(Int, Int)
+    case contextBudgetExceeded(
+        inputPositions: Int,
+        requestedOutputTokens: Int,
+        contextLimit: Int
+    )
     case decodeFailed(Int32)
     case emptyOutput
     case mmprojLoadFailed
@@ -593,7 +598,25 @@ enum LabError: LocalizedError {
         case .noModel: return "请先加载主模型并应用运行配置。"
         case .noVision: return "请先加载视觉模块 mmproj。"
         case .tokenizerFailed: return "Prompt tokenization 失败。"
-        case .promptTooLong(let used, let limit): return "Prompt 已占用 \(used) tokens，超过 Context \(limit)。"
+        case .promptTooLong(let used, let limit):
+            return "Prompt 已占用 \(used) tokens，超过 Context \(limit)。"
+        case .contextBudgetExceeded(
+            let inputPositions,
+            let requestedOutputTokens,
+            let contextLimit
+        ):
+            let requiredContext =
+                inputPositions + requestedOutputTokens + 1
+            let maximumSafeOutput =
+                max(0, contextLimit - inputPositions - 1)
+            return (
+                "Context budget 不足："
+                + "input_positions=\(inputPositions), "
+                + "requested_output_tokens=\(requestedOutputTokens), "
+                + "required_context=\(requiredContext), "
+                + "configured_context=\(contextLimit), "
+                + "maximum_safe_output=\(maximumSafeOutput)。"
+            )
         case .decodeFailed(let code): return "llama_decode() 失败，code=\(code)。"
         case .emptyOutput: return "模型没有生成有效文本。"
         case .mmprojLoadFailed: return "mmproj 加载失败。"
