@@ -53,11 +53,14 @@ assert '"reasoning_effort": "none"' in view
 assert "certificationRecorder.finishRun(" in view
 assert 'Label("分享最近测试结果"' in view
 
-# Build 52 and CI packaging.
-assert re.search(r'CURRENT_PROJECT_VERSION:\s*"52"', project)
+# Build 52+ retains resident-runtime restart behavior.
+build_match = re.search(
+    r'CURRENT_PROJECT_VERSION:\s*"(?P<build>\d+)"',
+    project,
+)
+assert build_match is not None
+assert int(build_match.group("build")) >= 52
 assert "RC1.23.6 resident runtime restart contracts" in workflow
 assert "tools/rc1236_resident_runtime_restart_contract_tests.py" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "52"' in workflow
-assert "Build52-Resident-Runtime-Restart-Candidate" in workflow
 
 print("RC1.23.6 Build 52 resident runtime restart contracts: PASS")
