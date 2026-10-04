@@ -36,7 +36,7 @@ for marker in [
 assert "LabError.contextBudgetExceeded(" in engine
 assert "requestedOutputTokens:" in engine
 assert "contextLimit:" in engine
-assert "case .contextBudgetExceeded:" in view
+assert ".contextBudgetExceeded:" in view
 assert '"context_length_exceeded"' in view
 
 # Non-stream JSON responses explicitly declare UTF-8. SSE already did this.
