@@ -12,28 +12,61 @@ metrics_end = types.index("struct ModelMetrics: Sendable {", metrics_start)
 metrics = types[metrics_start:metrics_end]
 
 assert "enum GenerationTerminationReason: String, Sendable" in types
-assert "case eog" in types
-assert "case length" in types
+assert re.search(r"\bcase\s+eog\b", types)
+assert re.search(r"\bcase\s+length\b", types)
 assert "var openAIFinishReason: String" in types
 
-assert "let effectiveMaxTokens: Int" in metrics
-assert "let terminationReason: GenerationTerminationReason" in metrics
+assert re.search(r"let\s+effectiveMaxTokens:\s*Int", metrics)
+assert re.search(
+    r"let\s+terminationReason:\s*GenerationTerminationReason",
+    metrics,
+)
 
-assert len(re.findall(r"terminationReason:\s*generated\.terminationReason", engine)) >= 3
-assert "var terminationReason: GenerationTerminationReason = .length" in engine
-assert "terminationReason = .eog" in engine
+assert len(
+    re.findall(
+        r"terminationReason:\s*generated\.terminationReason",
+        engine,
+    )
+) >= 3
+assert re.search(
+    r"var\s+terminationReason:\s*GenerationTerminationReason\s*=\s*\.length",
+    engine,
+)
+assert re.search(r"terminationReason\s*=\s*\.eog", engine)
 assert engine.count("effectiveMaxTokens:") >= 3
 
-assert view.count("requestedMaxTokens: Int") >= 2
-assert view.count("requestedMaxTokens: payload.maxTokens") >= 2
-assert "requested_max_tokens=" in view
-assert "effective_max_tokens=" in view
-assert "termination_reason=" in view
-assert "finish_reason=" in view
+assert len(re.findall(r"requestedMaxTokens:\s*Int", view)) >= 2
+assert len(
+    re.findall(
+        r"requestedMaxTokens:\s*payload\.maxTokens",
+        view,
+    )
+) >= 2
 
-assert "metrics.generation.terminationReason.openAIFinishReason" in view
-assert "metrics.terminationReason.openAIFinishReason" in view
-assert "generatedTokens\n                                >= gen.maxTokens" not in view
+for field in [
+    '"requested_max_tokens=',
+    '"effective_max_tokens=',
+    '"termination_reason=',
+    '"finish_reason=',
+]:
+    assert view.count(field) >= 2
 
-assert 'CURRENT_PROJECT_VERSION: "46"' in project
+assert len(
+    re.findall(
+        r"finishReason:\s*metrics(?:\.generation)?"
+        r"\s*\.terminationReason\s*\.openAIFinishReason",
+        view,
+    )
+) >= 2
+
+assert not re.search(
+    r"generatedTokens\s*>=\s*gen\.maxTokens",
+    view,
+)
+
+assert re.search(
+    r'CURRENT_PROJECT_VERSION:\s*"46"',
+    project,
+)
+
 print("RC1.23.4 build 46 generation telemetry contracts: PASS")
