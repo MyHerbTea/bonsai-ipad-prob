@@ -1045,7 +1045,7 @@ struct ProductionView: View {
                     }
 
                     Text(
-                        "只需选择主模型、Vision Tower 和测试图片后点击一次。Build 52 固定使用 Accelerated + 512 context：第 1 轮完整加载 runtime，后 3 轮只重启 API listener 并保持 27B model/context 常驻，然后执行 seed → warm。全部证据仍写入一个 BONSAI-RUN-*.json；崩溃后可自动恢复。"
+                        "只需选择主模型、Vision Tower 和测试图片后点击一次。Build 53 固定使用 Accelerated + 512 context：第 1 轮完整加载 runtime，后 3 轮保持 27B model/context 常驻，先等待旧 API listener 完成 cancelled，再重新绑定同一个 8080 端口，然后执行 seed → warm。全部证据仍写入一个 BONSAI-RUN-*.json；失败或崩溃后可自动恢复。"
                     )
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -2031,12 +2031,14 @@ struct ProductionView: View {
             "cycles": String(certificationCycles),
             "restart_strategy":
                 "cycle1_full_load_then_listener_only",
+            "listener_rebind":
+                "await_cancelled_then_bind_same_port",
         ]
 
         guard
             certificationRecorder.startRun(
                 stage:
-                    "RC1.23.6 Build 52 Resident Runtime Restart",
+                    "RC1.23.6 Build 53 Awaited Listener Rebind",
                 build: build,
                 environment: environment
             ) != nil
@@ -2135,11 +2137,24 @@ struct ProductionView: View {
                             ]
                         )
 
-                        try apiServer
+                        certificationRecorder.recordEvent(
+                            "listener_cancel_await_begin",
+                            fields: [
+                                "cycle": String(cycle),
+                            ]
+                        )
+
+                        try await apiServer
                             .restartListenerPreservingHandler(
                                 port: 8080
                             )
 
+                        certificationRecorder.recordEvent(
+                            "listener_cancel_await_finished",
+                            fields: [
+                                "cycle": String(cycle),
+                            ]
+                        )
                         certificationRecorder.recordEvent(
                             "resident_restart_listener_started",
                             fields: [
