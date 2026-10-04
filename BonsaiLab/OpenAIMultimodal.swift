@@ -16,6 +16,17 @@ struct OpenAIImageInputLimits: Equatable, Sendable {
     )
 }
 
+struct OpenAIImageInput: Equatable, Sendable {
+    let data: Data
+    let fileExtension: String
+    let width: Int
+    let height: Int
+
+    var pixelCount: Int {
+        width * height
+    }
+}
+
 enum OpenAIContentSegment: Equatable, Sendable {
     case text(String)
     case imagePlaceholder
@@ -26,17 +37,25 @@ enum OpenAIImageOrdering: String, Equatable, Sendable {
     case imageFirst
     case imageLast
     case interleaved
+    case multiple
 }
 
 struct OpenAINormalizedContent: Sendable {
     let text: String
-    let imageData: Data?
-    let imageExtension: String
+    let images: [OpenAIImageInput]
     let segments: [OpenAIContentSegment]
     let ordering: OpenAIImageOrdering
 
     var imageCount: Int {
-        imageData == nil ? 0 : 1
+        images.count
+    }
+
+    var imageData: Data? {
+        images.first?.data
+    }
+
+    var imageExtension: String {
+        images.first?.fileExtension ?? "jpg"
     }
 }
 
@@ -96,7 +115,7 @@ enum OpenAIMultimodalError: LocalizedError, Sendable {
         case .remoteImageURLUnsupported:
             return "RC1.23.1 不下载远程图片；请使用 data:image/...;base64,...。"
         case .tooManyImages:
-            return "RC1.23.1 每个请求最多支持一张图片。"
+            return "RC1.25.0 每个请求最多支持三张图片。"
         case .imageTooLarge:
             return "图片编码或解码后的字节数超过本机安全限制。"
         case .imageDimensionsTooLarge:
@@ -158,8 +177,7 @@ enum OpenAIMultimodalNormalizer {
         if let text = raw as? String {
             return OpenAINormalizedContent(
                 text: text,
-                imageData: nil,
-                imageExtension: "jpg",
+                images: [],
                 segments: [.text(text)],
                 ordering: .none
             )
@@ -168,8 +186,7 @@ enum OpenAIMultimodalNormalizer {
         guard raw != nil else {
             return OpenAINormalizedContent(
                 text: "",
-                imageData: nil,
-                imageExtension: "jpg",
+                images: [],
                 segments: [],
                 ordering: .none
             )
@@ -180,10 +197,9 @@ enum OpenAIMultimodalNormalizer {
         }
 
         var texts: [String] = []
-        var imageData: Data?
-        var imageExtension = "jpg"
+        var images: [OpenAIImageInput] = []
         var segments: [OpenAIContentSegment] = []
-        var imageIndex: Int?
+        var imageIndices: [Int] = []
 
         for part in parts {
             guard let type = part["type"] as? String else {
@@ -199,7 +215,7 @@ enum OpenAIMultimodalNormalizer {
                 segments.append(.text(text))
 
             case "image_url", "input_image":
-                guard imageData == nil else {
+                guard images.count < 3 else {
                     throw OpenAIMultimodalError.tooManyImages
                 }
 
@@ -218,9 +234,8 @@ enum OpenAIMultimodalNormalizer {
                     urlString,
                     limits: limits
                 )
-                imageData = decoded.data
-                imageExtension = decoded.ext
-                imageIndex = segments.count
+                images.append(decoded)
+                imageIndices.append(segments.count)
                 segments.append(.imagePlaceholder)
 
             default:
@@ -228,15 +243,30 @@ enum OpenAIMultimodalNormalizer {
             }
         }
 
+        let aggregatePixels = images.reduce(0) {
+            partial, image in
+            partial + image.pixelCount
+        }
+        let aggregateBytes = images.reduce(0) {
+            partial, image in
+            partial + image.data.count
+        }
+
+        guard aggregatePixels <= limits.maxPixelCount else {
+            throw OpenAIMultimodalError.imageDimensionsTooLarge
+        }
+        guard aggregateBytes <= limits.maxDecodedBytes else {
+            throw OpenAIMultimodalError.imageTooLarge
+        }
+
         let ordering = imageOrdering(
             segments: segments,
-            imageIndex: imageIndex
+            imageIndices: imageIndices
         )
 
         return OpenAINormalizedContent(
             text: texts.joined(separator: "\n"),
-            imageData: imageData,
-            imageExtension: imageExtension,
+            images: images,
             segments: segments,
             ordering: ordering
         )
@@ -244,10 +274,14 @@ enum OpenAIMultimodalNormalizer {
 
     private static func imageOrdering(
         segments: [OpenAIContentSegment],
-        imageIndex: Int?
+        imageIndices: [Int]
     ) -> OpenAIImageOrdering {
-        guard let imageIndex else {
+        guard let imageIndex = imageIndices.first else {
             return .none
+        }
+
+        if imageIndices.count > 1 {
+            return .multiple
         }
 
         if imageIndex == 0 {
@@ -264,7 +298,7 @@ enum OpenAIMultimodalNormalizer {
     private static func decodeDataURL(
         _ value: String,
         limits: OpenAIImageInputLimits
-    ) throws -> (data: Data, ext: String) {
+    ) throws -> OpenAIImageInput {
         if value.hasPrefix("http://")
             || value.hasPrefix("https://") {
             throw OpenAIMultimodalError
@@ -327,18 +361,23 @@ enum OpenAIMultimodalNormalizer {
             throw OpenAIMultimodalError.imageTooLarge
         }
 
-        try validateImageMetadata(
+        let metadata = try validateImageMetadata(
             data,
             limits: limits
         )
 
-        return (data, ext)
+        return OpenAIImageInput(
+            data: data,
+            fileExtension: ext,
+            width: metadata.width,
+            height: metadata.height
+        )
     }
 
     private static func validateImageMetadata(
         _ data: Data,
         limits: OpenAIImageInputLimits
-    ) throws {
+    ) throws -> (width: Int, height: Int) {
         guard
             let source = CGImageSourceCreateWithData(
                 data as CFData,
@@ -382,5 +421,7 @@ enum OpenAIMultimodalNormalizer {
             throw OpenAIMultimodalError
                 .imageDimensionsTooLarge
         }
+
+        return (width, height)
     }
 }
