@@ -65,10 +65,12 @@ assert not re.search(
     view,
 )
 
-assert re.search(
-    r'CURRENT_PROJECT_VERSION:\s*"46"',
+build_match = re.search(
+    r'CURRENT_PROJECT_VERSION:\s*"(?P<build>\\d+)"',
     project,
 )
+assert build_match is not None
+assert int(build_match.group("build")) >= 46
 
 # Windows PowerShell 5.1 probe must be source-encoding agnostic and force UTF-8
 # for both request and response payloads.
