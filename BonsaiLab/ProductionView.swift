@@ -956,7 +956,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.24.1 Runtime Profile A/B")
+                            Text("1.0 · RC1.25.0 Multi-Image OpenAI API")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -1988,6 +1988,16 @@ struct ProductionView: View {
                     RC1232PerformanceDiagnostics
                         .defaultsKey
             ) ?? "无"
+        let lastAPIImageCount =
+            defaults.integer(
+                forKey:
+                    "BonsaiRC1250LastAPIImageCount"
+            )
+        let lastMultiImageLayout =
+            defaults.string(
+                forKey:
+                    "BonsaiRC1250LastMultiImageLayout"
+            ) ?? "none"
         let longRunRequestHistory =
             defaults.string(
                 forKey:
@@ -2160,6 +2170,12 @@ struct ProductionView: View {
             "",
             "[LAST API VISION METRICS]",
             apiVisionMetrics,
+            "",
+            "[RC1.25.0 MULTI-IMAGE]",
+            "max_images_per_request=3",
+            "last_api_image_count=\(lastAPIImageCount)",
+            "last_multi_image_layout=\(lastMultiImageLayout)",
+            "adapter=bounded_contact_sheet_before_vision_tower",
             "",
             "[LAST API REQUEST PERFORMANCE]",
             apiPerformanceMetrics,
@@ -2905,10 +2921,11 @@ struct ProductionView: View {
         let sharedVisionSidecar = mlxVisionSidecar
 
         busy = true
-        status = "正在预热 RC1.24.1 Build 56 Runtime A/B…"
+        status = "正在预热 RC1.25.0 Build 57 Multi-Image API…"
         detail = """
         Text API 继续使用冻结的 RC1.20.7 路径。
-        单图请求使用 RC1.23.0 MLX Live Vision Injection；
+        1–3 图请求使用 RC1.23.0 MLX Live Vision Injection；
+        2–3 图在进入 Vision Tower 前使用有界联系表适配，
         不初始化 mmproj，不要求 App 重启。
         """
 
@@ -2981,6 +2998,20 @@ struct ProductionView: View {
                     } else {
                         requestRoute = "vision_multi"
                     }
+
+                    UserDefaults.standard.set(
+                        payload.imageCount,
+                        forKey:
+                            "BonsaiRC1250LastAPIImageCount"
+                    )
+                    if payload.images.isEmpty {
+                        UserDefaults.standard.set(
+                            "none",
+                            forKey:
+                                "BonsaiRC1250LastMultiImageLayout"
+                        )
+                    }
+
                     let requestResourceSnapshotStart =
                         await sharedEngine
                             .apiAdmissionSnapshot()
@@ -3497,15 +3528,15 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.24.1 Build 56 Runtime A/B 已预热"
+                        "RC1.25.0 Build 57 Multi-Image API 已预热"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
                     detail =
                         (
                             selectedMLXVisionWeightsURL == nil
-                            ? "文本 API 可用；选择 vision_tower.safetensors 后启用单图 MLX 多模态 API。"
-                            : "文本 + MLX Live Vision OpenAI API 已就绪。"
+                            ? "文本 API 可用；选择 vision_tower.safetensors 后启用 1–3 图 MLX 多模态 API。"
+                            : "文本 + 1–3 图 MLX Live Vision OpenAI API 已就绪。"
                         )
                         + " Runtime Profile="
                         + profileText
