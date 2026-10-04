@@ -66,7 +66,7 @@ assert not re.search(
 )
 
 build_match = re.search(
-    r'CURRENT_PROJECT_VERSION:\s*"(?P<build>\\d+)"',
+    r'CURRENT_PROJECT_VERSION:\s*"(?P<build>\d+)"',
     project,
 )
 assert build_match is not None
