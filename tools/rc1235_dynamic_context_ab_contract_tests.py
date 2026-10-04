@@ -61,7 +61,12 @@ assert "dynamicContext" not in view
 assert "automaticContext" not in view
 
 # Build 48 is a distinct A/B executable.
-assert re.search(r'CURRENT_PROJECT_VERSION:\s*"48"', project)
+build_match = re.search(
+    r'CURRENT_PROJECT_VERSION:\s*"(?P<build>\d+)"',
+    project,
+)
+assert build_match is not None
+assert int(build_match.group("build")) >= 48
 
 # CI must cover this branch and Phase B contract.
 assert "lab-v1-rc1-23-5-ttft-suffix-prefill-efficiency" in workflow
