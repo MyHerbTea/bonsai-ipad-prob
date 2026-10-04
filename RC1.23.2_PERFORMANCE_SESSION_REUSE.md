@@ -1,6 +1,6 @@
 # RC1.23.2 — Multimodal Performance & Session Reuse
 
-Status: **ACTIVE DEVELOPMENT — PHASE C2-A DEVICE CANDIDATE**
+Status: **ACTIVE DEVELOPMENT — PHASE C2-B DEVICE CANDIDATE**
 
 Base: `a032634d992f3b2edf0b3665e9b381ee4d6c06cf`  
 Parent behavior: RC1.23.1 OpenAI Multimodal API candidate.
@@ -246,7 +246,7 @@ text-recovery failure, crash, or observed MLX memory regression was introduced.
 
 ## Phase C2-A — Sequence checkpoint Vision-prefix KV reuse
 
-Status: **IMPLEMENTED; CI PASS; BUILD 40 DEVICE CANDIDATE NEXT**.
+Status: **DEVICE REJECTED — API STARTUP CRASH**.
 
 C2-A replaces C1 partial trimming with two llama sequences:
 
@@ -279,20 +279,81 @@ Commit implementing C2-A:
 
 GitHub Actions run #20 / `37180140338`: **SUCCESS**.
 
-### Phase C2-A device acceptance gate
+### Phase C2-A real-device result — 2026-10-04
 
-Build 40 must repeat the controlled OFF/ON test with the same image, prompt,
-output budget and clean-start procedure.
+Build 40 OFF remained healthy:
 
-The candidate is accepted only if:
+- API startup succeeded;
+- repeated image requests returned HTTP 200;
+- 27B prefill was about 10.280 s;
+- prefix reuse remained MISS with retained=false, as expected while disabled;
+- MLX peak remained 144 MiB;
+- post-vision text recovery returned `TEXT_RECOVERY_OK`.
 
-- first ON vision request creates/retains the checkpoint;
-- second matching ON request reports a true prefix reuse HIT;
-- prefix + image prefill drops materially versus OFF;
+With the experimental toggle enabled before API startup, the application
+terminated while the API runtime was creating the 27B context, before any
+multimodal request or checkpoint operation ran.
+
+The controlled code difference at that boundary was the C2-A requirement to
+create the experimental context with `n_seq_max=2` instead of the validated
+single-sequence `n_seq_max=1`.
+
+### Phase C2-A decision
+
+**NO-GO.**
+
+C2-A is rejected because it regressed API runtime startup on the target device.
+The default-OFF path remained healthy, so there is no evidence of a baseline
+regression.
+
+## Phase C2-B — Single-sequence ON_DEVICE state checkpoint
+
+Status: **IMPLEMENTED; CI PASS; BUILD 41 DEVICE CANDIDATE NEXT**.
+
+C2-B removes the C2-A multi-sequence requirement and restores the context shape
+that already passed build 40 OFF testing:
+
+- `n_seq_max=1` for both normal and experimental runtime creation;
+- sequence 0 remains the only working sequence;
+- after prefix + image prefill, the sequence state is snapshotted with pinned
+  Prism `llama_state_seq_get_size_ext` and
+  `llama_state_seq_get_data_ext`;
+- `LLAMA_STATE_SEQ_FLAGS_ON_DEVICE` keeps KV tensor data in Prism-managed
+  backend buffers while only compact state metadata is retained in host memory;
+- request-specific suffix and generated continuation are cleared after the
+  request;
+- on the next same-image + same-system request, the saved state is restored to
+  sequence 0 with `llama_state_seq_set_data_ext`, then only the new suffix is
+  prefetched;
+- logical misses, failures, unloads and identity changes invalidate the
+  checkpoint;
+- C2-A `llama_memory_seq_cp`, `llama_memory_seq_keep`, sequence 1 and
+  `n_seq_max=2` are forbidden by the RC1.23.2 contract test.
+
+C2-B implementation commit:
+
+`afe2c049fd0a559eda03a780ac79de080a18a1b5`
+
+GitHub Actions run #22 / `37182779661`: **SUCCESS**.
+
+### Phase C2-B device acceptance gate
+
+Build 41 must first prove that enabling Vision Prefix KV Reuse no longer
+regresses API startup. Only after startup succeeds should the controlled
+same-image A/B request test run.
+
+Acceptance requires:
+
+- API startup succeeds with the experimental toggle ON;
+- first ON image request reports MISS and retained=true;
+- second matching ON image request reports HIT and retained=true;
+- second-request prefix and image prefill are skipped or reduced to effectively
+  zero while suffix prefill remains;
+- repeated-image total prefill drops materially versus the build 40 OFF
+  baseline;
 - answer semantics remain correct;
 - no cross-request prompt or historical-image leakage occurs;
 - text recovery and failure cleanup remain correct;
 - memory remains bounded and no crash occurs.
 
-If sequence checkpoint reuse fails on the pinned Prism runtime, the fallback
-design is **Phase C2-B: sequence state checkpoint via llama_state_seq_* APIs**.
+No performance claim is accepted until those device conditions pass.
