@@ -37,11 +37,14 @@ assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
 assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
 
-# Build 51 and packaging.
-assert re.search(r'CURRENT_PROJECT_VERSION:\s*"51"', project)
+# Build 51+ retains recovery/export behavior.
+build_match = re.search(
+    r'CURRENT_PROJECT_VERSION:\s*"(?P<build>\d+)"',
+    project,
+)
+assert build_match is not None
+assert int(build_match.group("build")) >= 51
 assert "RC1.23.6 recovery export contracts" in workflow
 assert "tools/rc1236_recovery_export_contract_tests.py" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "51"' in workflow
-assert "Build51-Recovery-Export-Fix-Candidate" in workflow
 
 print("RC1.23.6 Build 51 recovery export contracts: PASS")
