@@ -51,7 +51,12 @@ typedef struct {
     int32_t image_tokens;
     int32_t projection_dim;
     int32_t input_positions;
+    int32_t prefix_positions;
+    int32_t prefix_reuse_hit;
     double prefill_ms;
+    double prefix_text_ms;
+    double image_prefill_ms;
+    double suffix_prefill_ms;
 } BonsaiVisionPrefillResult;
 
 int32_t BonsaiVisionCacheIsValid(
@@ -92,9 +97,16 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
     const char * question,
     int32_t n_batch,
     int32_t non_thinking,
+    int32_t reuse_prefix,
+    int32_t expected_prefix_positions,
     char * out_error,
     size_t out_error_cap,
     const char * stage_path
+);
+
+int32_t BonsaiRetainVisionPrefixKV(
+    struct llama_context * ctx,
+    int32_t prefix_positions
 );
 
 void BonsaiReleaseStagedResidentModel(void);
