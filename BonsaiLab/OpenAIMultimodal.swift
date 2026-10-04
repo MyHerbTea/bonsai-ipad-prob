@@ -137,7 +137,7 @@ enum OpenAIMultimodalMessageBindingValidator {
         _ messages: [OpenAIMessageBindingSummary]
     ) throws -> Int? {
         var totalImages = 0
-        var imageMessageIndex: Int?
+        var imageMessageIndices: [Int] = []
         var effectiveUserMessageIndex: Int?
 
         for (index, message) in messages.enumerated() {
@@ -156,16 +156,17 @@ enum OpenAIMultimodalMessageBindingValidator {
             }
 
             if message.imageCount > 0 {
-                imageMessageIndex = index
+                imageMessageIndices.append(index)
             }
         }
 
-        if let imageMessageIndex,
-           imageMessageIndex != effectiveUserMessageIndex {
+        if imageMessageIndices.contains(
+            where: { $0 != effectiveUserMessageIndex }
+        ) {
             throw OpenAIMultimodalError.invalidContentPart
         }
 
-        return imageMessageIndex
+        return imageMessageIndices.last
     }
 }
 
