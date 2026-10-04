@@ -66,15 +66,15 @@ for swift_field in [
 ]:
     assert re.search(rf"let\s+{swift_field}\s*:", vision)
 
-for wire in [
-    "suffixTokenCount: Int(prefill.suffix_token_count)",
-    "suffixDecodeCalls: Int(prefill.suffix_decode_calls)",
-    "suffixBatchCapacity: Int(prefill.suffix_batch_capacity)",
-    "suffixUBatchCapacity: appliedRuntime.ubatch",
-    "suffixLastBatchTokens: Int(prefill.suffix_last_batch_tokens)",
-    "suffixBatchUtilization: prefill.suffix_batch_utilization",
+for pattern in [
+    r"suffixTokenCount:\\s*Int\\(prefill\\.suffix_token_count\\)",
+    r"suffixDecodeCalls:\\s*Int\\(prefill\\.suffix_decode_calls\\)",
+    r"suffixBatchCapacity:\\s*Int\\(prefill\\.suffix_batch_capacity\\)",
+    r"suffixUBatchCapacity:\\s*appliedRuntime\\.ubatch",
+    r"suffixLastBatchTokens:\\s*Int\\(prefill\\.suffix_last_batch_tokens\\)",
+    r"suffixBatchUtilization:\\s*prefill\\.suffix_batch_utilization",
 ]:
-    assert wire in engine
+    assert re.search(pattern, engine)
 
 for field in [
     '"rc1235_suffix_tokens=',
