@@ -126,8 +126,41 @@ struct RC1231MultimodalContractTests {
             "interleaved classification wrong"
         )
 
+        let twoImages = try OpenAIMultimodalNormalizer
+            .normalizeContent([
+                imagePart(pngURL),
+                imagePart(pngURL),
+                textPart("compare both images"),
+            ])
+        expect(
+            twoImages.imageCount == 2,
+            "two-image content should be accepted"
+        )
+        expect(
+            twoImages.ordering == .multiple,
+            "two-image ordering should be multiple"
+        )
+
+        let threeImages = try OpenAIMultimodalNormalizer
+            .normalizeContent([
+                imagePart(pngURL),
+                imagePart(pngURL),
+                imagePart(pngURL),
+                textPart("compare all three images"),
+            ])
+        expect(
+            threeImages.imageCount == 3,
+            "three-image content should be accepted"
+        )
+        expect(
+            threeImages.ordering == .multiple,
+            "three-image ordering should be multiple"
+        )
+
         expectError("too_many_images") {
             _ = try OpenAIMultimodalNormalizer.normalizeContent([
+                imagePart(pngURL),
+                imagePart(pngURL),
                 imagePart(pngURL),
                 imagePart(pngURL),
             ])
@@ -267,17 +300,31 @@ struct RC1231MultimodalContractTests {
             ])
         }
 
+        let threeImageTurn =
+            try OpenAIMultimodalMessageBindingValidator
+                .validate([
+                    OpenAIMessageBindingSummary(
+                        role: "system",
+                        hasText: true,
+                        imageCount: 0
+                    ),
+                    OpenAIMessageBindingSummary(
+                        role: "user",
+                        hasText: true,
+                        imageCount: 3
+                    ),
+                ])
+        expect(
+            threeImageTurn == 1,
+            "three-image effective user turn changed"
+        )
+
         expectError("too_many_images") {
             _ = try OpenAIMultimodalMessageBindingValidator.validate([
                 OpenAIMessageBindingSummary(
                     role: "user",
                     hasText: true,
-                    imageCount: 1
-                ),
-                OpenAIMessageBindingSummary(
-                    role: "user",
-                    hasText: true,
-                    imageCount: 1
+                    imageCount: 4
                 ),
             ])
         }
