@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "project": "Bonsai iPad local 27B / Vision",
+  "baseline": "RC1.23.3 Accelerated Performance Baseline",
+  "status": "FROZEN",
+  "frozenBuild": 45,
+  "frozenSourceCommit": "0e9b14746a85b2035f0d06b88197d338b8b8bc4a",
+  "branch": "lab-v1-rc1-23-3-production-hardening",
+  "ci": {
+    "workflowRunNumber": 29,
+    "workflowRunId": 37195133828,
+    "conclusion": "success"
+  },
+  "artifact": {
+    "name": "BonsaiLab-iPad-v1-RC1.23.3-Build45-Accelerated-Baseline-Candidate",
+    "id": 11301100823,
+    "sizeBytes": 7443849
+  },
+  "runtimeProfiles": {
+    "default": "accelerated",
+    "uiDefaultLabel": "Full",
+    "fallback": "safe",
+    "rejected": [
+      "flash"
+    ]
+  },
+  "acceleratedDeviceEvidence": {
+    "shortWarmHitCount": 6,
+    "shortWarmHitAverageMs": 18732.1,
+    "safeWarmHitAverageMs": 22947.4,
+    "soakWarmHitCount": 12,
+    "soakWarmHitAverageMs": 19343.3,
+    "soakHit2To12AverageMs": 19921,
+    "soakFinalSixAverageMs": 20235.8,
+    "soakFinalSixAverageTokensPerSecond": 7.27,
+    "requestsSucceeded": 13,
+    "requestsAttempted": 13,
+    "metalAllocatedMiB": 6110
+  },
+  "frozenInvariants": [
+    "n_seq_max=1",
+    "same-sequence ON_DEVICE C2-B checkpoint",
+    "warm HIT retained=true",
+    "warm prefix/image prefill zero",
+    "reuse identity and invalidation semantics",
+    "BVCACHE1",
+    "projection width 5120",
+    "RC1.22.5 MLX hard graph-cut",
+    "RC1.23.1 OpenAI multimodal/error semantics",
+    "diagnostic privacy exclusions"
+  ],
+  "rejectedPaths": [
+    "C1 partial KV trim",
+    "C2-A multi-sequence checkpointing",
+    "Flash-only runtime profile"
+  ],
+  "nextStage": {
+    "version": "RC1.23.4",
+    "name": "Generation / Decode Efficiency"
+  }
+}
