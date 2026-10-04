@@ -435,25 +435,23 @@ final class CertificationRunRecorder: ObservableObject {
             }
 
         return candidates.max { lhs, rhs in
-            let leftDate =
-                (
-                    try? lhs.resourceValues(
-                        forKeys: [
-                            .contentModificationDateKey,
-                        ]
-                    )
+            let leftValues =
+                try? lhs.resourceValues(
+                    forKeys: [
+                        .contentModificationDateKey,
+                    ]
                 )
-                .contentModificationDate
+            let rightValues =
+                try? rhs.resourceValues(
+                    forKeys: [
+                        .contentModificationDateKey,
+                    ]
+                )
+            let leftDate =
+                leftValues?.contentModificationDate
                 ?? .distantPast
             let rightDate =
-                (
-                    try? rhs.resourceValues(
-                        forKeys: [
-                            .contentModificationDateKey,
-                        ]
-                    )
-                )
-                .contentModificationDate
+                rightValues?.contentModificationDate
                 ?? .distantPast
 
             if leftDate == rightDate {
