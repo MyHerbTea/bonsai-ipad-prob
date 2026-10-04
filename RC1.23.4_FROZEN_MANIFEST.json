@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "version": "RC1.23.4",
+  "build": 46,
+  "status": "FROZEN",
+  "frozen_executable_source": "4c0a453339350c0c915578a46a15d4235ab0ff99",
+  "parent_baseline": {
+    "version": "RC1.23.3",
+    "build": 45,
+    "status": "FROZEN",
+    "frozen_executable_source": "0e9b14746a85b2035f0d06b88197d338b8b8bc4a",
+    "frozen_docs_head": "d82fedad1aa88fa29bbe133e13bf770e27e706cd"
+  },
+  "validation_ci": {
+    "run_number": 37,
+    "run_id": 37202037952,
+    "conclusion": "SUCCESS"
+  },
+  "artifact": {
+    "id": 11302983359,
+    "name": "BonsaiLab-iPad-v1-RC1.23.3-Build46-Generation-Telemetry-Candidate",
+    "size_bytes": 7449891,
+    "naming_note": "Artifact name retains the RC1.23.3 workflow prefix; executable stage is RC1.23.4 Build 46."
+  },
+  "device_acceptance": {
+    "device": "iPad Pro M5",
+    "os": "iPadOS 27.0.1",
+    "physical_memory_mib": 11524,
+    "main_model": "Ternary-Bonsai-2-27B-PTQ1_0.gguf",
+    "vision_tower": "Bonsai-2-27B-vision_tower-fp16.safetensors",
+    "api_model": "bonsai-2-27b-local"
+  },
+  "runtime": {
+    "profile": "accelerated",
+    "safe_fallback": true,
+    "flash_only_rejected": true,
+    "flash_attention": true,
+    "offload_kqv": true,
+    "op_offload": true,
+    "kv_unified": true,
+    "load_mode": "mmap",
+    "api_context": 512,
+    "api_batch": 8,
+    "api_ubatch": 8,
+    "n_seq_max": 1,
+    "vision_prefix_kv_reuse_enabled": true
+  },
+  "frozen_telemetry_fields": [
+    "requested_max_tokens",
+    "effective_max_tokens",
+    "completion_tokens",
+    "termination_reason",
+    "finish_reason",
+    "ttft_ms",
+    "prefill_ms",
+    "decode_ms",
+    "tokens_per_second",
+    "total_ms"
+  ],
+  "finish_reason_contract": {
+    "eog": "stop",
+    "length": "length"
+  },
+  "true_device_evidence": {
+    "text": [
+      {
+        "requested": 32,
+        "effective": 32,
+        "completion": 29,
+        "termination": "eog",
+        "finish": "stop"
+      },
+      {
+        "requested": 64,
+        "effective": 64,
+        "completion": 29,
+        "termination": "eog",
+        "finish": "stop"
+      },
+      {
+        "requested": 128,
+        "effective": 128,
+        "completion": 29,
+        "termination": "eog",
+        "finish": "stop"
+      }
+    ],
+    "vision_ascii_concise": [
+      {
+        "requested": 128,
+        "effective": 128,
+        "completion": 115,
+        "termination": "eog",
+        "finish": "stop",
+        "tokens_per_second": 13.516
+      },
+      {
+        "requested": 256,
+        "effective": 256,
+        "completion": 115,
+        "termination": "eog",
+        "finish": "stop",
+        "tokens_per_second": 12.808
+      }
+    ],
+    "vision_utf8_descriptive": [
+      {
+        "requested": 32,
+        "effective": 32,
+        "completion": 32,
+        "termination": "length",
+        "finish": "length"
+      },
+      {
+        "requested": 64,
+        "effective": 64,
+        "completion": 64,
+        "termination": "length",
+        "finish": "length"
+      },
+      {
+        "requested": 128,
+        "effective": 128,
+        "completion": 128,
+        "termination": "length",
+        "finish": "length"
+      }
+    ]
+  },
+  "utf8_probe": {
+    "powershell_5_1_smoke": "PASS",
+    "source_ascii_only": true,
+    "explicit_request_utf8": true,
+    "explicit_response_utf8": true,
+    "default_chinese_prompt_base64": true,
+    "mojibake_fixed": true
+  },
+  "frozen_invariants": [
+    "Accelerated runtime remains default",
+    "Safe remains fallback",
+    "n_seq_max=1",
+    "C2-B same-sequence ON_DEVICE checkpoint save/restore",
+    "Warm HIT retains prefix/image state",
+    "Warm HIT prefix/image prefill remains zero",
+    "Vision Prefix KV reuse semantics unchanged",
+    "RC1.22.5 MLX hard graph-cut unchanged",
+    "RC1.23.1 OpenAI multimodal/error semantics unchanged",
+    "Build 46 telemetry field meanings unchanged",
+    "Decoder termination provenance drives OpenAI finish_reason"
+  ],
+  "rejected_or_disproven": [
+    "C1 partial KV trim",
+    "C2-A n_seq_max=2 multi-sequence path",
+    "Flash-only runtime as performance default",
+    "Generic Vision EOG failure hypothesis",
+    "Automatic 128/256 budget reduction solely for speed",
+    "PowerShell 5.1 implicit Unicode encoding as valid test evidence"
+  ],
+  "known_gaps": [
+    "Request parser range exceeds current product execution ceiling of 256 output tokens",
+    "OpenAI stop-sequence request behavior is not implemented",
+    "Build 46 artifact/workflow name retains RC1.23.3 prefix",
+    "Prompt style materially changes suffix prefill and completion length"
+  ],
+  "next_stage": {
+    "version": "RC1.23.5",
+    "build": 47,
+    "name": "TTFT & Suffix Prefill Efficiency",
+    "rule": "Profile suffix-prefill batch utilization first, then choose exactly one optimization: batched prefill or dynamic context."
+  }
+}
