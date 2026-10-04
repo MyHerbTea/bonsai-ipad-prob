@@ -56,6 +56,26 @@ for marker in [
 ]:
     assert marker in view
 
+# Sustained analysis needs the new evidence in every successful history row,
+# not only in the latest-request snapshot.
+vision_start = view.index("static func persistVisionSuccess(")
+text_start = view.index("static func persistTextSuccess(", vision_start)
+summary_start = view.index("static func visionSummary(", text_start)
+vision_block = view[vision_start:text_start]
+text_block = view[text_start:summary_start]
+for block in [vision_block, text_block]:
+    history_start = block.index("appendLongRunHistory([")
+    history = block[history_start:]
+    assert "profilingLines(" in history
+    assert "resourceTransitionLines(" in history
+    assert "resourceSnapshotStart" in history
+
+failure_start = view.index("static func persistFailure(")
+failure_end = view.index("static func persistVisionSuccess(", failure_start)
+failure_block = view[failure_start:failure_end]
+failure_history = failure_block[failure_block.index("appendLongRunHistory(["):]
+assert "profilingLines(" in failure_history
+
 # Frozen Build 54 runtime behavior is unchanged.
 assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
 assert re.search(r'apiRuntime\.batch\s*=\s*8', view)
