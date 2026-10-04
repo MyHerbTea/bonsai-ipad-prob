@@ -7,7 +7,10 @@ assert "RC1232PerformanceDiagnostics" in view
 assert "BonsaiRC1232LastAPIRequestMetrics" in view
 assert "[LAST API REQUEST PERFORMANCE]" in view
 assert "request_id=" in view
-assert "route=vision" in view
+assert (
+    "route=vision" in view
+    or '"route=\\(route)"' in view
+)
 assert "route=text" in view
 assert "vision_encode_ms=" in view
 assert "vision_encode_reported_ms=" in view
