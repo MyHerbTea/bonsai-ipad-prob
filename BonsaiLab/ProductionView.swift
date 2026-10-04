@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import UIKit
+import Darwin
 
 private enum RC1232PerformanceDiagnostics {
     static let defaultsKey =
@@ -18,6 +19,9 @@ private enum RC1232PerformanceDiagnostics {
         let sessionElapsedMilliseconds: Double
         let thermalStart: String
         let lowPowerModeStart: Bool
+        let processUserSecondsStart: Double
+        let processSystemSecondsStart: Double
+        let appScenePhaseStart: String
     }
 
     private struct RequestCompletionObservation {
@@ -25,12 +29,48 @@ private enum RC1232PerformanceDiagnostics {
         let sessionElapsedMilliseconds: Double
         let thermalEnd: String
         let lowPowerModeEnd: Bool
+        let processUserSecondsEnd: Double
+        let processSystemSecondsEnd: Double
+        let appScenePhaseEnd: String
+    }
+
+    private struct ProcessCPUSnapshot {
+        let userSeconds: Double
+        let systemSeconds: Double
     }
 
     private static var sessionRequestOrdinal = 0
     private static var sessionStartNanoseconds: UInt64 = 0
     private static var previousRequestEndNanoseconds: UInt64?
     private static let historyLimit = 32
+    private static let appScenePhaseDefaultsKey =
+        "BonsaiRC1240AppScenePhase"
+
+    private static func processCPUSnapshot() -> ProcessCPUSnapshot {
+        var usage = rusage()
+        guard getrusage(RUSAGE_SELF, &usage) == 0 else {
+            return ProcessCPUSnapshot(
+                userSeconds: 0,
+                systemSeconds: 0
+            )
+        }
+
+        func seconds(_ value: timeval) -> Double {
+            Double(value.tv_sec)
+                + Double(value.tv_usec) / 1_000_000.0
+        }
+
+        return ProcessCPUSnapshot(
+            userSeconds: seconds(usage.ru_utime),
+            systemSeconds: seconds(usage.ru_stime)
+        )
+    }
+
+    private static func currentAppScenePhase() -> String {
+        UserDefaults.standard.string(
+            forKey: appScenePhaseDefaultsKey
+        ) ?? "unknown"
+    }
 
     static func beginSession() {
         stateQueue.sync {
@@ -59,6 +99,8 @@ private enum RC1232PerformanceDiagnostics {
                 idleGapMilliseconds = -1
             }
 
+            let cpu = processCPUSnapshot()
+
             return RequestObservation(
                 ordinal: sessionRequestOrdinal,
                 start: start,
@@ -75,7 +117,13 @@ private enum RC1232PerformanceDiagnostics {
                     ),
                 lowPowerModeStart:
                     ProcessInfo.processInfo
-                        .isLowPowerModeEnabled
+                        .isLowPowerModeEnabled,
+                processUserSecondsStart:
+                    cpu.userSeconds,
+                processSystemSecondsStart:
+                    cpu.systemSeconds,
+                appScenePhaseStart:
+                    currentAppScenePhase()
             )
         }
     }
@@ -101,6 +149,7 @@ private enum RC1232PerformanceDiagnostics {
         _ observation: RequestObservation
     ) -> RequestCompletionObservation {
         let end = now()
+        let cpu = processCPUSnapshot()
         let completion =
             RequestCompletionObservation(
                 end: end,
@@ -115,7 +164,13 @@ private enum RC1232PerformanceDiagnostics {
                     ),
                 lowPowerModeEnd:
                     ProcessInfo.processInfo
-                        .isLowPowerModeEnabled
+                        .isLowPowerModeEnabled,
+                processUserSecondsEnd:
+                    cpu.userSeconds,
+                processSystemSecondsEnd:
+                    cpu.systemSeconds,
+                appScenePhaseEnd:
+                    currentAppScenePhase()
             )
 
         stateQueue.sync {
@@ -162,6 +217,106 @@ private enum RC1232PerformanceDiagnostics {
                 + resourceValue("metal_allocated_mib", from: snapshot),
             "metal_recommended_mib="
                 + resourceValue("metal_recommended_mib", from: snapshot),
+        ]
+    }
+
+    private static func resourceIntValue(
+        _ key: String,
+        from snapshot: String
+    ) -> Int? {
+        Int(resourceValue(key, from: snapshot))
+    }
+
+    private static func resourceTransitionLines(
+        startSnapshot: String,
+        endSnapshot: String
+    ) -> [String] {
+        let keys = [
+            "available_mib",
+            "resident_mib",
+            "phys_footprint_mib",
+            "virtual_mib",
+            "metal_allocated_mib",
+            "metal_recommended_mib",
+        ]
+
+        var lines: [String] = []
+        for key in keys {
+            let start =
+                resourceIntValue(key, from: startSnapshot)
+            let end =
+                resourceIntValue(key, from: endSnapshot)
+            lines.append(
+                key + "_start=" + String(start ?? -1)
+            )
+            lines.append(
+                key + "_end=" + String(end ?? -1)
+            )
+            if let start, let end {
+                lines.append(
+                    key + "_delta=" + String(end - start)
+                )
+            } else {
+                lines.append(key + "_delta=-1")
+            }
+        }
+        return lines
+    }
+
+    private static func profilingLines(
+        observation: RequestObservation,
+        completion: RequestCompletionObservation
+    ) -> [String] {
+        let userMilliseconds =
+            max(
+                0,
+                (completion.processUserSecondsEnd
+                    - observation.processUserSecondsStart)
+                    * 1_000
+            )
+        let systemMilliseconds =
+            max(
+                0,
+                (completion.processSystemSecondsEnd
+                    - observation.processSystemSecondsStart)
+                    * 1_000
+            )
+        let totalCPUMilliseconds =
+            userMilliseconds + systemMilliseconds
+        let wallMilliseconds =
+            max(
+                0.001,
+                milliseconds(
+                    from: observation.start,
+                    to: completion.end
+                )
+            )
+        let cpuPercentEstimate =
+            totalCPUMilliseconds
+                / wallMilliseconds
+                * 100.0
+
+        return [
+            "process_cpu_user_ms="
+                + formatMilliseconds(userMilliseconds),
+            "process_cpu_system_ms="
+                + formatMilliseconds(systemMilliseconds),
+            "process_cpu_total_ms="
+                + formatMilliseconds(totalCPUMilliseconds),
+            "process_cpu_percent_estimate="
+                + String(
+                    format: "%.2f",
+                    cpuPercentEstimate
+                ),
+            "active_processor_count="
+                + String(
+                    ProcessInfo.processInfo
+                        .activeProcessorCount
+                ),
+            "app_scene_phase_start="
+                + observation.appScenePhaseStart,
+            "app_scene_phase_end="
+                + completion.appScenePhaseEnd,
         ]
     }
 
@@ -249,7 +404,10 @@ private enum RC1232PerformanceDiagnostics {
                 + String(observation.lowPowerModeStart),
             "low_power_mode_end="
                 + String(completion.lowPowerModeEnd),
-        ]
+        ] + profilingLines(
+            observation: observation,
+            completion: completion
+        )
         persist([
             "request_id=\(requestID)",
             "request_ordinal=\(observation.ordinal)",
@@ -289,6 +447,7 @@ private enum RC1232PerformanceDiagnostics {
         requestedMaxTokens: Int,
         imageOrdering: OpenAIImageOrdering,
         prefixReuseEnabled: Bool,
+        resourceSnapshotStart: String,
         resourceSnapshot: String,
         imageWriteStart: UInt64,
         imageWriteEnd: UInt64,
@@ -343,8 +502,13 @@ private enum RC1232PerformanceDiagnostics {
                 format: "%.3f",
                 metrics.generation.tokensPerSecond
             )
-        let resources = resourceLines(from: resourceSnapshot)
         let completion = completeRequest(observation)
+        let resources =
+            resourceLines(from: resourceSnapshot)
+            + resourceTransitionLines(
+                startSnapshot: resourceSnapshotStart,
+                endSnapshot: resourceSnapshot
+            )
         let environment = [
             "idle_gap_ms="
                 + formatMilliseconds(
@@ -366,7 +530,10 @@ private enum RC1232PerformanceDiagnostics {
                 + String(observation.lowPowerModeStart),
             "low_power_mode_end="
                 + String(completion.lowPowerModeEnd),
-        ]
+        ] + profilingLines(
+            observation: observation,
+            completion: completion
+        )
 
         persist([
             "request_id=\(requestID)",
@@ -514,6 +681,7 @@ private enum RC1232PerformanceDiagnostics {
         stream: Bool,
         metrics: GenerationMetrics,
         requestedMaxTokens: Int,
+        resourceSnapshotStart: String,
         resourceSnapshot: String,
         textGenerationStart: UInt64,
         textGenerationEnd: UInt64,
@@ -535,8 +703,13 @@ private enum RC1232PerformanceDiagnostics {
                 format: "%.3f",
                 metrics.tokensPerSecond
             )
-        let resources = resourceLines(from: resourceSnapshot)
         let completion = completeRequest(observation)
+        let resources =
+            resourceLines(from: resourceSnapshot)
+            + resourceTransitionLines(
+                startSnapshot: resourceSnapshotStart,
+                endSnapshot: resourceSnapshot
+            )
         let environment = [
             "idle_gap_ms="
                 + formatMilliseconds(
@@ -558,7 +731,10 @@ private enum RC1232PerformanceDiagnostics {
                 + String(observation.lowPowerModeStart),
             "low_power_mode_end="
                 + String(completion.lowPowerModeEnd),
-        ]
+        ] + profilingLines(
+            observation: observation,
+            completion: completion
+        )
 
         persist([
             "request_id=\(requestID)",
@@ -765,7 +941,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.23.1 OpenAI Multimodal API")
+                            Text("1.0 · RC1.24.0 Sustained Decode Profiling")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -1302,6 +1478,10 @@ struct ProductionView: View {
             }
             .navigationTitle("Bonsai")
             .onAppear {
+                UserDefaults.standard.set(
+                    String(describing: scenePhase),
+                    forKey: "BonsaiRC1240AppScenePhase"
+                )
                 if apiRuntimeProfile == "flash" {
                     apiRuntimeProfile = "accelerated"
                 }
@@ -1315,6 +1495,10 @@ struct ProductionView: View {
                 recoverPreviousFailureHint()
             }
             .onChange(of: scenePhase) { newPhase in
+                UserDefaults.standard.set(
+                    String(describing: newPhase),
+                    forKey: "BonsaiRC1240AppScenePhase"
+                )
                 if newPhase == .background {
                     apiServer.stop()
                     Task {
@@ -1951,7 +2135,7 @@ struct ProductionView: View {
             "[LAST API REQUEST PERFORMANCE]",
             apiPerformanceMetrics,
             "",
-            "[RC1.23.3 LONG-RUN REQUEST HISTORY]",
+            "[RC1.24.0 SUSTAINED DECODE REQUEST HISTORY]",
             longRunRequestHistory,
             "",
             "[RESOURCE / MEMORY]",
@@ -2685,7 +2869,7 @@ struct ProductionView: View {
         let sharedVisionSidecar = mlxVisionSidecar
 
         busy = true
-        status = "正在预热 RC1.23.6 Frozen 512 Runtime…"
+        status = "正在预热 RC1.24.0 Build 55 Profiling Runtime…"
         detail = """
         Text API 继续使用冻结的 RC1.20.7 路径。
         单图请求使用 RC1.23.0 MLX Live Vision Injection；
@@ -2749,6 +2933,9 @@ struct ProductionView: View {
                         payload.imageData == nil
                         ? "text"
                         : "vision"
+                    let requestResourceSnapshotStart =
+                        await sharedEngine
+                            .apiAdmissionSnapshot()
                     var requestMetricsCommitted = false
 
                     defer {
@@ -3099,6 +3286,8 @@ struct ProductionView: View {
                                     payload.imageOrdering,
                                 prefixReuseEnabled:
                                     prefixReuseEnabled,
+                                resourceSnapshotStart:
+                                    requestResourceSnapshotStart,
                                 resourceSnapshot:
                                     resourceSnapshot,
                                 imageWriteStart:
@@ -3178,6 +3367,8 @@ struct ProductionView: View {
                             metrics: metrics,
                             requestedMaxTokens:
                                 payload.maxTokens,
+                            resourceSnapshotStart:
+                                requestResourceSnapshotStart,
                             resourceSnapshot:
                                 resourceSnapshot,
                             textGenerationStart:
@@ -3204,7 +3395,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.23.6 Frozen 512 Runtime 已预热"
+                        "RC1.24.0 Build 55 Profiling Runtime 已预热"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
@@ -3226,7 +3417,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.23.6 Frozen 512 Runtime 预热失败"
+                        "RC1.24.0 Build 55 Profiling Runtime 预热失败"
                     detail = error.localizedDescription
                 }
             }
