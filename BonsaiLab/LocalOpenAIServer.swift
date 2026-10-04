@@ -6,13 +6,24 @@ struct OpenAIRequestPayload: Sendable {
     let model: String
     let systemPrompt: String
     let userPrompt: String
-    let imageData: Data?
-    let imageExtension: String
+    let images: [OpenAIImageInput]
     let imageOrdering: OpenAIImageOrdering
     let maxTokens: Int
     let stream: Bool
     let includeUsage: Bool
     let reasoningEffort: String
+
+    var imageCount: Int {
+        images.count
+    }
+
+    var imageData: Data? {
+        images.first?.data
+    }
+
+    var imageExtension: String {
+        images.first?.fileExtension ?? "jpg"
+    }
 }
 
 struct OpenAIHandlerResult: Sendable {
@@ -923,8 +934,7 @@ final class LocalOpenAIServer: ObservableObject {
 
         var systemPrompt = "You are a helpful assistant."
         var userPrompt = ""
-        var imageData: Data?
-        var imageExtension = "jpg"
+        var images: [OpenAIImageInput] = []
         var imageOrdering: OpenAIImageOrdering = .none
         var totalImages = 0
         var bindingSummaries: [OpenAIMessageBindingSummary] = []
@@ -952,7 +962,7 @@ final class LocalOpenAIServer: ObservableObject {
             }
 
             totalImages += parsed.imageCount
-            if totalImages > 1 {
+            if totalImages > 3 {
                 throw OpenAIMultimodalError
                     .tooManyImages
             }
@@ -972,9 +982,8 @@ final class LocalOpenAIServer: ObservableObject {
                     userPrompt = parsed.text
                 }
 
-                if let data = parsed.imageData {
-                    imageData = data
-                    imageExtension = parsed.imageExtension
+                if !parsed.images.isEmpty {
+                    images = parsed.images
                     imageOrdering = parsed.ordering
                 }
             }
@@ -1020,8 +1029,7 @@ final class LocalOpenAIServer: ObservableObject {
             model: root["model"] as? String ?? defaultModel,
             systemPrompt: systemPrompt,
             userPrompt: userPrompt,
-            imageData: imageData,
-            imageExtension: imageExtension,
+            images: images,
             imageOrdering: imageOrdering,
             maxTokens: maxTokens,
             stream: root["stream"] as? Bool ?? false,
