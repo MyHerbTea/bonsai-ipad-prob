@@ -1407,30 +1407,19 @@ struct ProductionView: View {
 
                     defer {
                         if !requestMetricsCommitted {
-                            let end =
-                                RC1232PerformanceDiagnostics.now()
                             let lastStage =
                                 UserDefaults.standard.string(
                                     forKey:
                                         "BonsaiLabLastStage"
                                 ) ?? "无"
-                            RC1232PerformanceDiagnostics.persist([
-                                "request_id=\(requestID)",
-                                "route=\(requestRoute)",
-                                "stream=\(payload.stream)",
-                                "result=failed_or_interrupted",
-                                "total_ms="
-                                    + RC1232PerformanceDiagnostics
-                                        .formatMilliseconds(
-                                            RC1232PerformanceDiagnostics
-                                                .milliseconds(
-                                                    from:
-                                                        requestStart,
-                                                    to: end
-                                                )
-                                        ),
-                                "last_stage=\(lastStage)",
-                            ])
+                            RC1232PerformanceDiagnostics
+                                .persistFailure(
+                                    requestID: requestID,
+                                    route: requestRoute,
+                                    stream: payload.stream,
+                                    requestStart: requestStart,
+                                    lastStage: lastStage
+                                )
                         }
                     }
 
