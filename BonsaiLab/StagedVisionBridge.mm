@@ -1232,6 +1232,8 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
     const char * question,
     int32_t n_batch,
     int32_t non_thinking,
+    int32_t reuse_prefix,
+    int32_t expected_prefix_positions,
     char * out_error,
     size_t out_error_cap,
     const char * stage_path
@@ -1413,15 +1415,45 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
     packet.push_back(std::move(image_chunk));
     packet.push_back(std::move(suffix_chunk));
 
-    llama_memory_clear(llama_get_memory(ctx), true);
+    const llama_pos prefix_positions =
+        packet[0].n_pos + packet[1].n_pos;
+    const bool can_reuse_prefix =
+        reuse_prefix != 0 &&
+        expected_prefix_positions > 0 &&
+        expected_prefix_positions == prefix_positions;
 
     llama_pos n_past = 0;
+    if (can_reuse_prefix) {
+        n_past = prefix_positions;
+        result.prefix_reuse_hit = 1;
+        write_stage(
+            stage_path,
+            "TWOPHASE_B03_PREFIX_REUSE_HIT"
+        );
+    } else {
+        llama_memory_clear(
+            llama_get_memory(ctx),
+            true
+        );
+        result.prefix_reuse_hit = 0;
+        write_stage(
+            stage_path,
+            "TWOPHASE_B03_PREFIX_REUSE_MISS"
+        );
+    }
+
     const auto prefill_start =
         std::chrono::steady_clock::now();
     write_stage(stage_path, "TWOPHASE_B03_PREFILL_BEGIN");
 
-    for (size_t i = 0; i < packet.size(); ++i) {
+    const size_t begin_index =
+        can_reuse_prefix ? 2u : 0u;
+
+    for (size_t i = begin_index; i < packet.size(); ++i) {
         const bool is_last = i + 1 == packet.size();
+        const auto chunk_start =
+            std::chrono::steady_clock::now();
+
         const int32_t rc =
             packet[i].kind == PacketKind::Text
                 ? decode_text_chunk(
@@ -1439,6 +1471,20 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
                     n_batch,
                     is_last
                 );
+
+        const double chunk_ms = elapsed_ms(
+            chunk_start,
+            std::chrono::steady_clock::now()
+        );
+
+        if (i == 0) {
+            result.prefix_text_ms = chunk_ms;
+        } else if (i == 1) {
+            result.image_prefill_ms = chunk_ms;
+        } else if (i == 2) {
+            result.suffix_prefill_ms = chunk_ms;
+        }
+
         if (rc != 0) {
             llama_memory_clear(
                 llama_get_memory(ctx),
@@ -1463,6 +1509,8 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
         prefill_start,
         std::chrono::steady_clock::now()
     );
+    result.prefix_positions =
+        static_cast<int32_t>(prefix_positions);
     result.prompt_tokens =
         static_cast<int32_t>(
             packet[0].tokens.size()
@@ -1480,6 +1528,36 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
 
     write_stage(stage_path, "TWOPHASE_B99_PREFILL_READY");
     return result;
+}
+
+int32_t BonsaiRetainVisionPrefixKV(
+    struct llama_context * ctx,
+    int32_t prefix_positions
+) {
+    std::lock_guard<std::mutex> lock(g_staged_mutex);
+
+    if (ctx == nullptr || prefix_positions <= 0) {
+        return 0;
+    }
+
+    llama_memory_t mem = llama_get_memory(ctx);
+    if (mem == nullptr) {
+        return 0;
+    }
+
+    const bool ok = llama_memory_seq_rm(
+        mem,
+        0,
+        static_cast<llama_pos>(prefix_positions),
+        -1
+    );
+
+    if (!ok) {
+        llama_memory_clear(mem, true);
+        return 0;
+    }
+
+    return 1;
 }
 
 void BonsaiReleaseStagedResidentModel(void) {
