@@ -1,8 +1,13 @@
 # RC1.23.4 Generation / Decode Efficiency — Build 46
 
-Status: **GENERATION TELEMETRY BASELINE CANDIDATE**
+Status: **FROZEN — superseded as the stage entry point by `RC1.23.4_FROZEN_BASELINE.md`**
 
 Parent baseline: RC1.23.3 build 45 FROZEN.
+
+Frozen executable source: `4c0a453339350c0c915578a46a15d4235ab0ff99`.
+Validation CI: run #37 (`37202037952`) — SUCCESS.
+
+This document preserves the Build 46 design intent. For authoritative frozen evidence, invariants, device acceptance, and next-stage boundaries, use `RC1.23.4_FROZEN_BASELINE.md` and `RC1.23.4_FROZEN_MANIFEST.json`.
 
 ## Goal
 
