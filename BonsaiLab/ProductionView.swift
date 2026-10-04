@@ -650,7 +650,7 @@ struct ProductionView: View {
     @AppStorage("BonsaiRC1232VisionPrefixKVReuseEnabled")
     private var visionPrefixKVReuseEnabled = false
     @AppStorage("BonsaiRC1233APIRuntimeProfile")
-    private var apiRuntimeProfile = "safe"
+    private var apiRuntimeProfile = "accelerated"
 
     @State private var output = ""
     @State private var status = "准备就绪"
@@ -962,7 +962,6 @@ struct ProductionView: View {
                             selection: $apiRuntimeProfile
                         ) {
                             Text("Safe").tag("safe")
-                            Text("Flash").tag("flash")
                             Text("Full").tag("accelerated")
                         }
                         .pickerStyle(.segmented)
@@ -970,12 +969,8 @@ struct ProductionView: View {
 
                         Text(
                             apiRuntimeProfile == "safe"
-                                ? "Safe：保持 build 43 冻结运行参数，Flash/KQV/Op Offload 均关闭。"
-                                : (
-                                    apiRuntimeProfile == "flash"
-                                        ? "Flash：仅开启 Flash Attention；停止并重新启动 API 后生效。"
-                                        : "Full：开启 Flash Attention + KQV/Op Offload；实验候选，停止并重新启动 API 后生效。"
-                                )
+                                ? "Safe：兼容回退档，Flash/KQV/Op Offload 均关闭。"
+                                : "Full：RC1.23.3 推荐性能档，开启 Flash Attention + KQV/Op Offload。"
                         )
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -1157,6 +1152,9 @@ struct ProductionView: View {
             }
             .navigationTitle("Bonsai")
             .onAppear {
+                if apiRuntimeProfile == "flash" {
+                    apiRuntimeProfile = "accelerated"
+                }
                 recoverPreviousFailureHint()
             }
             .onChange(of: scenePhase) { newPhase in
@@ -1815,7 +1813,9 @@ struct ProductionView: View {
             mlxVisionWeightsURL
         let selectedRuntime = runtime
         let selectedAPIRuntimeProfile =
-            apiRuntimeProfile
+            apiRuntimeProfile == "safe"
+                ? "safe"
+                : "accelerated"
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
@@ -1837,10 +1837,6 @@ struct ProductionView: View {
                 apiRuntime.ubatch = 8
 
                 switch selectedAPIRuntimeProfile {
-                case "flash":
-                    apiRuntime.flashAttention = true
-                    apiRuntime.offloadKQV = false
-                    apiRuntime.opOffload = false
                 case "accelerated":
                     apiRuntime.flashAttention = true
                     apiRuntime.offloadKQV = true
