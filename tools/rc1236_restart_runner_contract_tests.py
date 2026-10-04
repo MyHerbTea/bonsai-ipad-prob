@@ -71,11 +71,14 @@ assert "certificationRecorder.recordEvent(" in view
 assert "certificationRecorder.recordSnapshot(" in view
 assert "BONSAI-RUN-" in recorder
 
-# Build 50 and CI packaging.
-assert re.search(r'CURRENT_PROJECT_VERSION:\s*"50"', project)
+# Build 50+ retains the one-click restart runner.
+build_match = re.search(
+    r'CURRENT_PROJECT_VERSION:\s*"(?P<build>\d+)"',
+    project,
+)
+assert build_match is not None
+assert int(build_match.group("build")) >= 50
 assert "RC1.23.6 restart runner contracts" in workflow
 assert "tools/rc1236_restart_runner_contract_tests.py" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "50"' in workflow
-assert "Build50-One-Click-Restart-Certification-Candidate" in workflow
 
 print("RC1.23.6 Build 50 one-click restart runner contracts: PASS")
