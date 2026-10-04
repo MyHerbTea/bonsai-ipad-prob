@@ -1809,53 +1809,19 @@ struct ProductionView: View {
 
                     let textGenerationEnd =
                         RC1232PerformanceDiagnostics.now()
-                    RC1232PerformanceDiagnostics.persist([
-                        "request_id=\(requestID)",
-                        "route=text",
-                        "stream=\(payload.stream)",
-                        "result=success",
-                        "text_generation_ms="
-                            + RC1232PerformanceDiagnostics
-                                .formatMilliseconds(
-                                    RC1232PerformanceDiagnostics
-                                        .milliseconds(
-                                            from:
-                                                textGenerationStart,
-                                            to:
-                                                textGenerationEnd
-                                        )
-                                ),
-                        "ttft_ms="
-                            + RC1232PerformanceDiagnostics
-                                .formatMilliseconds(
-                                    metrics.ttftSeconds
-                                        * 1_000
-                                ),
-                        "decode_ms="
-                            + RC1232PerformanceDiagnostics
-                                .formatMilliseconds(
-                                    metrics.generationSeconds
-                                        * 1_000
-                                ),
-                        "tokens_per_second="
-                            + String(
-                                format: "%.3f",
-                                metrics.tokensPerSecond
-                            ),
-                        "prompt_tokens=\(metrics.promptTokens)",
-                        "completion_tokens=\(metrics.generatedTokens)",
-                        "total_ms="
-                            + RC1232PerformanceDiagnostics
-                                .formatMilliseconds(
-                                    RC1232PerformanceDiagnostics
-                                        .milliseconds(
-                                            from:
-                                                requestStart,
-                                            to:
-                                                textGenerationEnd
-                                        )
-                                ),
-                    ])
+
+                    RC1232PerformanceDiagnostics
+                        .persistTextSuccess(
+                            requestID: requestID,
+                            stream: payload.stream,
+                            metrics: metrics,
+                            textGenerationStart:
+                                textGenerationStart,
+                            textGenerationEnd:
+                                textGenerationEnd,
+                            requestStart:
+                                requestStart
+                        )
                     requestMetricsCommitted = true
 
                     return OpenAIHandlerResult(
