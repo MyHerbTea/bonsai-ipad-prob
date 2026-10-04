@@ -1,100 +1,76 @@
 # RC1.23.3 — Long-Run Throughput Observability
 
-Status: **ACTIVE DEVELOPMENT — PHASE A OBSERVABILITY ONLY**
+Status: **ACTIVE DEVELOPMENT — PHASE A2 THERMAL / IDLE-GAP CORRELATION**
 
 Parent frozen baseline:
 
 - RC1.23.2 build 41;
-- frozen branch: `lab-v1-rc1-23-2-performance-session-reuse`;
-- frozen documentation commit:
-  `15d87374df906e9687badbc6d2527a12a7086ddf`;
-- executable source baseline:
-  `990e8d6d90a660461fa14c4d391202efb2eb0bd5`;
+- frozen documentation commit: `15d87374df906e9687badbc6d2527a12a7086ddf`;
+- executable source baseline: `990e8d6d90a660461fa14c4d391202efb2eb0bd5`;
 - accepted C2-B architecture: single-sequence ON_DEVICE prefix-state checkpoint.
 
 RC1.23.2 is immutable. RC1.23.3 work occurs only on
 `lab-v1-rc1-23-3-production-hardening`.
 
-## Phase A objective
-
-Explain the long-run throughput degradation observed during the frozen
-10-request warm-hit soak without changing C2-B checkpoint semantics.
-
-Observed frozen-baseline behavior:
-
-- early warm-hit end-to-end latency: about 18 s;
-- later soak latency: about 24–26 s;
-- checkpoint remained HIT and retained=true;
-- prefix and image prefill remained 0.000 s;
-- MLX peak remained 144 MiB;
-- no crash occurred;
-- a later same-session probe returned to about 18 s.
-
-The first RC1.23.3 question is therefore:
-
-> Is the later-soak slowdown primarily device/thermal throttling, llama runtime
-> long-session degradation, or measurable resource accumulation?
-
-No root cause is assumed in advance.
-
 ## Frozen boundaries
 
-Phase A must not change:
-
-- `n_seq_max=1`;
-- C2-B state save/restore implementation;
-- Prism ON_DEVICE checkpoint flags;
-- image/system reuse identity;
-- text/failure/unload invalidation;
-- BVCACHE1;
-- projected width 5120;
-- RC1.22.5 MLX hard graph-cut;
-- RC1.23.1 API/error semantics;
-- the default-OFF state of the reuse toggle.
-
+RC1.23.3 must not change `n_seq_max=1`, C2-B state save/restore, Prism
+ON_DEVICE checkpoint flags, reuse identity, invalidation semantics, BVCACHE1,
+projection width 5120, RC1.22.5 hard graph-cut, or RC1.23.1 API/error behavior.
 C1 partial trimming and C2-A multi-sequence checkpointing remain rejected.
 
-## Required observability
+## Phase A1 — build 42 result
 
-The intended build-42 instrumentation should make a repeated-request sequence
-easy to analyze without changing inference behavior. At minimum, capture for
-each API request:
+A real iPad Pro M5 / iPadOS 27.0.1 run completed one seed request plus twenty
+same-image warm requests successfully.
 
-- monotonically increasing request ordinal;
-- route and HIT/MISS state;
-- prefix retention state;
-- total request milliseconds;
-- prefill milliseconds;
-- prefix/image/suffix prefill milliseconds;
-- decode milliseconds;
-- tokens per second;
-- Vision encode milliseconds;
-- available memory;
-- process physical footprint;
-- Metal allocated/recommended memory where available.
+- ordinals 2–21 remained C2-B HIT with retained=true;
+- warm HIT prefix/image prefill stayed at 0;
+- fastest warm requests were about 17.6–17.9 s;
+- slower requests reached about 24–27 s;
+- decode throughput fell from about 8.6 tok/s to about 6.1 tok/s;
+- suffix prefill rose from roughly 2.4–2.6 s to roughly 3.4–3.6 s;
+- ordinals 13–14 recovered strongly to about 8.6 tok/s before degrading again;
+- process/Metal resource counters showed no monotonic leak pattern;
+- Metal allocation stayed approximately 5771–5772 MiB.
 
-Metrics must remain privacy bounded and must not record raw images, base64,
-prompt text, assistant text, or API keys.
+Classification: checkpoint stability PASS; functional stability PASS;
+monotonic memory accumulation NOT DETECTED; dominant slowdown component 27B
+decode; secondary correlated component suffix prefill; thermal/DVFS is the
+leading high-confidence hypothesis but is not yet proven.
 
-## Phase A acceptance gate
+## Phase A2 — build 43 objective
 
-Phase A is accepted only if:
+Build 43 adds per-request environment correlation without changing inference:
 
-1. the frozen RC1.23.2 contracts still pass;
-2. build 42 starts and serves the same requests as build 41;
-3. the additional metrics are observational only;
-4. a repeated-hit device run can distinguish whether slowdown correlates with
-   decode throughput, prefill, or resource growth;
-5. no conclusion about thermal/runtime/memory cause is claimed without
-   target-device evidence.
+- `idle_gap_ms` since the prior completed request;
+- session elapsed time at request start/end;
+- `ProcessInfo.processInfo.thermalState` at request start/end;
+- Low Power Mode at request start/end;
+- all build-42 throughput and resource fields remain.
 
-## Current transaction
+The rolling history remains bounded to the most recent 32 requests.
 
-Build 42 is the RC1.23.3 starting build. This initial transaction changes only:
+## A2 decision rule
 
-- development branch/version identity;
-- build number;
-- CI/artifact labeling;
-- this phase control document.
+Promote thermal/DVFS from hypothesis to device-evidence-confirmed only when
+target-device data shows throughput degradation/recovery correlated with thermal
+state and/or a controlled cool-down gap, without corresponding monotonic
+process/Metal resource growth. If thermal state remains unchanged while
+throughput repeatedly degrades and recovers, continue into runtime/scheduler
+instrumentation instead of changing C2-B.
 
-It does **not** implement the new runtime metrics yet and does not modify C2-B.
+## Privacy boundary
+
+Diagnostics must not record API keys, raw images, base64 payloads, prompt text,
+or assistant output.
+
+## Build 43 acceptance gate
+
+1. Frozen RC1.23.2 contracts pass.
+2. Build 43 compiles/packages.
+3. C2-B behavior is unchanged.
+4. A2 fields appear in last-request metrics and rolling history.
+5. Controlled warm-load → cool-down → warm-load data is interpretable from the
+   app telemetry itself.
+6. No thermal conclusion is claimed before true-device A2 evidence.

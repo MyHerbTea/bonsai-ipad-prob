@@ -11,23 +11,126 @@ private enum RC1232PerformanceDiagnostics {
     private static let stateQueue = DispatchQueue(
         label: "local.bonsai.rc1233.long-run-diagnostics"
     )
+    struct RequestObservation {
+        let ordinal: Int
+        let start: UInt64
+        let idleGapMilliseconds: Double
+        let sessionElapsedMilliseconds: Double
+        let thermalStart: String
+        let lowPowerModeStart: Bool
+    }
+
+    private struct RequestCompletionObservation {
+        let end: UInt64
+        let sessionElapsedMilliseconds: Double
+        let thermalEnd: String
+        let lowPowerModeEnd: Bool
+    }
+
     private static var sessionRequestOrdinal = 0
+    private static var sessionStartNanoseconds: UInt64 = 0
+    private static var previousRequestEndNanoseconds: UInt64?
     private static let historyLimit = 32
 
     static func beginSession() {
         stateQueue.sync {
             sessionRequestOrdinal = 0
+            sessionStartNanoseconds = now()
+            previousRequestEndNanoseconds = nil
             UserDefaults.standard.removeObject(
                 forKey: longRunHistoryDefaultsKey
             )
         }
     }
 
-    static func nextRequestOrdinal() -> Int {
+    static func beginRequest() -> RequestObservation {
         stateQueue.sync {
+            let start = now()
             sessionRequestOrdinal += 1
-            return sessionRequestOrdinal
+
+            let idleGapMilliseconds: Double
+            if let previousRequestEndNanoseconds {
+                idleGapMilliseconds =
+                    milliseconds(
+                        from: previousRequestEndNanoseconds,
+                        to: start
+                    )
+            } else {
+                idleGapMilliseconds = -1
+            }
+
+            return RequestObservation(
+                ordinal: sessionRequestOrdinal,
+                start: start,
+                idleGapMilliseconds:
+                    idleGapMilliseconds,
+                sessionElapsedMilliseconds:
+                    milliseconds(
+                        from: sessionStartNanoseconds,
+                        to: start
+                    ),
+                thermalStart:
+                    thermalStateName(
+                        ProcessInfo.processInfo.thermalState
+                    ),
+                lowPowerModeStart:
+                    ProcessInfo.processInfo
+                        .isLowPowerModeEnabled
+            )
         }
+    }
+
+    private static func thermalStateName(
+        _ state: ProcessInfo.ThermalState
+    ) -> String {
+        switch state {
+        case .nominal:
+            return "nominal"
+        case .fair:
+            return "fair"
+        case .serious:
+            return "serious"
+        case .critical:
+            return "critical"
+        @unknown default:
+            return "unknown"
+        }
+    }
+
+    private static func completeRequest(
+        _ observation: RequestObservation
+    ) -> RequestCompletionObservation {
+        let end = now()
+        let completion =
+            RequestCompletionObservation(
+                end: end,
+                sessionElapsedMilliseconds:
+                    milliseconds(
+                        from: sessionStartNanoseconds,
+                        to: end
+                    ),
+                thermalEnd:
+                    thermalStateName(
+                        ProcessInfo.processInfo.thermalState
+                    ),
+                lowPowerModeEnd:
+                    ProcessInfo.processInfo
+                        .isLowPowerModeEnabled
+            )
+
+        stateQueue.sync {
+            if let previousRequestEndNanoseconds {
+                self.previousRequestEndNanoseconds =
+                    max(
+                        previousRequestEndNanoseconds,
+                        end
+                    )
+            } else {
+                previousRequestEndNanoseconds = end
+            }
+        }
+
+        return completion
     }
 
     private static func resourceValue(
@@ -112,41 +215,74 @@ private enum RC1232PerformanceDiagnostics {
 
     static func persistFailure(
         requestID: String,
-        requestOrdinal: Int,
+        observation: RequestObservation,
         route: String,
         stream: Bool,
-        requestStart: UInt64,
         lastStage: String
     ) {
-        let end = now()
+        let completion = completeRequest(observation)
         let totalMilliseconds =
             formatMilliseconds(
                 milliseconds(
-                    from: requestStart,
-                    to: end
+                    from: observation.start,
+                    to: completion.end
                 )
             )
+        let environment = [
+            "idle_gap_ms="
+                + formatMilliseconds(
+                    observation.idleGapMilliseconds
+                ),
+            "session_elapsed_start_ms="
+                + formatMilliseconds(
+                    observation.sessionElapsedMilliseconds
+                ),
+            "session_elapsed_end_ms="
+                + formatMilliseconds(
+                    completion.sessionElapsedMilliseconds
+                ),
+            "thermal_state_start="
+                + observation.thermalStart,
+            "thermal_state_end="
+                + completion.thermalEnd,
+            "low_power_mode_start="
+                + String(observation.lowPowerModeStart),
+            "low_power_mode_end="
+                + String(completion.lowPowerModeEnd),
+        ]
         persist([
             "request_id=\(requestID)",
-            "request_ordinal=\(requestOrdinal)",
+            "request_ordinal=\(observation.ordinal)",
             "route=\(route)",
             "stream=\(stream)",
             "result=failed_or_interrupted",
             "total_ms=" + totalMilliseconds,
             "last_stage=\(lastStage)",
-        ])
+        ] + environment)
         appendLongRunHistory([
-            "ordinal=\(requestOrdinal)",
+            "ordinal=\(observation.ordinal)",
             "route=\(route)",
             "result=failed_or_interrupted",
             "total_ms=\(totalMilliseconds)",
+            "idle_gap_ms="
+                + formatMilliseconds(
+                    observation.idleGapMilliseconds
+                ),
+            "session_elapsed_ms="
+                + formatMilliseconds(
+                    completion.sessionElapsedMilliseconds
+                ),
+            "thermal_start=\(observation.thermalStart)",
+            "thermal_end=\(completion.thermalEnd)",
+            "low_power_start=\(observation.lowPowerModeStart)",
+            "low_power_end=\(completion.lowPowerModeEnd)",
             "last_stage=\(lastStage)",
         ])
     }
 
     static func persistVisionSuccess(
         requestID: String,
-        requestOrdinal: Int,
+        observation: RequestObservation,
         stream: Bool,
         packet: MLXVisionEmbeddingPacket,
         metrics: VisionMetrics,
@@ -194,10 +330,33 @@ private enum RC1232PerformanceDiagnostics {
                 metrics.generation.tokensPerSecond
             )
         let resources = resourceLines(from: resourceSnapshot)
+        let completion = completeRequest(observation)
+        let environment = [
+            "idle_gap_ms="
+                + formatMilliseconds(
+                    observation.idleGapMilliseconds
+                ),
+            "session_elapsed_start_ms="
+                + formatMilliseconds(
+                    observation.sessionElapsedMilliseconds
+                ),
+            "session_elapsed_end_ms="
+                + formatMilliseconds(
+                    completion.sessionElapsedMilliseconds
+                ),
+            "thermal_state_start="
+                + observation.thermalStart,
+            "thermal_state_end="
+                + completion.thermalEnd,
+            "low_power_mode_start="
+                + String(observation.lowPowerModeStart),
+            "low_power_mode_end="
+                + String(completion.lowPowerModeEnd),
+        ]
 
         persist([
             "request_id=\(requestID)",
-            "request_ordinal=\(requestOrdinal)",
+            "request_ordinal=\(observation.ordinal)",
             "route=vision",
             "stream=\(stream)",
             "result=success",
@@ -248,10 +407,10 @@ private enum RC1232PerformanceDiagnostics {
                     ? "vision_prefix_kv_hit"
                     : "vision_prefix_kv_miss"),
             "total_ms=" + totalMilliseconds,
-        ] + resources)
+        ] + environment + resources)
 
         appendLongRunHistory([
-            "ordinal=\(requestOrdinal)",
+            "ordinal=\(observation.ordinal)",
             "route=vision",
             "result=success",
             "hit=\(metrics.prefixReuseHit)",
@@ -262,6 +421,18 @@ private enum RC1232PerformanceDiagnostics {
             "decode_ms=\(decodeMilliseconds)",
             "tokens_per_second=\(tokensPerSecond)",
             "vision_encode_ms=\(visionEncodeMilliseconds)",
+            "idle_gap_ms="
+                + formatMilliseconds(
+                    observation.idleGapMilliseconds
+                ),
+            "session_elapsed_ms="
+                + formatMilliseconds(
+                    completion.sessionElapsedMilliseconds
+                ),
+            "thermal_start=\(observation.thermalStart)",
+            "thermal_end=\(completion.thermalEnd)",
+            "low_power_start=\(observation.lowPowerModeStart)",
+            "low_power_end=\(completion.lowPowerModeEnd)",
             "available_mib="
                 + resourceValue(
                     "available_mib",
@@ -297,7 +468,7 @@ private enum RC1232PerformanceDiagnostics {
 
     static func persistTextSuccess(
         requestID: String,
-        requestOrdinal: Int,
+        observation: RequestObservation,
         stream: Bool,
         metrics: GenerationMetrics,
         resourceSnapshot: String,
@@ -322,10 +493,33 @@ private enum RC1232PerformanceDiagnostics {
                 metrics.tokensPerSecond
             )
         let resources = resourceLines(from: resourceSnapshot)
+        let completion = completeRequest(observation)
+        let environment = [
+            "idle_gap_ms="
+                + formatMilliseconds(
+                    observation.idleGapMilliseconds
+                ),
+            "session_elapsed_start_ms="
+                + formatMilliseconds(
+                    observation.sessionElapsedMilliseconds
+                ),
+            "session_elapsed_end_ms="
+                + formatMilliseconds(
+                    completion.sessionElapsedMilliseconds
+                ),
+            "thermal_state_start="
+                + observation.thermalStart,
+            "thermal_state_end="
+                + completion.thermalEnd,
+            "low_power_mode_start="
+                + String(observation.lowPowerModeStart),
+            "low_power_mode_end="
+                + String(completion.lowPowerModeEnd),
+        ]
 
         persist([
             "request_id=\(requestID)",
-            "request_ordinal=\(requestOrdinal)",
+            "request_ordinal=\(observation.ordinal)",
             "route=text",
             "stream=\(stream)",
             "result=success",
@@ -345,15 +539,27 @@ private enum RC1232PerformanceDiagnostics {
             "prompt_tokens=\(metrics.promptTokens)",
             "completion_tokens=\(metrics.generatedTokens)",
             "total_ms=" + totalMilliseconds,
-        ] + resources)
+        ] + environment + resources)
 
         appendLongRunHistory([
-            "ordinal=\(requestOrdinal)",
+            "ordinal=\(observation.ordinal)",
             "route=text",
             "result=success",
             "total_ms=\(totalMilliseconds)",
             "decode_ms=\(decodeMilliseconds)",
             "tokens_per_second=\(tokensPerSecond)",
+            "idle_gap_ms="
+                + formatMilliseconds(
+                    observation.idleGapMilliseconds
+                ),
+            "session_elapsed_ms="
+                + formatMilliseconds(
+                    completion.sessionElapsedMilliseconds
+                ),
+            "thermal_start=\(observation.thermalStart)",
+            "thermal_end=\(completion.thermalEnd)",
+            "low_power_start=\(observation.lowPowerModeStart)",
+            "low_power_end=\(completion.lowPowerModeEnd)",
             "available_mib="
                 + resourceValue(
                     "available_mib",
@@ -1599,11 +1805,11 @@ struct ProductionView: View {
 
                     let requestID =
                         UUID().uuidString
-                    let requestOrdinal =
+                    let requestObservation =
                         RC1232PerformanceDiagnostics
-                            .nextRequestOrdinal()
+                            .beginRequest()
                     let requestStart =
-                        RC1232PerformanceDiagnostics.now()
+                        requestObservation.start
                     let requestRoute =
                         payload.imageData == nil
                         ? "text"
@@ -1620,11 +1826,10 @@ struct ProductionView: View {
                             RC1232PerformanceDiagnostics
                                 .persistFailure(
                                     requestID: requestID,
-                                    requestOrdinal:
-                                        requestOrdinal,
+                                    observation:
+                                        requestObservation,
                                     route: requestRoute,
                                     stream: payload.stream,
-                                    requestStart: requestStart,
                                     lastStage: lastStage
                                 )
                         }
@@ -1948,8 +2153,8 @@ struct ProductionView: View {
                         RC1232PerformanceDiagnostics
                             .persistVisionSuccess(
                                 requestID: requestID,
-                                requestOrdinal:
-                                    requestOrdinal,
+                                observation:
+                                    requestObservation,
                                 stream: payload.stream,
                                 packet: packet,
                                 metrics: metrics,
@@ -2032,8 +2237,8 @@ struct ProductionView: View {
                     RC1232PerformanceDiagnostics
                         .persistTextSuccess(
                             requestID: requestID,
-                            requestOrdinal:
-                                requestOrdinal,
+                            observation:
+                                requestObservation,
                             stream: payload.stream,
                             metrics: metrics,
                             resourceSnapshot:

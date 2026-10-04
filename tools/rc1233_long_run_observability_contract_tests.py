@@ -7,7 +7,9 @@ engine = (root / "BonsaiLab" / "BonsaiEngine.swift").read_text()
 # RC1.23.3 Phase A is observability only.
 assert "BonsaiRC1233LongRunRequestHistory" in view
 assert "beginSession()" in view
-assert "nextRequestOrdinal()" in view
+assert "beginRequest()" in view
+assert "ProcessInfo.processInfo.thermalState" in view
+assert "isLowPowerModeEnabled" in view
 assert "request_ordinal=" in view
 assert "[RC1.23.3 LONG-RUN REQUEST HISTORY]" in view
 assert "historyLimit = 32" in view
@@ -25,8 +27,20 @@ for field in [
     "decode_ms=",
     "tokens_per_second=",
     "vision_encode_ms=",
+    "idle_gap_ms=",
+    "session_elapsed_start_ms=",
+    "session_elapsed_end_ms=",
+    "thermal_state_start=",
+    "thermal_state_end=",
+    "low_power_mode_start=",
+    "low_power_mode_end=",
 ]:
     assert field in view
+
+# A2 thermal/idle-gap correlation is observational only.
+assert "thermal_start=" in view
+assert "thermal_end=" in view
+assert "session_elapsed_ms=" in view
 
 # Privacy boundary remains explicit.
 assert "api_key=[REDACTED]" in view
@@ -43,4 +57,4 @@ assert "BonsaiRetainVisionPrefixKV" in engine
 assert "apiVisionPrefixReuseContextCapable" not in engine
 assert "TWOPHASE_VISION_94_PREFIX_CHECKPOINT_RESTART_REQUIRED" not in engine
 
-print("RC1.23.3 long-run throughput observability contracts: PASS")
+print("RC1.23.3 long-run + thermal observability contracts: PASS")
