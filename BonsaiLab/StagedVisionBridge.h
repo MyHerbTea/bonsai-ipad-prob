@@ -57,6 +57,11 @@ typedef struct {
     double prefix_text_ms;
     double image_prefill_ms;
     double suffix_prefill_ms;
+    int32_t suffix_token_count;
+    int32_t suffix_decode_calls;
+    int32_t suffix_batch_capacity;
+    int32_t suffix_last_batch_tokens;
+    double suffix_batch_utilization;
 } BonsaiVisionPrefillResult;
 
 int32_t BonsaiVisionCacheIsValid(
