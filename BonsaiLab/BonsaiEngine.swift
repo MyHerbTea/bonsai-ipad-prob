@@ -1181,14 +1181,28 @@ actor BonsaiEngine {
             apiVisionPrefixPositions = 0
         }
 
+        let decodeToFirstTokenSeconds: Double
+        if let firstTokenTime = generated.firstTokenTime {
+            decodeToFirstTokenSeconds =
+                Double(
+                    firstTokenTime - generationStart
+                ) / 1_000_000_000.0
+        } else {
+            decodeToFirstTokenSeconds = 0
+        }
+
         let base = GenerationMetrics(
             text: generated.text,
             generatedTokens: generated.count,
             promptTokens: Int(
                 prefill.prompt_tokens
             ),
+            effectiveMaxTokens: effectiveMaxTokens,
+            terminationReason:
+                generated.terminationReason,
             ttftSeconds:
-                prefill.prefill_ms / 1000.0,
+                prefill.prefill_ms / 1000.0
+                + decodeToFirstTokenSeconds,
             generationSeconds:
                 generationSeconds,
             tokensPerSecond:
@@ -1831,6 +1845,9 @@ actor BonsaiEngine {
             text: generated.text,
             generatedTokens: generated.count,
             promptTokens: tokens.count,
+            effectiveMaxTokens: gen.maxTokens,
+            terminationReason:
+                generated.terminationReason,
             ttftSeconds: ttft,
             generationSeconds: generationSeconds,
             tokensPerSecond: Double(generated.count) / generationSeconds
@@ -1970,6 +1987,9 @@ actor BonsaiEngine {
             text: generated.text,
             generatedTokens: generated.count,
             promptTokens: mediaTokens,
+            effectiveMaxTokens: gen.maxTokens,
+            terminationReason:
+                generated.terminationReason,
             ttftSeconds: ttft,
             generationSeconds: generationSeconds,
             tokensPerSecond: Double(generated.count) / generationSeconds
@@ -2370,17 +2390,24 @@ actor BonsaiEngine {
         maxTokens: Int,
         stagePrefix: String,
         onDelta: (@Sendable (String) -> Void)? = nil
-    ) throws -> (text: String, count: Int, firstTokenTime: UInt64?) {
+    ) throws -> (
+        text: String,
+        count: Int,
+        firstTokenTime: UInt64?,
+        terminationReason: GenerationTerminationReason
+    ) {
         var output = ""
         var pending: [CChar] = []
         var position = startPosition
         var generated = 0
         var firstTokenTime: UInt64?
+        var terminationReason: GenerationTerminationReason = .length
 
         while generated < maxTokens {
             let token = llama_sampler_sample(sampler, context, -1)
 
             if llama_vocab_is_eog(vocab, token) {
+                terminationReason = .eog
                 break
             }
 
@@ -2426,7 +2453,12 @@ actor BonsaiEngine {
             if !tail.isEmpty { onDelta?(tail) }
         }
 
-        return (output, generated, firstTokenTime)
+        return (
+            output,
+            generated,
+            firstTokenTime,
+            terminationReason
+        )
     }
 
     private func tokenPiece(
