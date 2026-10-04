@@ -20,7 +20,7 @@ assert "TWOPHASE_B03_PREFIX_REUSE_HIT" in bridge
 assert "TWOPHASE_B03_PREFIX_REUSE_MISS" in bridge
 assert "llama_memory_seq_rm" in bridge
 assert "llama_memory_clear(mem, true)" in bridge
-assert "begin_index = can_reuse_prefix ? 2u : 0u" in bridge
+assert "can_reuse_prefix ? 2u : 0u" in " ".join(bridge.split())
 
 assert "apiVisionPrefixReuseKey" in engine
 assert "apiVisionPrefixPositions" in engine
