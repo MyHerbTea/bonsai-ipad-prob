@@ -11,7 +11,8 @@ engine = (root / "BonsaiLab" / "BonsaiEngine.swift").read_text()
 # Build 54 inference/runtime configuration while adding per-request evidence
 # for sustained decode degradation.
 assert 'Text("1.0 · RC1.24.0 Sustained Decode Profiling")' in view
-assert "[RC1.24.0 SUSTAINED DECODE REQUEST HISTORY]" in view
+assert "[RC1.24.0 SUSTAINED DECODE PROFILING]" in view
+assert "[RC1.23.3 LONG-RUN REQUEST HISTORY]" in view
 
 # Per-request CPU and lifecycle observability.
 for marker in [
