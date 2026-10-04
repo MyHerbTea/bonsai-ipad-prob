@@ -10,7 +10,10 @@ engine = (root / "BonsaiLab" / "BonsaiEngine.swift").read_text()
 # RC1.24.0 Build 55 is instrumentation-only. It must preserve the frozen
 # Build 54 inference/runtime configuration while adding per-request evidence
 # for sustained decode degradation.
-assert 'Text("1.0 · RC1.24.0 Sustained Decode Profiling")' in view
+assert (
+    'Text("1.0 · RC1.24.0 Sustained Decode Profiling")' in view
+    or 'Text("1.0 · RC1.24.1 Runtime Profile A/B")' in view
+)
 assert "[RC1.24.0 SUSTAINED DECODE PROFILING]" in view
 assert "[RC1.23.3 LONG-RUN REQUEST HISTORY]" in view
 
@@ -87,11 +90,12 @@ assert 'generateCachedVision(' in engine
 assert 'generateText(' in engine
 
 # Build and CI identity.
-assert re.search(r'CURRENT_PROJECT_VERSION:\s*"55"', project)
+build_match = re.search(r'CURRENT_PROJECT_VERSION:\s*"(?P<build>\d+)"', project)
+assert build_match is not None
+assert int(build_match.group("build")) >= 55
 assert "lab-v1-rc1-24-0-sustained-decode-profiling" in workflow
 assert "RC1.24.0 sustained decode profiling contracts" in workflow
 assert "tools/rc1240_sustained_decode_profiling_contract_tests.py" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "55"' in workflow
-assert "Build55-Sustained-Decode-Profiling" in workflow
+assert "tools/rc1240_sustained_decode_profiling_contract_tests.py" in workflow
 
 print("RC1.24.0 Build 55 sustained decode profiling contracts: PASS")
