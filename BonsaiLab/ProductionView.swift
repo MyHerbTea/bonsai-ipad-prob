@@ -1728,160 +1728,48 @@ struct ProductionView: View {
 
                         let requestEnd =
                             RC1232PerformanceDiagnostics.now()
-                        RC1232PerformanceDiagnostics.persist([
-                            "request_id=\(requestID)",
-                            "route=vision",
-                            "stream=\(payload.stream)",
-                            "result=success",
-                            "image_write_ms="
-                                + RC1232PerformanceDiagnostics
-                                    .formatMilliseconds(
-                                        RC1232PerformanceDiagnostics
-                                            .milliseconds(
-                                                from:
-                                                    imageWriteStart,
-                                                to:
-                                                    imageWriteEnd
-                                            )
-                                    ),
-                            "vision_encode_ms="
-                                + RC1232PerformanceDiagnostics
-                                    .formatMilliseconds(
-                                        RC1232PerformanceDiagnostics
-                                            .milliseconds(
-                                                from:
-                                                    visionEncodeStart,
-                                                to:
-                                                    visionEncodeEnd
-                                            )
-                                    ),
-                            "vision_encode_reported_ms="
-                                + RC1232PerformanceDiagnostics
-                                    .formatMilliseconds(
-                                        packet.metrics.encodeSeconds
-                                            * 1_000
-                                    ),
-                            "cache_write_ms="
-                                + RC1232PerformanceDiagnostics
-                                    .formatMilliseconds(
-                                        RC1232PerformanceDiagnostics
-                                            .milliseconds(
-                                                from:
-                                                    cacheWriteStart,
-                                                to:
-                                                    cacheWriteEnd
-                                            )
-                                    ),
-                            "prefill_ms="
-                                + RC1232PerformanceDiagnostics
-                                    .formatMilliseconds(
-                                        metrics.visionPrefillSeconds
-                                            * 1_000
-                                    ),
-                            "decode_ms="
-                                + RC1232PerformanceDiagnostics
-                                    .formatMilliseconds(
-                                        metrics.generation
-                                            .generationSeconds
-                                            * 1_000
-                                    ),
-                            "tokens_per_second="
-                                + String(
-                                    format: "%.3f",
-                                    metrics.generation
-                                        .tokensPerSecond
-                                ),
-                            "prompt_tokens=\(metrics.generation.promptTokens)",
-                            "completion_tokens=\(metrics.generation.generatedTokens)",
-                            "visual_rows=\(packet.metrics.outputTokens)",
-                            "projection_dim=\(packet.metrics.outputDimension)",
-                            "grid=\(packet.gridY)x\(packet.gridX)",
-                            "n_pos=\(max(packet.gridX, packet.gridY))",
-                            "image_ordering=\(payload.imageOrdering.rawValue)",
-                            "prefix_reuse_enabled="
-                                + String(
-                                    UserDefaults.standard
-                                        .bool(
-                                            forKey:
-                                                "BonsaiRC1232VisionPrefixKVReuseEnabled"
-                                        )
-                                ),
-                            "prefix_reuse_hit="
-                                + String(
-                                    metrics.prefixReuseHit
-                                ),
-                            "prefix_retained="
-                                + String(
-                                    metrics.prefixRetainedForReuse
-                                ),
-                            "prefix_positions=\(metrics.prefixPositions)",
-                            "prefix_text_ms="
-                                + RC1232PerformanceDiagnostics
-                                    .formatMilliseconds(
-                                        metrics.prefixTextSeconds
-                                            * 1_000
-                                    ),
-                            "image_prefill_ms="
-                                + RC1232PerformanceDiagnostics
-                                    .formatMilliseconds(
-                                        metrics.imagePrefillSeconds
-                                            * 1_000
-                                    ),
-                            "suffix_prefill_ms="
-                                + RC1232PerformanceDiagnostics
-                                    .formatMilliseconds(
-                                        metrics.suffixPrefillSeconds
-                                            * 1_000
-                                    ),
-                            "cache_reuse="
-                                + (metrics.prefixReuseHit
-                                    ? "vision_prefix_kv_hit"
-                                    : "vision_prefix_kv_miss"),
-                            "total_ms="
-                                + RC1232PerformanceDiagnostics
-                                    .formatMilliseconds(
-                                        RC1232PerformanceDiagnostics
-                                            .milliseconds(
-                                                from:
-                                                    requestStart,
-                                                to:
-                                                    requestEnd
-                                            )
-                                    ),
-                        ])
+                        let prefixReuseEnabled =
+                            UserDefaults.standard.bool(
+                                forKey:
+                                    "BonsaiRC1232VisionPrefixKVReuseEnabled"
+                            )
+
+                        RC1232PerformanceDiagnostics
+                            .persistVisionSuccess(
+                                requestID: requestID,
+                                stream: payload.stream,
+                                packet: packet,
+                                metrics: metrics,
+                                imageOrdering:
+                                    payload.imageOrdering,
+                                prefixReuseEnabled:
+                                    prefixReuseEnabled,
+                                imageWriteStart:
+                                    imageWriteStart,
+                                imageWriteEnd:
+                                    imageWriteEnd,
+                                visionEncodeStart:
+                                    visionEncodeStart,
+                                visionEncodeEnd:
+                                    visionEncodeEnd,
+                                cacheWriteStart:
+                                    cacheWriteStart,
+                                cacheWriteEnd:
+                                    cacheWriteEnd,
+                                requestStart:
+                                    requestStart,
+                                requestEnd:
+                                    requestEnd
+                            )
                         requestMetricsCommitted = true
 
                         UserDefaults.standard.set(
-                            packet.metrics.summary
-                                + "\nAPI image ordering: "
-                                + payload.imageOrdering.rawValue
-                                + "\n27B prefill: "
-                                + String(
-                                    format: "%.3f s",
-                                    metrics.visionPrefillSeconds
-                                )
-                                + "\nPrefix reuse: "
-                                + (metrics.prefixReuseHit
-                                    ? "HIT"
-                                    : "MISS")
-                                + " · retained="
-                                + String(
-                                    metrics.prefixRetainedForReuse
-                                )
-                                + "\nPrefill split: prefix="
-                                + String(
-                                    format: "%.3f s",
-                                    metrics.prefixTextSeconds
-                                )
-                                + " · image="
-                                + String(
-                                    format: "%.3f s",
-                                    metrics.imagePrefillSeconds
-                                )
-                                + " · suffix="
-                                + String(
-                                    format: "%.3f s",
-                                    metrics.suffixPrefillSeconds
+                            RC1232PerformanceDiagnostics
+                                .visionSummary(
+                                    packet: packet,
+                                    imageOrdering:
+                                        payload.imageOrdering,
+                                    metrics: metrics
                                 ),
                             forKey:
                                 "BonsaiRC1231LastAPIVisionMetrics"
