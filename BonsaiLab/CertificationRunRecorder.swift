@@ -45,6 +45,13 @@ final class CertificationRunRecorder: ObservableObject {
 
     init() {
         recoverInterruptedRunIfNeeded()
+        refreshLatestArchiveFromDisk()
+    }
+
+    func refreshLatestArchiveFromDisk() {
+        lock.lock()
+        defer { lock.unlock() }
+        refreshLatestArchiveFromDiskLocked()
     }
 
     @discardableResult
@@ -232,16 +239,13 @@ final class CertificationRunRecorder: ObservableObject {
                 from: data
             )
         else {
-            publishState(
-                recording: false,
-                status: "Idle",
-                archiveURL: latestArchiveURL
-            )
+            refreshLatestArchiveFromDiskLocked()
             return
         }
 
         guard recovered.status == "recording" else {
             try? FileManager.default.removeItem(at: url)
+            refreshLatestArchiveFromDiskLocked()
             return
         }
 
@@ -305,13 +309,17 @@ final class CertificationRunRecorder: ObservableObject {
                 status: "Recovered interrupted run · \(interrupted.runID)",
                 archiveURL: completedURL
             )
+            refreshLatestArchiveFromDiskLocked()
         } catch {
             archive = interrupted
+            let latest =
+                latestCompletedArchiveURLLocked()
             publishState(
                 recording: false,
                 status: "Interrupted-run recovery failed: \(error.localizedDescription)",
-                archiveURL: nil
+                archiveURL: latest
             )
+            refreshLatestArchiveFromDiskLocked()
         }
     }
 
@@ -371,14 +379,7 @@ final class CertificationRunRecorder: ObservableObject {
         _ archive: Archive
     ) throws -> URL {
         let directory =
-            FileManager.default.urls(
-                for: .documentDirectory,
-                in: .userDomainMask
-            )[0]
-            .appendingPathComponent(
-                "BonsaiCertificationRuns",
-                isDirectory: true
-            )
+            completedArchiveDirectory()
         try ensureDirectory(directory)
 
         let url = directory
@@ -392,6 +393,92 @@ final class CertificationRunRecorder: ObservableObject {
             options: .atomic
         )
         return url
+    }
+
+    private func completedArchiveDirectory() -> URL {
+        FileManager.default.urls(
+            for: .documentDirectory,
+            in: .userDomainMask
+        )[0]
+        .appendingPathComponent(
+            "BonsaiCertificationRuns",
+            isDirectory: true
+        )
+    }
+
+    private func latestCompletedArchiveURLLocked() -> URL? {
+        let directory =
+            completedArchiveDirectory()
+        guard
+            let urls =
+                try? FileManager.default
+                    .contentsOfDirectory(
+                        at: directory,
+                        includingPropertiesForKeys: [
+                            .contentModificationDateKey,
+                            .isRegularFileKey,
+                        ],
+                        options: [
+                            .skipsHiddenFiles,
+                        ]
+                    )
+        else {
+            return nil
+        }
+
+        let candidates =
+            urls.filter {
+                $0.pathExtension.lowercased() == "json"
+                && $0.lastPathComponent.hasPrefix(
+                    "BONSAI-RUN-"
+                )
+            }
+
+        return candidates.max { lhs, rhs in
+            let leftDate =
+                (
+                    try? lhs.resourceValues(
+                        forKeys: [
+                            .contentModificationDateKey,
+                        ]
+                    )
+                )
+                .contentModificationDate
+                ?? .distantPast
+            let rightDate =
+                (
+                    try? rhs.resourceValues(
+                        forKeys: [
+                            .contentModificationDateKey,
+                        ]
+                    )
+                )
+                .contentModificationDate
+                ?? .distantPast
+
+            if leftDate == rightDate {
+                return lhs.lastPathComponent
+                    < rhs.lastPathComponent
+            }
+            return leftDate < rightDate
+        }
+    }
+
+    private func refreshLatestArchiveFromDiskLocked() {
+        let latest =
+            latestCompletedArchiveURLLocked()
+        let currentStatus =
+            latest == nil
+                ? "Idle · no saved certification archive"
+                : "Archive ready · "
+                    + latest!.lastPathComponent
+
+        DispatchQueue.main.async {
+            self.latestArchiveURL = latest
+            if !self.isRecording {
+                self.statusText = currentStatus
+            }
+        }
     }
 
     private func activeArchiveURL() -> URL {
