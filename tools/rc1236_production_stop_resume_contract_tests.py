@@ -89,11 +89,18 @@ assert "BONSAI-RUN-" in (
     root / "BonsaiLab" / "CertificationRunRecorder.swift"
 ).read_text()
 
-# Build 54 + packaging.
-assert re.search(r'CURRENT_PROJECT_VERSION:\s*"54"', project)
+# Build 54+ descendants must continue to preserve the product lifecycle
+# contract. Exact Build 54 packaging identity is frozen on the dedicated
+# frozen branch; later diagnostic builds may carry a higher bundle build.
+build_match = re.search(
+    r'CURRENT_PROJECT_VERSION:\s*"(?P<build>\d+)"',
+    project,
+)
+assert build_match is not None
+assert int(build_match.group("build")) >= 54
 assert "RC1.23.6 production stop resume contracts" in workflow
 assert "tools/rc1236_production_stop_resume_contract_tests.py" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "54"' in workflow
-assert "Build54-Production-Stop-Resume-Candidate" in workflow
+assert "pauseAPIServerPreservingRuntime()" in view
+assert "startOrResumeAPIServer()" in view
 
-print("RC1.23.6 Build 54 production stop/resume contracts: PASS")
+print("RC1.23.6 Build 54+ production stop/resume contracts: PASS")
