@@ -444,6 +444,7 @@ private enum RC1232PerformanceDiagnostics {
     static func persistVisionSuccess(
         requestID: String,
         observation: RequestObservation,
+        route: String,
         stream: Bool,
         packet: MLXVisionEmbeddingPacket,
         metrics: VisionMetrics,
@@ -541,7 +542,7 @@ private enum RC1232PerformanceDiagnostics {
         persist([
             "request_id=\(requestID)",
             "request_ordinal=\(observation.ordinal)",
-            "route=vision",
+            "route=\(route)",
             "stream=\(stream)",
             "result=success",
             "requested_max_tokens=\(requestedMaxTokens)",
@@ -611,7 +612,7 @@ private enum RC1232PerformanceDiagnostics {
 
         appendLongRunHistory([
             "ordinal=\(observation.ordinal)",
-            "route=vision",
+            "route=\(route)",
             "result=success",
             "requested_max_tokens=\(requestedMaxTokens)",
             "effective_max_tokens=\(metrics.generation.effectiveMaxTokens)",
@@ -956,7 +957,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.25.0 Multi-Image OpenAI API")
+                            Text("1.0 · RC1.25.1 API Hardening")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -2921,7 +2922,7 @@ struct ProductionView: View {
         let sharedVisionSidecar = mlxVisionSidecar
 
         busy = true
-        status = "正在预热 RC1.25.0 Build 57 Multi-Image API…"
+        status = "正在预热 RC1.25.1 Build 58 API Hardening…"
         detail = """
         Text API 继续使用冻结的 RC1.20.7 路径。
         1–3 图请求使用 RC1.23.0 MLX Live Vision Injection；
@@ -3362,7 +3363,9 @@ struct ProductionView: View {
                             await sharedEngine
                                 .cleanupAfterRequestFailure()
 
-                            if case .promptTooLong = error {
+                            switch error {
+                            case .promptTooLong,
+                                 .contextBudgetExceeded:
                                 throw OpenAIHandlerHTTPError(
                                     status: 400,
                                     code:
@@ -3370,6 +3373,8 @@ struct ProductionView: View {
                                     message:
                                         error.localizedDescription
                                 )
+                            default:
+                                break
                             }
 
                             throw OpenAIHandlerHTTPError(
@@ -3410,6 +3415,7 @@ struct ProductionView: View {
                                 requestID: requestID,
                                 observation:
                                     requestObservation,
+                                route: requestRoute,
                                 stream: payload.stream,
                                 packet: packet,
                                 metrics: metrics,
@@ -3528,7 +3534,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.25.0 Build 57 Multi-Image API 已预热"
+                        "RC1.25.1 Build 58 API Hardening 已预热"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
