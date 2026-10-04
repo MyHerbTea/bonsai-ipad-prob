@@ -1,6 +1,6 @@
 # RC1.23.5 Build 48 — Dynamic Context Controlled A/B
 
-Status: **PHASE B EXPERIMENTAL CANDIDATE**
+Status: **REJECTED — see `RC1.23.5_PHASE_B_DEVICE_EVIDENCE.md` and `RC1.23.5_NO_SAFE_WIN_CLOSURE.md`**
 
 Parent evidence:
 - RC1.23.5 Build 47 Phase A profiling
@@ -168,3 +168,20 @@ the RC1.23.4 Build 46 frozen baseline as the production runtime behavior.
 
 If 256 does show a worthwhile gain, the next implementation must still be a
 separate admission-driven design. Build 48 itself remains an experiment.
+
+
+## Final outcome
+
+The controlled true-device A/B has completed.
+
+256 Experimental was slower in all four scored pairs and did not produce a
+repeatable TTFT or suffix-prefill improvement. A crash was also observed during
+the repeated context-switch/restart workflow.
+
+Therefore:
+
+- 256 Experimental is rejected;
+- no automatic dynamic-context admission policy will be implemented from this
+  candidate;
+- 512 remains the production context through the RC1.23.4 Build 46 frozen
+  baseline.
