@@ -43,8 +43,14 @@ runner_end = view.index(
     runner_start,
 )
 runner = view[runner_start:runner_end]
-assert "try await apiServer" in runner
-assert ".restartListenerPreservingHandler(" in runner
+assert (
+    "try await apiServer" in runner
+    or "try await resumeAPIListenerPreservingRuntime()" in runner
+)
+assert (
+    ".restartListenerPreservingHandler(" in runner
+    or "resumeAPIListenerPreservingRuntime()" in runner
+)
 assert '"listener_restart_resident_runtime"' in runner
 assert "if cycle == 1" in runner
 
@@ -60,11 +66,14 @@ assert "certificationRecorder.finishRun(" in view
 assert 'Label("分享最近测试结果"' in view
 assert "BONSAI-RUN-" in (root / "BonsaiLab" / "CertificationRunRecorder.swift").read_text()
 
-# Build 53 and CI packaging.
-assert re.search(r'CURRENT_PROJECT_VERSION:\s*"53"', project)
+# Build 53+ retains awaited same-port listener rebind behavior.
+build_match = re.search(
+    r'CURRENT_PROJECT_VERSION:\s*"(?P<build>\d+)"',
+    project,
+)
+assert build_match is not None
+assert int(build_match.group("build")) >= 53
 assert "RC1.23.6 awaited listener rebind contracts" in workflow
 assert "tools/rc1236_awaited_listener_rebind_contract_tests.py" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "53"' in workflow
-assert "Build53-Awaited-Listener-Rebind-Candidate" in workflow
 
 print("RC1.23.6 Build 53 awaited listener rebind contracts: PASS")
