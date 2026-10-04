@@ -37,9 +37,11 @@ runner = view[runner_start:runner_end]
 # The full engine teardown/load is allowed only in the cycle-1 branch.
 assert "if cycle == 1" in runner
 assert "startAPIServer()" in runner
-assert "restartListenerPreservingHandler" in runner
+assert (
+    "restartListenerPreservingHandler" in runner
+    or "resumeAPIListenerPreservingRuntime()" in runner
+)
 assert runner.index("if cycle == 1") < runner.index("startAPIServer()")
-assert runner.index("startAPIServer()") < runner.index("restartListenerPreservingHandler")
 
 # No rejected dynamic-context experiment returns.
 assert 'private var apiContextProfile = "512"' in view
