@@ -5,6 +5,85 @@ import UIKit
 private enum RC1232PerformanceDiagnostics {
     static let defaultsKey =
         "BonsaiRC1232LastAPIRequestMetrics"
+    static let longRunHistoryDefaultsKey =
+        "BonsaiRC1233LongRunRequestHistory"
+
+    private static let stateQueue = DispatchQueue(
+        label: "local.bonsai.rc1233.long-run-diagnostics"
+    )
+    private static var sessionRequestOrdinal = 0
+    private static let historyLimit = 32
+
+    static func beginSession() {
+        stateQueue.sync {
+            sessionRequestOrdinal = 0
+            UserDefaults.standard.removeObject(
+                forKey: longRunHistoryDefaultsKey
+            )
+        }
+    }
+
+    static func nextRequestOrdinal() -> Int {
+        stateQueue.sync {
+            sessionRequestOrdinal += 1
+            return sessionRequestOrdinal
+        }
+    }
+
+    private static func resourceValue(
+        _ key: String,
+        from snapshot: String
+    ) -> String {
+        for line in snapshot.split(separator: "\n") {
+            let prefix = key + "="
+            if line.hasPrefix(prefix) {
+                return String(line.dropFirst(prefix.count))
+            }
+        }
+        return "-1"
+    }
+
+    private static func resourceLines(
+        from snapshot: String
+    ) -> [String] {
+        [
+            "available_mib="
+                + resourceValue("available_mib", from: snapshot),
+            "resident_mib="
+                + resourceValue("resident_mib", from: snapshot),
+            "phys_footprint_mib="
+                + resourceValue("phys_footprint_mib", from: snapshot),
+            "virtual_mib="
+                + resourceValue("virtual_mib", from: snapshot),
+            "metal_allocated_mib="
+                + resourceValue("metal_allocated_mib", from: snapshot),
+            "metal_recommended_mib="
+                + resourceValue("metal_recommended_mib", from: snapshot),
+        ]
+    }
+
+    private static func appendLongRunHistory(
+        _ fields: [String]
+    ) {
+        stateQueue.sync {
+            let defaults = UserDefaults.standard
+            var rows =
+                defaults.string(
+                    forKey: longRunHistoryDefaultsKey
+                )?
+                .split(separator: "\n")
+                .map(String.init)
+                ?? []
+            rows.append(fields.joined(separator: " "))
+            if rows.count > historyLimit {
+                rows = Array(rows.suffix(historyLimit))
+            }
+            defaults.set(
+                rows.joined(separator: "\n"),
+                forKey: longRunHistoryDefaultsKey
+            )
+        }
+    }
 
     static func now() -> UInt64 {
         DispatchTime.now().uptimeNanoseconds
@@ -33,35 +112,47 @@ private enum RC1232PerformanceDiagnostics {
 
     static func persistFailure(
         requestID: String,
+        requestOrdinal: Int,
         route: String,
         stream: Bool,
         requestStart: UInt64,
         lastStage: String
     ) {
         let end = now()
+        let totalMilliseconds =
+            formatMilliseconds(
+                milliseconds(
+                    from: requestStart,
+                    to: end
+                )
+            )
         persist([
             "request_id=\(requestID)",
+            "request_ordinal=\(requestOrdinal)",
             "route=\(route)",
             "stream=\(stream)",
             "result=failed_or_interrupted",
-            "total_ms="
-                + formatMilliseconds(
-                    milliseconds(
-                        from: requestStart,
-                        to: end
-                    )
-                ),
+            "total_ms=" + totalMilliseconds,
+            "last_stage=\(lastStage)",
+        ])
+        appendLongRunHistory([
+            "ordinal=\(requestOrdinal)",
+            "route=\(route)",
+            "result=failed_or_interrupted",
+            "total_ms=\(totalMilliseconds)",
             "last_stage=\(lastStage)",
         ])
     }
 
     static func persistVisionSuccess(
         requestID: String,
+        requestOrdinal: Int,
         stream: Bool,
         packet: MLXVisionEmbeddingPacket,
         metrics: VisionMetrics,
         imageOrdering: OpenAIImageOrdering,
         prefixReuseEnabled: Bool,
+        resourceSnapshot: String,
         imageWriteStart: UInt64,
         imageWriteEnd: UInt64,
         visionEncodeStart: UInt64,
@@ -71,8 +162,42 @@ private enum RC1232PerformanceDiagnostics {
         requestStart: UInt64,
         requestEnd: UInt64
     ) {
+        let totalMilliseconds =
+            formatMilliseconds(
+                milliseconds(
+                    from: requestStart,
+                    to: requestEnd
+                )
+            )
+        let visionEncodeMilliseconds =
+            formatMilliseconds(
+                milliseconds(
+                    from: visionEncodeStart,
+                    to: visionEncodeEnd
+                )
+            )
+        let prefillMilliseconds =
+            formatMilliseconds(
+                metrics.visionPrefillSeconds * 1_000
+            )
+        let suffixPrefillMilliseconds =
+            formatMilliseconds(
+                metrics.suffixPrefillSeconds * 1_000
+            )
+        let decodeMilliseconds =
+            formatMilliseconds(
+                metrics.generation.generationSeconds * 1_000
+            )
+        let tokensPerSecond =
+            String(
+                format: "%.3f",
+                metrics.generation.tokensPerSecond
+            )
+        let resources = resourceLines(from: resourceSnapshot)
+
         persist([
             "request_id=\(requestID)",
+            "request_ordinal=\(requestOrdinal)",
             "route=vision",
             "stream=\(stream)",
             "result=success",
@@ -83,13 +208,7 @@ private enum RC1232PerformanceDiagnostics {
                         to: imageWriteEnd
                     )
                 ),
-            "vision_encode_ms="
-                + formatMilliseconds(
-                    milliseconds(
-                        from: visionEncodeStart,
-                        to: visionEncodeEnd
-                    )
-                ),
+            "vision_encode_ms=" + visionEncodeMilliseconds,
             "vision_encode_reported_ms="
                 + formatMilliseconds(
                     packet.metrics.encodeSeconds * 1_000
@@ -101,19 +220,9 @@ private enum RC1232PerformanceDiagnostics {
                         to: cacheWriteEnd
                     )
                 ),
-            "prefill_ms="
-                + formatMilliseconds(
-                    metrics.visionPrefillSeconds * 1_000
-                ),
-            "decode_ms="
-                + formatMilliseconds(
-                    metrics.generation.generationSeconds * 1_000
-                ),
-            "tokens_per_second="
-                + String(
-                    format: "%.3f",
-                    metrics.generation.tokensPerSecond
-                ),
+            "prefill_ms=" + prefillMilliseconds,
+            "decode_ms=" + decodeMilliseconds,
+            "tokens_per_second=" + tokensPerSecond,
             "prompt_tokens=\(metrics.generation.promptTokens)",
             "completion_tokens=\(metrics.generation.generatedTokens)",
             "visual_rows=\(packet.metrics.outputTokens)",
@@ -133,34 +242,90 @@ private enum RC1232PerformanceDiagnostics {
                 + formatMilliseconds(
                     metrics.imagePrefillSeconds * 1_000
                 ),
-            "suffix_prefill_ms="
-                + formatMilliseconds(
-                    metrics.suffixPrefillSeconds * 1_000
-                ),
+            "suffix_prefill_ms=" + suffixPrefillMilliseconds,
             "cache_reuse="
                 + (metrics.prefixReuseHit
                     ? "vision_prefix_kv_hit"
                     : "vision_prefix_kv_miss"),
-            "total_ms="
-                + formatMilliseconds(
-                    milliseconds(
-                        from: requestStart,
-                        to: requestEnd
-                    )
+            "total_ms=" + totalMilliseconds,
+        ] + resources)
+
+        appendLongRunHistory([
+            "ordinal=\(requestOrdinal)",
+            "route=vision",
+            "result=success",
+            "hit=\(metrics.prefixReuseHit)",
+            "retained=\(metrics.prefixRetainedForReuse)",
+            "total_ms=\(totalMilliseconds)",
+            "prefill_ms=\(prefillMilliseconds)",
+            "suffix_prefill_ms=\(suffixPrefillMilliseconds)",
+            "decode_ms=\(decodeMilliseconds)",
+            "tokens_per_second=\(tokensPerSecond)",
+            "vision_encode_ms=\(visionEncodeMilliseconds)",
+            "available_mib="
+                + resourceValue(
+                    "available_mib",
+                    from: resourceSnapshot
+                ),
+            "resident_mib="
+                + resourceValue(
+                    "resident_mib",
+                    from: resourceSnapshot
+                ),
+            "phys_footprint_mib="
+                + resourceValue(
+                    "phys_footprint_mib",
+                    from: resourceSnapshot
+                ),
+            "virtual_mib="
+                + resourceValue(
+                    "virtual_mib",
+                    from: resourceSnapshot
+                ),
+            "metal_allocated_mib="
+                + resourceValue(
+                    "metal_allocated_mib",
+                    from: resourceSnapshot
+                ),
+            "metal_recommended_mib="
+                + resourceValue(
+                    "metal_recommended_mib",
+                    from: resourceSnapshot
                 ),
         ])
     }
 
     static func persistTextSuccess(
         requestID: String,
+        requestOrdinal: Int,
         stream: Bool,
         metrics: GenerationMetrics,
+        resourceSnapshot: String,
         textGenerationStart: UInt64,
         textGenerationEnd: UInt64,
         requestStart: UInt64
     ) {
+        let totalMilliseconds =
+            formatMilliseconds(
+                milliseconds(
+                    from: requestStart,
+                    to: textGenerationEnd
+                )
+            )
+        let decodeMilliseconds =
+            formatMilliseconds(
+                metrics.generationSeconds * 1_000
+            )
+        let tokensPerSecond =
+            String(
+                format: "%.3f",
+                metrics.tokensPerSecond
+            )
+        let resources = resourceLines(from: resourceSnapshot)
+
         persist([
             "request_id=\(requestID)",
+            "request_ordinal=\(requestOrdinal)",
             "route=text",
             "stream=\(stream)",
             "result=success",
@@ -175,23 +340,49 @@ private enum RC1232PerformanceDiagnostics {
                 + formatMilliseconds(
                     metrics.ttftSeconds * 1_000
                 ),
-            "decode_ms="
-                + formatMilliseconds(
-                    metrics.generationSeconds * 1_000
-                ),
-            "tokens_per_second="
-                + String(
-                    format: "%.3f",
-                    metrics.tokensPerSecond
-                ),
+            "decode_ms=" + decodeMilliseconds,
+            "tokens_per_second=" + tokensPerSecond,
             "prompt_tokens=\(metrics.promptTokens)",
             "completion_tokens=\(metrics.generatedTokens)",
-            "total_ms="
-                + formatMilliseconds(
-                    milliseconds(
-                        from: requestStart,
-                        to: textGenerationEnd
-                    )
+            "total_ms=" + totalMilliseconds,
+        ] + resources)
+
+        appendLongRunHistory([
+            "ordinal=\(requestOrdinal)",
+            "route=text",
+            "result=success",
+            "total_ms=\(totalMilliseconds)",
+            "decode_ms=\(decodeMilliseconds)",
+            "tokens_per_second=\(tokensPerSecond)",
+            "available_mib="
+                + resourceValue(
+                    "available_mib",
+                    from: resourceSnapshot
+                ),
+            "resident_mib="
+                + resourceValue(
+                    "resident_mib",
+                    from: resourceSnapshot
+                ),
+            "phys_footprint_mib="
+                + resourceValue(
+                    "phys_footprint_mib",
+                    from: resourceSnapshot
+                ),
+            "virtual_mib="
+                + resourceValue(
+                    "virtual_mib",
+                    from: resourceSnapshot
+                ),
+            "metal_allocated_mib="
+                + resourceValue(
+                    "metal_allocated_mib",
+                    from: resourceSnapshot
+                ),
+            "metal_recommended_mib="
+                + resourceValue(
+                    "metal_recommended_mib",
+                    from: resourceSnapshot
                 ),
         ])
     }
@@ -1199,6 +1390,12 @@ struct ProductionView: View {
                     RC1232PerformanceDiagnostics
                         .defaultsKey
             ) ?? "无"
+        let longRunRequestHistory =
+            defaults.string(
+                forKey:
+                    RC1232PerformanceDiagnostics
+                        .longRunHistoryDefaultsKey
+            ) ?? "无"
 
         let lastStage =
             defaults.string(
@@ -1330,6 +1527,9 @@ struct ProductionView: View {
             "[LAST API REQUEST PERFORMANCE]",
             apiPerformanceMetrics,
             "",
+            "[RC1.23.3 LONG-RUN REQUEST HISTORY]",
+            longRunRequestHistory,
+            "",
             "[RESOURCE / MEMORY]",
             "vision_headroom=\(visionHeadroom)",
             "projector_first_bootstrap=\(bootstrap)",
@@ -1391,12 +1591,17 @@ struct ProductionView: View {
                     runtime: apiRuntime
                 )
 
+                RC1232PerformanceDiagnostics.beginSession()
+
                 try apiServer.start(port: 8080) {
                     payload,
                     onDelta in
 
                     let requestID =
                         UUID().uuidString
+                    let requestOrdinal =
+                        RC1232PerformanceDiagnostics
+                            .nextRequestOrdinal()
                     let requestStart =
                         RC1232PerformanceDiagnostics.now()
                     let requestRoute =
@@ -1415,6 +1620,8 @@ struct ProductionView: View {
                             RC1232PerformanceDiagnostics
                                 .persistFailure(
                                     requestID: requestID,
+                                    requestOrdinal:
+                                        requestOrdinal,
                                     route: requestRoute,
                                     stream: payload.stream,
                                     requestStart: requestStart,
@@ -1734,9 +1941,15 @@ struct ProductionView: View {
                                     "BonsaiRC1232VisionPrefixKVReuseEnabled"
                             )
 
+                        let resourceSnapshot =
+                            await sharedEngine
+                                .apiAdmissionSnapshot()
+
                         RC1232PerformanceDiagnostics
                             .persistVisionSuccess(
                                 requestID: requestID,
+                                requestOrdinal:
+                                    requestOrdinal,
                                 stream: payload.stream,
                                 packet: packet,
                                 metrics: metrics,
@@ -1744,6 +1957,8 @@ struct ProductionView: View {
                                     payload.imageOrdering,
                                 prefixReuseEnabled:
                                     prefixReuseEnabled,
+                                resourceSnapshot:
+                                    resourceSnapshot,
                                 imageWriteStart:
                                     imageWriteStart,
                                 imageWriteEnd:
@@ -1810,11 +2025,19 @@ struct ProductionView: View {
                     let textGenerationEnd =
                         RC1232PerformanceDiagnostics.now()
 
+                    let resourceSnapshot =
+                        await sharedEngine
+                            .apiAdmissionSnapshot()
+
                     RC1232PerformanceDiagnostics
                         .persistTextSuccess(
                             requestID: requestID,
+                            requestOrdinal:
+                                requestOrdinal,
                             stream: payload.stream,
                             metrics: metrics,
+                            resourceSnapshot:
+                                resourceSnapshot,
                             textGenerationStart:
                                 textGenerationStart,
                             textGenerationEnd:

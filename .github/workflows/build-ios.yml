@@ -183,6 +183,12 @@ jobs:
           set -euo pipefail
           python3 tools/rc1232_prefix_reuse_contract_tests.py
 
+      - name: RC1.23.3 long-run observability contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/rc1233_long_run_observability_contract_tests.py
+
       - name: Show Apple toolchain
         run: |
           set -euo pipefail
@@ -313,6 +319,7 @@ jobs:
             NEXT_STAGE_AFTER_RC1.23.2.md
             RC1.23.3_LONG_RUN_THROUGHPUT.md
             tools/rc1232_observability_contract_tests.py
+            tools/rc1233_long_run_observability_contract_tests.py
             THIRD_PARTY_MLX_VISION_NOTICE.md
             tools/extract_bonsai_vision_tower.py
             build.log
