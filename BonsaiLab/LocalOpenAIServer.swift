@@ -61,6 +61,7 @@ final class LocalOpenAIServer: ObservableObject {
         label: "local.bonsai.openai.server"
     )
     private var listener: NWListener?
+    private var listenerGeneration: UInt64 = 0
     private var handler: (
         @Sendable (
             OpenAIRequestPayload,
@@ -109,7 +110,87 @@ final class LocalOpenAIServer: ObservableObject {
         ) async throws -> OpenAIHandlerResult
     ) throws {
         stop()
+        try installListener(
+            port: requestedPort,
+            handler: handler
+        )
+    }
 
+    func restartListenerPreservingHandler(
+        port requestedPort: UInt16 = 8080
+    ) async throws {
+        let preservedHandler = handler
+        guard let preservedHandler else {
+            throw APIServerError.handlerUnavailable
+        }
+
+        await cancelListenerForRestart()
+        try installListener(
+            port: requestedPort,
+            handler: preservedHandler
+        )
+    }
+
+    func stop() {
+        listenerGeneration &+= 1
+        let stopGeneration = listenerGeneration
+        let oldListener = listener
+        listener = nil
+        handler = nil
+        oldListener?.cancel()
+
+        DispatchQueue.main.async { [weak self] in
+            guard
+                let self,
+                self.listenerGeneration == stopGeneration
+            else {
+                return
+            }
+
+            self.isRunning = false
+            self.status = "已停止"
+        }
+    }
+
+    private func cancelListenerForRestart() async {
+        guard let oldListener = listener else {
+            await MainActor.run {
+                self.isRunning = false
+                self.status = "重启中"
+                self.lastError = ""
+            }
+            return
+        }
+
+        listenerGeneration &+= 1
+        listener = nil
+
+        await MainActor.run {
+            self.isRunning = false
+            self.status = "重启中"
+            self.lastError = ""
+        }
+
+        await withCheckedContinuation {
+            (continuation: CheckedContinuation<Void, Never>) in
+
+            oldListener.stateUpdateHandler = { state in
+                if case .cancelled = state {
+                    continuation.resume()
+                }
+            }
+
+            oldListener.cancel()
+        }
+    }
+
+    private func installListener(
+        port requestedPort: UInt16,
+        handler: @escaping @Sendable (
+            OpenAIRequestPayload,
+            (@Sendable (String) -> Void)?
+        ) async throws -> OpenAIHandlerResult
+    ) throws {
         guard let nwPort = NWEndpoint.Port(
             rawValue: requestedPort
         ) else {
@@ -119,75 +200,57 @@ final class LocalOpenAIServer: ObservableObject {
         let parameters = NWParameters.tcp
         parameters.allowLocalEndpointReuse = true
 
-        let listener = try NWListener(
+        let newListener = try NWListener(
             using: parameters,
             on: nwPort
         )
 
+        listenerGeneration &+= 1
+        let generation = listenerGeneration
+
         self.port = requestedPort
         self.handler = handler
-        self.listener = listener
+        self.listener = newListener
 
-        listener.stateUpdateHandler = { [weak self] state in
+        newListener.stateUpdateHandler = {
+            [weak self] state in
             guard let self else { return }
 
-            switch state {
-            case .ready:
-                DispatchQueue.main.async {
+            DispatchQueue.main.async {
+                guard
+                    self.listenerGeneration == generation
+                else {
+                    return
+                }
+
+                switch state {
+                case .ready:
                     self.isRunning = true
                     self.status = "运行中"
                     self.lastError = ""
-                }
 
-            case .failed(let error):
-                DispatchQueue.main.async {
+                case .failed(let error):
                     self.isRunning = false
                     self.status = "启动失败"
-                    self.lastError = error.localizedDescription
-                }
+                    self.lastError =
+                        error.localizedDescription
 
-            case .cancelled:
-                DispatchQueue.main.async {
+                case .cancelled:
                     self.isRunning = false
                     self.status = "已停止"
-                }
 
-            default:
-                break
+                default:
+                    break
+                }
             }
         }
 
-        listener.newConnectionHandler = { [weak self] connection in
+        newListener.newConnectionHandler = {
+            [weak self] connection in
             self?.accept(connection)
         }
 
-        listener.start(queue: queue)
-    }
-
-    func restartListenerPreservingHandler(
-        port requestedPort: UInt16 = 8080
-    ) throws {
-        let preservedHandler = handler
-        guard let preservedHandler else {
-            throw APIServerError.handlerUnavailable
-        }
-
-        stop()
-        try start(
-            port: requestedPort,
-            handler: preservedHandler
-        )
-    }
-
-    func stop() {
-        listener?.cancel()
-        listener = nil
-        handler = nil
-
-        DispatchQueue.main.async {
-            self.isRunning = false
-            self.status = "已停止"
-        }
+        newListener.start(queue: queue)
     }
 
     private func accept(_ connection: NWConnection) {
