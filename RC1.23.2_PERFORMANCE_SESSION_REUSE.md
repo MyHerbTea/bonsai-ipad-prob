@@ -130,3 +130,87 @@ The first device run should copy one Diagnostic Snapshot after:
 
 That single snapshot set will determine whether Phase B or Phase C is the next
 optimization target.
+
+
+## Phase A real-device evidence — 2026-10-04
+
+Device: iPad Pro M5 class, 12 GB, iPadOS 27.0.1.  
+Build: 38 observability candidate.
+
+Last successful vision request:
+
+- total internal request: 12099.239 ms;
+- MLX vision encode: 241.599 ms;
+- sidecar-reported encode: 219.156 ms;
+- BVCACHE1 write: 1.803 ms;
+- 27B prefill: 9629.370 ms;
+- decode: 2220.502 ms;
+- decode rate: 8.557 tok/s;
+- prompt tokens: 86;
+- completion tokens: 19;
+- visual rows: 54 x 5120;
+- grid: 9x6;
+- M-RoPE n_pos: 9.
+
+Windows end-to-end measurements:
+
+- text first: 4322.9 ms;
+- text repeat: 4422.4 ms;
+- first image: 12761.0 ms;
+- same-image repeat: 18415.1 ms;
+- post-failure text recovery: 3873.8 ms;
+- final vision: 12248.1 ms.
+
+Safety/semantics remained intact:
+
+- stale historical image binding -> HTTP 400 invalid_content_part;
+- invalid base64 -> HTTP 400 invalid_image_data;
+- text request after failure -> HTTP 200;
+- image-grounded output remained correct.
+
+### Decision
+
+Do **not** prioritize projected-embedding cache reuse as the main optimization.
+The measured MLX encode + cache write cost is only about 0.24 s, while the
+27B multimodal prefill alone is about 9.63 s.
+
+The next optimization target is therefore **Vision-prefix KV reuse**.
+
+## Phase C1 — Experimental Vision-prefix KV reuse
+
+Status: **IMPLEMENTED AS DEFAULT-OFF CANDIDATE; DEVICE A/B REQUIRED**
+
+Design:
+
+- same image is identified by the existing content-addressed BVCACHE1 path;
+- same system prompt is part of the reuse identity;
+- after a successful request, keep only the KV corresponding to
+  `prefix + image`;
+- remove the request-specific suffix and generated continuation;
+- on the next matching request, decode only the new question suffix;
+- any text request, model unload, or request failure invalidates the reuse state;
+- if partial KV removal is unsupported, clear the entire llama memory and
+  automatically fall back to the RC1.23.1 path;
+- BVCACHE1 format, Vision Tower math, projected embedding width and API
+  semantics remain unchanged.
+
+The experiment is controlled by:
+
+`高级与诊断 -> 实验：Vision Prefix KV Reuse`
+
+Default: **OFF**.
+
+Diagnostics include:
+
+- prefix_reuse_enabled;
+- prefix_reuse_hit;
+- prefix_retained;
+- prefix_positions;
+- prefix_text_ms;
+- image_prefill_ms;
+- suffix_prefill_ms.
+
+Acceptance requires a controlled OFF/ON real-device A/B using the same image,
+question lengths and output budget. The candidate is rejected if it causes
+cross-request leakage, historical-image leakage, cleanup failure, memory
+growth, or semantic regression.
