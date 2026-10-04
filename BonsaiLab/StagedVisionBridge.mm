@@ -112,7 +112,96 @@ static constexpr uint32_t kVisionCacheVersion = 1;
 
 static std::mutex g_staged_mutex;
 static constexpr llama_seq_id kVisionWorkSeq = 0;
-static constexpr llama_seq_id kVisionPrefixCheckpointSeq = 1;
+
+// C2-B keeps the validated single-sequence context. The small host vector
+// contains only sequence-state metadata; KV tensors are snapshotted into
+// Prism-managed backend buffers via LLAMA_STATE_SEQ_FLAGS_ON_DEVICE.
+static std::vector<uint8_t> g_vision_prefix_state;
+static llama_context * g_vision_prefix_state_ctx = nullptr;
+static llama_pos g_vision_prefix_state_positions = 0;
+
+static void clear_vision_prefix_state_locked() {
+    g_vision_prefix_state.clear();
+    g_vision_prefix_state_ctx = nullptr;
+    g_vision_prefix_state_positions = 0;
+}
+
+static bool save_vision_prefix_state_locked(
+    llama_context * ctx,
+    llama_pos prefix_positions
+) {
+    if (ctx == nullptr || prefix_positions <= 0) {
+        clear_vision_prefix_state_locked();
+        return false;
+    }
+
+    const size_t state_size = llama_state_seq_get_size_ext(
+        ctx,
+        kVisionWorkSeq,
+        LLAMA_STATE_SEQ_FLAGS_ON_DEVICE
+    );
+    if (state_size == 0) {
+        clear_vision_prefix_state_locked();
+        return false;
+    }
+
+    std::vector<uint8_t> state(state_size);
+    const size_t copied = llama_state_seq_get_data_ext(
+        ctx,
+        state.data(),
+        state.size(),
+        kVisionWorkSeq,
+        LLAMA_STATE_SEQ_FLAGS_ON_DEVICE
+    );
+    if (copied != state.size()) {
+        clear_vision_prefix_state_locked();
+        return false;
+    }
+
+    g_vision_prefix_state = std::move(state);
+    g_vision_prefix_state_ctx = ctx;
+    g_vision_prefix_state_positions = prefix_positions;
+    return true;
+}
+
+static bool restore_vision_prefix_state_locked(
+    llama_context * ctx,
+    llama_pos prefix_positions
+) {
+    if (
+        ctx == nullptr ||
+        prefix_positions <= 0 ||
+        g_vision_prefix_state.empty() ||
+        g_vision_prefix_state_ctx != ctx ||
+        g_vision_prefix_state_positions != prefix_positions
+    ) {
+        return false;
+    }
+
+    llama_memory_t mem = llama_get_memory(ctx);
+    if (mem == nullptr) {
+        clear_vision_prefix_state_locked();
+        return false;
+    }
+
+    llama_memory_clear(mem, true);
+    const size_t restored = llama_state_seq_set_data_ext(
+        ctx,
+        g_vision_prefix_state.data(),
+        g_vision_prefix_state.size(),
+        kVisionWorkSeq,
+        LLAMA_STATE_SEQ_FLAGS_ON_DEVICE
+    );
+
+    if (restored != g_vision_prefix_state.size()) {
+        llama_memory_clear(mem, true);
+        clear_vision_prefix_state_locked();
+        return false;
+    }
+
+    return true;
+}
+
 static llama_model * g_resident_model = nullptr;
 static std::string g_resident_model_path;
 static int32_t g_resident_gpu_layers = -1;
@@ -1437,35 +1526,10 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
         prefix_checkpoint_enabled &&
         expected_prefix_positions > 0 &&
         expected_prefix_positions == prefix_positions &&
-        llama_memory_seq_pos_max(
-            mem,
-            kVisionPrefixCheckpointSeq
-        ) >= 0;
-
-    if (can_reuse_prefix) {
-        const bool work_removed = llama_memory_seq_rm(
-            mem,
-            kVisionWorkSeq,
-            -1,
-            -1
+        restore_vision_prefix_state_locked(
+            ctx,
+            prefix_positions
         );
-        if (work_removed) {
-            llama_memory_seq_cp(
-                mem,
-                kVisionPrefixCheckpointSeq,
-                kVisionWorkSeq,
-                0,
-                prefix_positions
-            );
-            can_reuse_prefix =
-                llama_memory_seq_pos_max(
-                    mem,
-                    kVisionWorkSeq
-                ) >= 0;
-        } else {
-            can_reuse_prefix = false;
-        }
-    }
 
     llama_pos n_past = 0;
     if (can_reuse_prefix) {
@@ -1476,6 +1540,9 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
             "TWOPHASE_B03_PREFIX_REUSE_HIT"
         );
     } else {
+        // Any logical MISS invalidates an older native snapshot. A new
+        // checkpoint is captured after prefix + image decode below.
+        clear_vision_prefix_state_locked();
         llama_memory_clear(mem, true);
         result.prefix_reuse_hit = 0;
         write_stage(
@@ -1548,22 +1615,17 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
             !can_reuse_prefix &&
             i == 1
         ) {
-            llama_memory_seq_cp(
-                mem,
-                kVisionWorkSeq,
-                kVisionPrefixCheckpointSeq,
-                0,
-                prefix_positions
-            );
+            const bool checkpoint_ready =
+                save_vision_prefix_state_locked(
+                    ctx,
+                    prefix_positions
+                );
 
             write_stage(
                 stage_path,
-                llama_memory_seq_pos_max(
-                    mem,
-                    kVisionPrefixCheckpointSeq
-                ) >= 0
-                    ? "TWOPHASE_B04_PREFIX_CHECKPOINT_READY"
-                    : "TWOPHASE_B04_PREFIX_CHECKPOINT_UNAVAILABLE"
+                checkpoint_ready
+                    ? "TWOPHASE_B04_PREFIX_STATE_READY"
+                    : "TWOPHASE_B04_PREFIX_STATE_UNAVAILABLE"
             );
         }
     }
@@ -1608,40 +1670,19 @@ int32_t BonsaiRetainVisionPrefixKV(
         return 0;
     }
 
-    const bool work_removed = llama_memory_seq_rm(
-        mem,
-        kVisionWorkSeq,
-        -1,
-        -1
-    );
+    const bool snapshot_ready =
+        !g_vision_prefix_state.empty() &&
+        g_vision_prefix_state_ctx == ctx &&
+        g_vision_prefix_state_positions ==
+            static_cast<llama_pos>(prefix_positions);
 
-    if (!work_removed) {
-        llama_memory_clear(mem, true);
-        return 0;
-    }
+    // The request-specific suffix and generated continuation must never
+    // survive into the next request. The independent state snapshot remains
+    // available in Prism-managed backend storage.
+    llama_memory_clear(mem, true);
 
-    if (
-        llama_memory_seq_pos_max(
-            mem,
-            kVisionPrefixCheckpointSeq
-        ) < 0
-    ) {
-        llama_memory_clear(mem, true);
-        return 0;
-    }
-
-    llama_memory_seq_keep(
-        mem,
-        kVisionPrefixCheckpointSeq
-    );
-
-    if (
-        llama_memory_seq_pos_max(
-            mem,
-            kVisionPrefixCheckpointSeq
-        ) < 0
-    ) {
-        llama_memory_clear(mem, true);
+    if (!snapshot_ready) {
+        clear_vision_prefix_state_locked();
         return 0;
     }
 
@@ -1650,6 +1691,7 @@ int32_t BonsaiRetainVisionPrefixKV(
 
 void BonsaiReleaseStagedResidentModel(void) {
     std::lock_guard<std::mutex> lock(g_staged_mutex);
+    clear_vision_prefix_state_locked();
     release_resident_model_locked();
 }
 

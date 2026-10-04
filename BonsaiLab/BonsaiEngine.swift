@@ -60,7 +60,6 @@ actor BonsaiEngine {
     // This is valid only for the currently resident llama context.
     private var apiVisionPrefixReuseKey: String?
     private var apiVisionPrefixPositions: Int32 = 0
-    private var apiVisionPrefixReuseContextCapable = false
 
     private let stageKey = "BonsaiLabLastStage"
 
@@ -135,13 +134,8 @@ actor BonsaiEngine {
         contextParams.n_ctx = UInt32(config.context)
         contextParams.n_batch = UInt32(config.batch)
         contextParams.n_ubatch = UInt32(config.ubatch)
-        let prefixReuseContextCapable =
-            UserDefaults.standard.bool(
-                forKey:
-                    "BonsaiRC1232VisionPrefixKVReuseEnabled"
-            )
-        contextParams.n_seq_max =
-            prefixReuseContextCapable ? 2 : 1
+        // C2-B deliberately preserves the validated single-sequence context.
+        contextParams.n_seq_max = 1
         contextParams.n_outputs_max = 1
         contextParams.n_outputs_max_per_seq = 1
         contextParams.swa_full = config.swaFull
@@ -170,8 +164,6 @@ actor BonsaiEngine {
         context = loadedContext
         vocab = llama_model_get_vocab(loadedModel)
         appliedRuntime = config
-        apiVisionPrefixReuseContextCapable =
-            prefixReuseContextCapable
 
         var descBuffer = [CChar](repeating: 0, count: 512)
         _ = llama_model_desc(loadedModel, &descBuffer, descBuffer.count)
@@ -1032,16 +1024,7 @@ actor BonsaiEngine {
 
         let reuseKey =
             cacheURL.path + "\n" + systemPrompt
-        let effectivePrefixReuse =
-            enablePrefixReuse &&
-            apiVisionPrefixReuseContextCapable
-
-        if enablePrefixReuse &&
-           !apiVisionPrefixReuseContextCapable {
-            mark(
-                "TWOPHASE_VISION_94_PREFIX_CHECKPOINT_RESTART_REQUIRED"
-            )
-        }
+        let effectivePrefixReuse = enablePrefixReuse
 
         let requestPrefixReuse =
             effectivePrefixReuse &&
@@ -2034,7 +2017,6 @@ actor BonsaiEngine {
     ) {
         apiVisionPrefixReuseKey = nil
         apiVisionPrefixPositions = 0
-        apiVisionPrefixReuseContextCapable = false
         unloadVision()
 
         if let context {
@@ -2065,13 +2047,8 @@ actor BonsaiEngine {
         params.n_ctx = UInt32(validated.context)
         params.n_batch = UInt32(validated.batch)
         params.n_ubatch = UInt32(validated.ubatch)
-        let prefixReuseContextCapable =
-            UserDefaults.standard.bool(
-                forKey:
-                    "BonsaiRC1232VisionPrefixKVReuseEnabled"
-            )
-        params.n_seq_max =
-            prefixReuseContextCapable ? 2 : 1
+        // Keep all recreated contexts on the build-40 validated shape.
+        params.n_seq_max = 1
         params.n_outputs_max = 1
         params.n_outputs_max_per_seq = 1
         params.swa_full = validated.swaFull
@@ -2090,8 +2067,6 @@ actor BonsaiEngine {
         guard let created = llama_init_from_model(model, params) else {
             throw LabError.contextCreateFailed
         }
-        apiVisionPrefixReuseContextCapable =
-            prefixReuseContextCapable
         return created
     }
 
