@@ -164,6 +164,21 @@ final class LocalOpenAIServer: ObservableObject {
         listener.start(queue: queue)
     }
 
+    func restartListenerPreservingHandler(
+        port requestedPort: UInt16 = 8080
+    ) throws {
+        let preservedHandler = handler
+        guard let preservedHandler else {
+            throw APIServerError.handlerUnavailable
+        }
+
+        stop()
+        try start(
+            port: requestedPort,
+            handler: preservedHandler
+        )
+    }
+
     func stop() {
         listener?.cancel()
         listener = nil
@@ -1146,6 +1161,7 @@ private struct HTTPRequest {
 
 enum APIServerError: LocalizedError {
     case invalidPort
+    case handlerUnavailable
     case invalidJSON
     case missingMessages
     case missingUserText
@@ -1159,6 +1175,8 @@ enum APIServerError: LocalizedError {
         switch self {
         case .invalidPort:
             return "无效的 API 端口。"
+        case .handlerUnavailable:
+            return "API handler 尚未初始化，无法仅重启 listener。"
         case .invalidJSON:
             return "请求体不是有效 JSON。"
         case .missingMessages:
