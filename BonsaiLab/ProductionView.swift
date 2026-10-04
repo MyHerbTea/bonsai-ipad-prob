@@ -435,7 +435,10 @@ private enum RC1232PerformanceDiagnostics {
             "low_power_start=\(observation.lowPowerModeStart)",
             "low_power_end=\(completion.lowPowerModeEnd)",
             "last_stage=\(lastStage)",
-        ])
+        ] + profilingLines(
+            observation: observation,
+            completion: completion
+        ))
     }
 
     static func persistVisionSuccess(
@@ -672,7 +675,13 @@ private enum RC1232PerformanceDiagnostics {
                     "metal_recommended_mib",
                     from: resourceSnapshot
                 ),
-        ])
+        ] + profilingLines(
+            observation: observation,
+            completion: completion
+        ) + resourceTransitionLines(
+            startSnapshot: resourceSnapshotStart,
+            endSnapshot: resourceSnapshot
+        ))
     }
 
     static func persistTextSuccess(
@@ -818,7 +827,13 @@ private enum RC1232PerformanceDiagnostics {
                     "metal_recommended_mib",
                     from: resourceSnapshot
                 ),
-        ])
+        ] + profilingLines(
+            observation: observation,
+            completion: completion
+        ) + resourceTransitionLines(
+            startSnapshot: resourceSnapshotStart,
+            endSnapshot: resourceSnapshot
+        ))
     }
 
     static func visionSummary(
