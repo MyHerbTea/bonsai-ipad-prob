@@ -56,6 +56,11 @@ actor BonsaiEngine {
     private var backendInitialized = false
     private var appliedRuntime = RuntimeConfig.safe
 
+    // RC1.23.2 experimental API-only prefix reuse state.
+    // This is valid only for the currently resident llama context.
+    private var apiVisionPrefixReuseKey: String?
+    private var apiVisionPrefixPositions: Int32 = 0
+
     private let stageKey = "BonsaiLabLastStage"
 
     private func mark(_ stage: String) {
@@ -988,6 +993,7 @@ actor BonsaiEngine {
         generation: GenerationConfig,
         reasoningEffort: String? = nil,
         requireFullOutputBudget: Bool = false,
+        enablePrefixReuse: Bool = false,
         onDelta: (@Sendable (String) -> Void)? = nil
     ) throws -> VisionMetrics {
         guard
@@ -1015,6 +1021,18 @@ actor BonsaiEngine {
             count: 4_096
         )
 
+        let reuseKey =
+            cacheURL.path + "\n" + systemPrompt
+        let requestPrefixReuse =
+            enablePrefixReuse &&
+            apiVisionPrefixReuseKey == reuseKey &&
+            apiVisionPrefixPositions > 0
+
+        if !enablePrefixReuse {
+            apiVisionPrefixReuseKey = nil
+            apiVisionPrefixPositions = 0
+        }
+
         let prefill = cacheURL.path.withCString {
             cachePath in
             systemPrompt.withCString {
@@ -1033,6 +1051,12 @@ actor BonsaiEngine {
                             Int32(appliedRuntime.batch),
                             reasoningEffort == "none"
                                 ? 1
+                                : 0,
+                            requestPrefixReuse
+                                ? 1
+                                : 0,
+                            requestPrefixReuse
+                                ? apiVisionPrefixPositions
                                 : 0,
                             &errorBuffer,
                             errorBuffer.count,
@@ -1126,6 +1150,34 @@ actor BonsaiEngine {
             ) / 1_000_000_000.0
         )
 
+        var prefixRetainedForReuse = false
+        if enablePrefixReuse,
+           prefill.prefix_positions > 0 {
+            prefixRetainedForReuse =
+                BonsaiRetainVisionPrefixKV(
+                    context,
+                    prefill.prefix_positions
+                ) == 1
+
+            if prefixRetainedForReuse {
+                apiVisionPrefixReuseKey = reuseKey
+                apiVisionPrefixPositions =
+                    prefill.prefix_positions
+                mark(
+                    "TWOPHASE_VISION_95_PREFIX_RETAINED"
+                )
+            } else {
+                apiVisionPrefixReuseKey = nil
+                apiVisionPrefixPositions = 0
+                mark(
+                    "TWOPHASE_VISION_96_PREFIX_RETAIN_UNSUPPORTED"
+                )
+            }
+        } else {
+            apiVisionPrefixReuseKey = nil
+            apiVisionPrefixPositions = 0
+        }
+
         let base = GenerationMetrics(
             text: generated.text,
             generatedTokens: generated.count,
@@ -1148,7 +1200,19 @@ actor BonsaiEngine {
                 prefill.image_tokens
             ),
             visionPrefillSeconds:
-                prefill.prefill_ms / 1000.0
+                prefill.prefill_ms / 1000.0,
+            prefixReuseHit:
+                prefill.prefix_reuse_hit == 1,
+            prefixPositions:
+                Int(prefill.prefix_positions),
+            prefixTextSeconds:
+                prefill.prefix_text_ms / 1000.0,
+            imagePrefillSeconds:
+                prefill.image_prefill_ms / 1000.0,
+            suffixPrefillSeconds:
+                prefill.suffix_prefill_ms / 1000.0,
+            prefixRetainedForReuse:
+                prefixRetainedForReuse
         )
     }
 
@@ -1691,6 +1755,8 @@ actor BonsaiEngine {
     }
 
     func cleanupAfterRequestFailure() {
+        apiVisionPrefixReuseKey = nil
+        apiVisionPrefixPositions = 0
         if let context {
             llama_memory_clear(
                 llama_get_memory(context),
@@ -1722,6 +1788,8 @@ actor BonsaiEngine {
         }
 
         mark("TEXT_01_BEGIN")
+        apiVisionPrefixReuseKey = nil
+        apiVisionPrefixPositions = 0
         llama_memory_clear(llama_get_memory(context), true)
 
         let sampler = makeSampler(vocab: vocab, config: gen)
@@ -1944,6 +2012,8 @@ actor BonsaiEngine {
     func unloadAll(
         releaseStagedResident: Bool = true
     ) {
+        apiVisionPrefixReuseKey = nil
+        apiVisionPrefixPositions = 0
         unloadVision()
 
         if let context {
