@@ -1,4 +1,4 @@
-name: Build Bonsai iPad Lab v1 RC1.24.1 Runtime Profile A/B
+name: Build Bonsai iPad Lab v1 RC1.25.0 Multi-Image OpenAI API
 
 on:
   push:
@@ -12,6 +12,7 @@ on:
       - lab-v1-rc1-23-6-api-runtime-lifecycle-restart-safety
       - lab-v1-rc1-24-0-sustained-decode-profiling
       - lab-v1-rc1-24-1-build56-runtime-profile-ab
+      - lab-v1-rc1-25-0-multi-image-openai-api
   workflow_dispatch:
 
 concurrency:
@@ -71,7 +72,7 @@ jobs:
           grep -q 'warm.kvReuseHit' BonsaiLab/ProductionView.swift
           grep -q 'UIPasteboard.general.string' BonsaiLab/ProductionView.swift
           grep -q 'MARKETING_VERSION: "1.0.0"' project.yml
-          grep -q 'CURRENT_PROJECT_VERSION: "56"' project.yml
+          grep -q 'CURRENT_PROJECT_VERSION: "57"' project.yml
           grep -q 'reasoningEffort' BonsaiLab/BonsaiEngine.swift
           grep -q 'payload.reasoningEffort' BonsaiLab/ProductionView.swift
           grep -q '<think>\\n\\n</think>\\n\\n' BonsaiLab/BonsaiEngine.swift
@@ -117,7 +118,7 @@ jobs:
           grep -q 'requireFullOutputBudget:' BonsaiLab/ProductionView.swift
           grep -q 'cleanupAfterRequestFailure' BonsaiLab/ProductionView.swift
           grep -q 'OpenAIMultimodalNormalizer' BonsaiLab/LocalOpenAIServer.swift
-          grep -q 'RC1.24.1 Runtime Profile A/B' BonsaiLab/ProductionView.swift
+          grep -q 'RC1.25.0 Multi-Image OpenAI API' BonsaiLab/ProductionView.swift
           grep -q 'Live Vision Injection' BonsaiLab/ContentView.swift
           grep -q 'Text("MLX Vision Metrics")' BonsaiLab/ContentView.swift
           grep -q 'maxPixels: Int = 65_536' BonsaiLab/BonsaiMLXVisionSidecar.swift
@@ -260,6 +261,20 @@ jobs:
           set -euo pipefail
           python3 tools/rc1241_runtime_profile_ab_contract_tests.py
 
+      - name: RC1.25.0 multi-image contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/rc1250_multi_image_contract_tests.py
+          xcrun swiftc \
+            BonsaiLab/OpenAIMultimodal.swift \
+            BonsaiLab/OpenAIMultiImageComposer.swift \
+            tools/rc1250_multi_image_composer_contract_tests.swift \
+            -framework ImageIO \
+            -framework CoreGraphics \
+            -o /tmp/rc1250_multi_image_composer_contract_tests
+          /tmp/rc1250_multi_image_composer_contract_tests
+
       - name: Show Apple toolchain
         run: |
           set -euo pipefail
@@ -328,7 +343,7 @@ jobs:
           file "$FRAMEWORK"
           otool -L "$APP/BonsaiLab"
           test "$(plutil -extract CFBundleShortVersionString raw -o - "$APP/Info.plist")" = "1.0.0"
-          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "56"
+          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "57"
           nm -gU "$FRAMEWORK" > build/llama-symbols.txt
           grep -q '_mtmd_init_from_file' build/llama-symbols.txt
           grep -q '_mtmd_helper_eval_chunks' build/llama-symbols.txt
@@ -345,29 +360,29 @@ jobs:
           ditto "$APP" build/ipa/Payload/BonsaiLab.app
 
           cat > build/BUILD_INFO.txt <<'INFO'
-          Bonsai iPad Lab v1 RC1.24.1 Build 56
+          Bonsai iPad Lab v1 RC1.25.0 Build 57
           Prism: prism-b10743-adfffbe
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
           Full/Accelerated remains the production default: ctx=512, batch=8, ubatch=8, n_seq_max=1, C2-B unchanged.
-          Build 56 adds an explicit diagnostic ladder only: Safe -> Flash -> Flash+KQV -> Full. It does not add cooldowns, automatic switching, or a production behavior change.
+          Build 57 adds bounded OpenAI-compatible 1-3 image request support. Two or three images are fused into an ordered contact sheet before the frozen MLX Vision Tower path. No native bridge or 27B inference configuration change is included.
           Model and Vision Tower weights are NOT bundled in the IPA.
           INFO
           echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.24.1-build56-runtime-profile-ab-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.25.0-build57-multi-image-openai-api-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.24.1-build56-runtime-profile-ab-unsigned.ipa | tee build/BonsaiLab-v1-RC1.24.1-build56-runtime-profile-ab-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.25.0-build57-multi-image-openai-api-unsigned.ipa | tee build/BonsaiLab-v1-RC1.25.0-build57-multi-image-openai-api-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.24.1-Build56-Runtime-Profile-AB
+          name: BonsaiLab-iPad-v1-RC1.25.0-Build57-Multi-Image-OpenAI-API
           path: |
-            build/BonsaiLab-v1-RC1.24.1-build56-runtime-profile-ab-unsigned.ipa
-            build/BonsaiLab-v1-RC1.24.1-build56-runtime-profile-ab-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.25.0-build57-multi-image-openai-api-unsigned.ipa
+            build/BonsaiLab-v1-RC1.25.0-build57-multi-image-openai-api-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             RC1.20_RELEASE_ACCEPTANCE.md
             OPENAI_API_QUICKSTART_RC1.20.md
@@ -410,6 +425,9 @@ jobs:
             RC1.24.0_SUSTAINED_DECODE_PROFILING.md
             RC1.24.0_BUILD55_DEVICE_EVIDENCE.md
             RC1.24.1_RUNTIME_PROFILE_AB.md
+            RC1.24.1_BUILD56_DEVICE_EVIDENCE.md
+            NEXT_STAGE_AFTER_RC1.24.1.md
+            RC1.25.0_MULTI_IMAGE_OPENAI_API.md
             tools/rc1232_observability_contract_tests.py
             tools/rc1233_long_run_observability_contract_tests.py
             tools/rc1233_thermal_recovery_probe.ps1
@@ -427,6 +445,8 @@ jobs:
             tools/rc1236_production_stop_resume_contract_tests.py
             tools/rc1240_sustained_decode_profiling_contract_tests.py
             tools/rc1241_runtime_profile_ab_contract_tests.py
+            tools/rc1250_multi_image_contract_tests.py
+            tools/rc1250_multi_image_composer_contract_tests.swift
             THIRD_PARTY_MLX_VISION_NOTICE.md
             tools/extract_bonsai_vision_tower.py
             build.log
