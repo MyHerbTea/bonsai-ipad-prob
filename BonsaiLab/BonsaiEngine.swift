@@ -1228,6 +1228,18 @@ actor BonsaiEngine {
                 prefill.image_prefill_ms / 1000.0,
             suffixPrefillSeconds:
                 prefill.suffix_prefill_ms / 1000.0,
+            suffixTokenCount:
+                Int(prefill.suffix_token_count),
+            suffixDecodeCalls:
+                Int(prefill.suffix_decode_calls),
+            suffixBatchCapacity:
+                Int(prefill.suffix_batch_capacity),
+            suffixUBatchCapacity:
+                appliedRuntime.ubatch,
+            suffixLastBatchTokens:
+                Int(prefill.suffix_last_batch_tokens),
+            suffixBatchUtilization:
+                prefill.suffix_batch_utilization,
             prefixRetainedForReuse:
                 prefixRetainedForReuse
         )
