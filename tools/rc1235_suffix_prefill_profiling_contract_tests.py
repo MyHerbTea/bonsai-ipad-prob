@@ -67,12 +67,12 @@ for swift_field in [
     assert re.search(rf"let\s+{swift_field}\s*:", vision)
 
 for pattern in [
-    r"suffixTokenCount:\\s*Int\\(prefill\\.suffix_token_count\\)",
-    r"suffixDecodeCalls:\\s*Int\\(prefill\\.suffix_decode_calls\\)",
-    r"suffixBatchCapacity:\\s*Int\\(prefill\\.suffix_batch_capacity\\)",
-    r"suffixUBatchCapacity:\\s*appliedRuntime\\.ubatch",
-    r"suffixLastBatchTokens:\\s*Int\\(prefill\\.suffix_last_batch_tokens\\)",
-    r"suffixBatchUtilization:\\s*prefill\\.suffix_batch_utilization",
+    r"suffixTokenCount:\s*Int\(prefill\.suffix_token_count\)",
+    r"suffixDecodeCalls:\s*Int\(prefill\.suffix_decode_calls\)",
+    r"suffixBatchCapacity:\s*Int\(prefill\.suffix_batch_capacity\)",
+    r"suffixUBatchCapacity:\s*appliedRuntime\.ubatch",
+    r"suffixLastBatchTokens:\s*Int\(prefill\.suffix_last_batch_tokens\)",
+    r"suffixBatchUtilization:\s*prefill\.suffix_batch_utilization",
 ]:
     assert re.search(pattern, engine)
 
