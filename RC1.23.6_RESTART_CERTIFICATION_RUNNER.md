@@ -169,8 +169,21 @@ unfinished active run to:
 
 and makes that recovered `BONSAI-RUN-*.json` shareable.
 
-The last recorded event identifies the phase reached before termination, while
-the persisted engine/stage files provide the native inference breadcrumb.
+The last recorded event identifies the phase reached before termination.
+
+On the next launch, the recovered archive also embeds the persisted crash
+breadcrumbs directly into the `app_recovered_interrupted_run` event:
+
+- last app stage;
+- engine stage;
+- staged Vision stage;
+- two-phase Vision stage;
+- MLX Vision stage;
+- MLX injection stage;
+- API preflight.
+
+Therefore a crash investigation still requires only the single recovered
+`BONSAI-RUN-*.json`; no additional manual diagnostic copy is required.
 
 ## Result interpretation
 
