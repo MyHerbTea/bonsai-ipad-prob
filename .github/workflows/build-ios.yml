@@ -8,6 +8,10 @@ on:
       - lab-v1-rc1-23-2-performance-session-reuse
   workflow_dispatch:
 
+concurrency:
+  group: bonsai-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
