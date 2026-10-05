@@ -889,7 +889,7 @@ final class LocalOpenAIServer: ObservableObject {
                 "flags": state.effective.wireDictionary
             ],
             "fallbacks": state.fallbacks,
-            "phase": "RC1.26_PHASE2A_MEMORY_GOVERNOR_OBSERVER",
+            "phase": "RC1.26_PHASE2A1_REQUEST_LIFECYCLE_OBSERVER",
             "behavior_changes_enabled":
                 state.effective.hasBehaviorChangingFeature
         ]
@@ -1007,6 +1007,12 @@ final class LocalOpenAIServer: ObservableObject {
                 telemetry: telemetry
             )
 
+        governorObservationLock.lock()
+        let observationSequence = governorObservationSequence
+        let requestBegin = lastGovernorRequestBegin
+        let requestEnd = lastGovernorRequestEnd
+        governorObservationLock.unlock()
+
         return [
             "observer_active":
                 state.effective.metalAwareGovernor,
@@ -1024,14 +1030,14 @@ final class LocalOpenAIServer: ObservableObject {
             "reasons":
                 assessment.reasons,
             "request_observation_sequence":
-                governorObservationSequence,
+                observationSequence,
             "last_request_begin":
                 governorRecordObject(
-                    lastGovernorRequestBegin
+                    requestBegin
                 ),
             "last_request_end":
                 governorRecordObject(
-                    lastGovernorRequestEnd
+                    requestEnd
                 ),
             "actuator_enabled": false,
             "actuator_flag":
