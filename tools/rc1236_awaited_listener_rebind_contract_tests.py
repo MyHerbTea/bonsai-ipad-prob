@@ -54,10 +54,12 @@ assert (
 assert '"listener_restart_resident_runtime"' in runner
 assert "if cycle == 1" in runner
 
-# Frozen inference behavior remains unchanged.
+# Frozen default/restart-runner inference behavior remains unchanged. Larger
+# product contexts may be exposed by later releases, but the one-click runner
+# continues to force the certified 512/accelerated baseline.
 assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
-assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
+assert 'apiContextProfile = "512"' in runner
 assert 'apiRuntimeProfile = "accelerated"' in runner
 assert "visionPrefixKVReuseEnabled = true" in runner
 
