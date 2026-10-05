@@ -15,6 +15,7 @@ for marker in [
 
 for marker in [
     "BonsaiRelieveHeapPressure",
+    'extern "C" uint64_t BonsaiRelieveHeapPressure',
     "malloc_zone_pressure_relief(NULL, 0)",
     "#include <malloc/malloc.h>",
 ]:
