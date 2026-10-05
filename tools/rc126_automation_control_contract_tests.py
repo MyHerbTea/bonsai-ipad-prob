@@ -12,7 +12,7 @@ for marker in [
     'request.path == "/debug/runtime/profile"',
     '"behavior_changes_enabled":',
     '"profile": state.profile.rawValue',
-    '"phase": "RC1.26_PHASE2B_HEAP_PRESSURE_RELIEF"',
+    '"phase": "RC1.26_PHASE2C_METAL_PREFILL_MEASUREMENT"',
     '"unknown_runtime_flag"',
     "RuntimeTelemetrySnapshot.capture(",
     "effectiveRuntimeState()",
