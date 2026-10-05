@@ -43,10 +43,12 @@ assert (
 )
 assert runner.index("if cycle == 1") < runner.index("startAPIServer()")
 
-# No rejected dynamic-context experiment returns.
+# The rejected 256 experiment does not return. Later releases may expose larger
+# explicit product contexts, while this historical restart runner stays pinned
+# to the frozen 512/accelerated baseline.
 assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
-assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
+assert 'apiContextProfile = "512"' in runner
 assert 'apiRuntimeProfile = "accelerated"' in runner
 assert "visionPrefixKVReuseEnabled = true" in runner
 
