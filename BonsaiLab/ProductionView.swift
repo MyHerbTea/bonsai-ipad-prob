@@ -680,8 +680,12 @@ private enum RC1232PerformanceDiagnostics {
     }
 }
 
+// Inherited API contract: RC1.23.1 OpenAI Multimodal API
 struct ProductionView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var selectedDestination: BonsaiDestination? = .vision
+    @FocusState private var questionFocused: Bool
     private let engine = BonsaiEngine()
     @StateObject private var apiServer = LocalOpenAIServer()
 
@@ -717,7 +721,7 @@ struct ProductionView: View {
     @State private var showMMProjImporter = false
     @State private var showImageImporter = false
     @State private var showMLXVisionImporter = false
-    @State private var showAdvanced = false
+    @State private var showAdvanced = true
     @State private var certification: [CertificationResult] = []
     @State private var warmSessionSummary = ""
     @State private var warmSessionPass: Bool?
@@ -751,501 +755,717 @@ struct ProductionView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Bonsai 27B")
-                                .font(.title2.bold())
-                            Text("本地 · 离线 · Vision")
-                                .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.23.1 OpenAI Multimodal API")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        if busy {
-                            ProgressView()
-                        } else {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                        }
-                    }
-
-                    LabeledContent("状态", value: status)
-
-                    if usedFallback {
-                        Label(
-                            "本次已自动使用兼容回退，无需手动调参。",
-                            systemImage: "arrow.uturn.backward.circle"
-                        )
-                        .font(.footnote)
-                        .foregroundStyle(.orange)
-                    }
-                }
-
-                Section("模型") {
-                    fileRow(
-                        title: "主模型",
-                        value: modelName,
-                        actionTitle: "选择 27B GGUF"
-                    ) {
-                        showModelImporter = true
-                    }
-                    .fileImporter(
-                        isPresented: $showModelImporter,
-                        allowedContentTypes: [ggufType],
-                        allowsMultipleSelection: false
-                    ) { result in
-                        handleImport(result, kind: .model)
-                    }
-
-                    fileRow(
-                        title: "视觉模型",
-                        value: mmprojName,
-                        actionTitle: "选择 Q8 mmproj"
-                    ) {
-                        showMMProjImporter = true
-                    }
-                    .fileImporter(
-                        isPresented: $showMMProjImporter,
-                        allowedContentTypes: [ggufType],
-                        allowsMultipleSelection: false
-                    ) { result in
-                        handleImport(result, kind: .mmproj)
-                    }
-                }
-
-                Section("图片") {
-                    fileRow(
-                        title: "图片",
-                        value: imageName,
-                        actionTitle: "选择图片"
-                    ) {
-                        showImageImporter = true
-                    }
-                    .fileImporter(
-                        isPresented: $showImageImporter,
-                        allowedContentTypes: [.image],
-                        allowsMultipleSelection: false
-                    ) { result in
-                        handleImport(result, kind: .image)
-                    }
-
-                    Picker("视觉质量", selection: $quality) {
-                        ForEach(VisionQuality.allCases) { value in
-                            Text(value.label).tag(value)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    Text(quality.note)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section("提问") {
-                    TextField(
-                        "关于图片的问题",
-                        text: $question,
-                        axis: .vertical
-                    )
-                    .lineLimit(2...8)
-
-                    Picker("回答长度", selection: $answerLength) {
-                        ForEach(AnswerLengthPreset.allCases) { value in
-                            Text(value.label).tag(value)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    Button {
-                        runProductVision()
-                    } label: {
-                        Label(
-                            busy ? "正在处理…" : "发送",
-                            systemImage: "paperplane.fill"
-                        )
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(
-                        busy ||
-                        modelURL == nil ||
-                        mmprojURL == nil ||
-                        imageURL == nil ||
-                        question.trimmingCharacters(
-                            in: .whitespacesAndNewlines
-                        ).isEmpty
-                    )
-                }
-
-                Section("回答") {
-                    if output.isEmpty {
-                        Text("选择模型与图片后即可开始。")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text(output)
-                            .textSelection(.enabled)
-                    }
-
-                    if let metrics = latestMetrics {
-                        HStack {
-                            Label(
-                                String(
-                                    format: "%.2f tok/s",
-                                    metrics.tokensPerSecond
-                                ),
-                                systemImage: "speedometer"
-                            )
-                            Spacer()
-                            Text(
-                                "\(metrics.generatedTokens) tokens · "
-                                + String(
-                                    format: "%.1f s",
-                                    metrics.generationSeconds
-                                )
-                            )
-                            .foregroundStyle(.secondary)
-                        }
-                        .font(.footnote)
-                    }
-                }
-
-                Section("局域网 OpenAI API") {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(apiServer.isRunning ? "服务运行中" : "服务已停止")
-                                .font(.headline)
-                            Text(
-                                apiServer.isRunning
-                                    ? apiServer.baseURL
-                                    : "启动后可由同一局域网内的设备调用"
-                            )
-                            .font(.footnote.monospaced())
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-                        }
-                        Spacer()
-                        Circle()
-                            .fill(apiServer.isRunning ? .green : .secondary)
-                            .frame(width: 10, height: 10)
-                    }
-
-                    if apiServer.isRunning {
-                        LabeledContent(
-                            "Model",
-                            value: apiServer.modelID
-                        )
-                        LabeledContent(
-                            "API Key",
-                            value: apiServer.apiKey
-                        )
-                        .font(.footnote.monospaced())
-                        .textSelection(.enabled)
-                        LabeledContent(
-                            "请求数",
-                            value: "\(apiServer.requestCount)"
-                        )
-
-                        Text(
-                            "兼容 /v1/models、/v1/models/{id} 与 /v1/chat/completions；支持 max_completion_tokens、stream=true 真 SSE 与 stream_options.include_usage。RC1.23.1 单图请求使用 data:image/png|jpeg;base64,...，并直接复用已验证的 MLX Hard Graph-Cut → Live Vision Injection 路径；不再要求 API 图片请求初始化 mmproj 或重启 App。"
-                        )
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
-                        Button("停止 API") {
-                            apiServer.stop()
-                            Task {
-                                await engine.unloadAll()
+        NavigationSplitView {
+            sidebar
+        } detail: {
+            destinationView
+                .navigationTitle((selectedDestination ?? .vision).rawValue)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        if (selectedDestination ?? .vision) == .vision {
+                            Button {
+                                UIPasteboard.general.string = output
+                                status = "回答已复制"
+                            } label: {
+                                Label("复制回答", systemImage: "doc.on.doc")
                             }
-                        }
-                        .foregroundStyle(.red)
-
-                        Button("复制 API 配置") {
-                            copyAPIConfig()
-                        }
-
-                        Button("重新生成 API Key") {
-                            apiServer.regenerateKey()
-                        }
-                    } else {
-                        Button("启动 OpenAI API") {
-                            startAPIServer()
-                        }
-                        .disabled(
-                            busy ||
-                            modelURL == nil
-                        )
-                    }
-
-                    if !apiServer.lastError.isEmpty {
-                        Text(apiServer.lastError)
-                            .font(.caption.monospaced())
-                            .foregroundStyle(.red)
-                            .textSelection(.enabled)
-                    }
-                }
-
-                Section {
-                    DisclosureGroup(
-                        "高级与诊断",
-                        isExpanded: $showAdvanced
-                    ) {
-                        Picker("推理模式", selection: $inferenceMode) {
-                            ForEach(VisionInferenceMode.allCases) { mode in
-                                Text(mode.label).tag(mode)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-
-                        LabeledContent(
-                            "实际配置",
-                            value:
-                                "\(vision.contextTokens) ctx · "
-                                + "\(vision.imageMaxTokens) image tokens"
-                        )
-                        LabeledContent(
-                            "资源保护",
-                            value: "自动"
-                        )
-
-                        Picker(
-                            "实验：API Runtime Profile",
-                            selection: $apiRuntimeProfile
-                        ) {
-                            Text("Safe").tag("safe")
-                            Text("Full").tag("accelerated")
-                        }
-                        .pickerStyle(.segmented)
-                        .disabled(apiServer.isRunning)
-
-                        Text(
-                            apiRuntimeProfile == "safe"
-                                ? "Safe：兼容回退档，Flash/KQV/Op Offload 均关闭。"
-                                : "Full：RC1.23.3 推荐性能档，开启 Flash Attention + KQV/Op Offload。"
-                        )
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
-                        Picker(
-                            "实验：API Context",
-                            selection: $apiContextProfile
-                        ) {
-                            Text("512 Baseline").tag("512")
-                            Text("256 Experimental").tag("256")
-                        }
-                        .pickerStyle(.segmented)
-                        .disabled(apiServer.isRunning)
-
-                        Text(
-                            apiContextProfile == "256"
-                                ? "256：RC1.23.5 Phase B 真机 A/B 实验；仅用于验证更小 context 是否降低 TTFT / suffix prefill。"
-                                : "512：RC1.23.4 冻结基线。Build 48 默认保持此档。"
-                        )
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
-                        Toggle(
-                            "实验：Vision Prefix KV Reuse",
-                            isOn:
-                                $visionPrefixKVReuseEnabled
-                        )
-                        Text(
-                            visionPrefixKVReuseEnabled
-                                ? "RC1.23.2 实验路径已启用：同图 + 同 system prompt 时尝试保留 prefix+image KV；partial trim 不受支持时会自动清空并回退。"
-                                : "默认关闭。用于与 RC1.23.1 baseline 做受控 A/B；不会改变 BVCACHE1 或 Vision Tower。"
-                        )
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
-                        Text(
-                            "缓存命中时保持 warm session；新图且可用内存偏低时优先释放常驻状态，必要时才自动降低视觉档位。设备认证不会启用该策略。"
-                        )
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("完整诊断快照")
-                                .font(.headline)
-
-                            Button("刷新并复制完整诊断") {
-                                let snapshot =
-                                    buildDiagnosticSnapshot()
-                                diagnosticSnapshot = snapshot
-                                UIPasteboard.general.string =
-                                    snapshot
-                            }
-                            .buttonStyle(.borderedProminent)
-
-                            Text(
-                                "一次收集 API、模型、Vision、阶段、内存与最近一次 API Vision Metrics；不包含 API Key、原始图片、base64 或 prompt 正文。"
-                            )
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-
-                            if !diagnosticSnapshot.isEmpty {
-                                Text(diagnosticSnapshot)
-                                    .font(.caption.monospaced())
-                                    .textSelection(.enabled)
-                            }
-                        }
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("MLX Vision Sidecar Probe")
-                                .font(.headline)
-
-                            LabeledContent(
-                                "Vision Tower",
-                                value: mlxVisionWeightsName
-                            )
-                            .lineLimit(1)
-
-                            Button("选择 vision_tower.safetensors") {
-                                showMLXVisionImporter = true
-                            }
-                            .fileImporter(
-                                isPresented: $showMLXVisionImporter,
-                                allowedContentTypes: [safetensorsType],
-                                allowsMultipleSelection: false
-                            ) { result in
-                                handleImport(
-                                    result,
-                                    kind: .mlxVision
-                                )
-                            }
-
-                            Button(
-                                "运行 MLX Hard Graph-Cut Vision Probe"
-                            ) {
-                                runMLXVisionProbe()
-                            }
-                            .disabled(
-                                busy
-                                || !apiServer.isRunning
-                                || mlxVisionWeightsURL == nil
-                                || imageURL == nil
-                            )
-
-                            Button(
-                                "运行 Live Vision Injection"
-                            ) {
-                                runLiveVisionInjection()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(
-                                busy
-                                || !apiServer.isRunning
-                                || modelURL == nil
-                                || mlxVisionWeightsURL == nil
-                                || imageURL == nil
-                                || question
-                                    .trimmingCharacters(
-                                        in: .whitespacesAndNewlines
-                                    )
-                                    .isEmpty
-                            )
-
-                            Text(
-                                "RC1.23.0 保留 RC1.22.5 Hard Graph-Cut 基线；先启动 OpenAI API 让 27B + Text Context 常驻，再把 MLX 的 projected embeddings 直接写入 BVCACHE1 并注入现有 llama context。Live 路径不会初始化 mmproj。"
-                            )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                            if !mlxVisionSummary.isEmpty {
-                                Text(mlxVisionSummary)
-                                    .font(.caption.monospaced())
-                                    .textSelection(.enabled)
-                            }
-                        }
-
-                        Button("运行一键设备认证") {
-                            runCertification()
-                        }
-                        .disabled(
-                            busy ||
-                            modelURL == nil ||
-                            mmprojURL == nil ||
-                            imageURL == nil
-                        )
-
-                        if !certification.isEmpty {
-                            ForEach(certification) { row in
-                                VStack(alignment: .leading, spacing: 3) {
-                                    HStack {
-                                        Text(row.quality.label)
-                                        Spacer()
-                                        Text(row.pass ? "PASS" : "FAIL")
-                                            .foregroundStyle(
-                                                row.pass ? .green : .red
-                                            )
-                                    }
-                                    Text(row.summary)
-                                        .font(.caption.monospaced())
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-
-                        if !warmSessionSummary.isEmpty {
-                            VStack(alignment: .leading, spacing: 3) {
-                                HStack {
-                                    Text("连续问答 / KV")
-                                    Spacer()
-                                    Text(
-                                        warmSessionPass == true
-                                            ? "PASS"
-                                            : "FAIL"
-                                    )
-                                    .foregroundStyle(
-                                        warmSessionPass == true
-                                            ? .green
-                                            : .red
-                                    )
-                                }
-                                Text(warmSessionSummary)
-                                    .font(.caption.monospaced())
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        if !detail.isEmpty {
-                            Text(detail)
-                                .font(.caption.monospaced())
-                                .textSelection(.enabled)
-                        }
-
-                        NavigationLink("Developer Diagnostics") {
-                            ContentView()
+                            .disabled(output.isEmpty)
                         }
                     }
                 }
+        }
+        .navigationSplitViewStyle(.balanced)
+        .tint(.teal)
+        .onAppear {
+            if apiRuntimeProfile == "flash" {
+                apiRuntimeProfile = "accelerated"
             }
-            .navigationTitle("Bonsai")
-            .onAppear {
-                if apiRuntimeProfile == "flash" {
-                    apiRuntimeProfile = "accelerated"
-                }
-                if apiContextProfile != "256"
-                    && apiContextProfile != "512" {
-                    apiContextProfile = "512"
-                }
-                recoverPreviousFailureHint()
+            if apiContextProfile != "256" && apiContextProfile != "512" {
+                apiContextProfile = "512"
             }
-            .onChange(of: scenePhase) { newPhase in
-                if newPhase == .background {
-                    apiServer.stop()
-                    Task {
-                        await engine.unloadAll()
-                        await MainActor.run {
-                            status = "已进入后台，已释放常驻模型并停止 API"
-                            latestMetrics = nil
-                        }
+            recoverPreviousFailureHint()
+        }
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .background {
+                apiServer.stop()
+                Task {
+                    await engine.unloadAll()
+                    await MainActor.run {
+                        status = "已进入后台，已释放常驻模型并停止 API"
+                        latestMetrics = nil
                     }
                 }
             }
         }
+    }
+
+    private var sidebar: some View {
+        List(selection: $selectedDestination) {
+            Section {
+                ForEach(BonsaiDestination.allCases) { destination in
+                    NavigationLink(value: destination) {
+                        Label(destination.rawValue, systemImage: destination.systemImage)
+                            .padding(.vertical, 6)
+                    }
+                }
+            } header: {
+                Text("工作空间")
+            }
+            Section("当前模型") {
+                Label(modelURL == nil ? "尚未选择模型" : modelName,
+                      systemImage: "cpu")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                Label("本地运行 · 数据留在设备上", systemImage: "lock.shield")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .listStyle(.sidebar)
+        .navigationTitle("Bonsai")
+        .navigationSplitViewColumnWidth(min: 230, ideal: 260, max: 310)
+        .safeAreaInset(edge: .bottom) {
+            VStack(alignment: .leading, spacing: 8) {
+                BonsaiStatusBadge(title: apiServer.isRunning ? "本地 API 运行中" : "本地 · 离线 · Vision",
+                                  active: apiServer.isRunning)
+                Text("27B · RC1.23.5")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(20)
+        }
+    }
+
+    @ViewBuilder
+    private var destinationView: some View {
+        switch selectedDestination ?? .vision {
+        case .vision:
+            visionWorkspace
+        case .models:
+            modelSettings
+        case .api:
+            apiSettings
+        case .diagnostics:
+            diagnosticSettings
+        }
+    }
+
+    private var canSend: Bool {
+        !busy && modelURL != nil && mmprojURL != nil && imageURL != nil
+            && !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var visionWorkspace: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                workspaceHeader
+                BonsaiPanel(title: "参考图片", systemImage: "photo") {
+                    BonsaiImagePreview(url: imageURL, fileName: imageName)
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 16) {
+                            imagePickerButton
+                            Spacer(minLength: 12)
+                            qualityPicker
+                        }
+                        VStack(alignment: .leading, spacing: 12) {
+                            imagePickerButton
+                            qualityPicker
+                        }
+                    }
+                    Text(quality.note)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                answerPanel
+            }
+            .frame(maxWidth: 960)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 24)
+            .frame(maxWidth: .infinity)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(BonsaiCanvas())
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            composer
+        }
+        .fileImporter(isPresented: $showImageImporter,
+                      allowedContentTypes: [.image], allowsMultipleSelection: false) { result in
+            handleImport(result, kind: .image)
+        }
+    }
+
+    private var workspaceHeader: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("让每一张图片，\n都有新的发现。")
+                .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                .fixedSize(horizontal: false, vertical: true)
+            Text("用 Bonsai 在 iPad 上理解图片。所有推理均在本机完成。")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                if busy { ProgressView().controlSize(.small) }
+                Text(status)
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+            if modelURL == nil || mmprojURL == nil {
+                Button {
+                    selectedDestination = .models
+                } label: {
+                    Label("先选择主模型与视觉模型", systemImage: "arrow.right.circle")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+            }
+            if usedFallback {
+                Label("已自动切换到兼容模式", systemImage: "arrow.uturn.backward.circle")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+            }
+            if !busy && !detail.isEmpty && latestMetrics == nil {
+                Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+        }
+    }
+
+    private var imagePickerButton: some View {
+        Button {
+            showImageImporter = true
+        } label: {
+            Label(imageURL == nil ? "选择图片" : "更换图片", systemImage: "photo.badge.plus")
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .disabled(busy)
+    }
+
+    @ViewBuilder
+    private var qualityPicker: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            Picker("视觉质量", selection: $quality) {
+                ForEach(VisionQuality.allCases) { value in
+                    Text(value.label).tag(value)
+                }
+            }
+            .pickerStyle(.menu)
+            .disabled(busy)
+        } else {
+            Picker("视觉质量", selection: $quality) {
+                ForEach(VisionQuality.allCases) { value in
+                    Text(value.label).tag(value)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 360)
+            .disabled(busy)
+        }
+    }
+
+    private var answerPanel: some View {
+        BonsaiPanel(title: "Bonsai 的回答", systemImage: "sparkles") {
+            if output.isEmpty {
+                if busy {
+                    VStack(spacing: 14) {
+                        ProgressView()
+                        Text("正在理解图片…")
+                            .font(.headline)
+                        Text("回答会在这里逐步显示")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 36)
+                } else {
+                    BonsaiEmptyState(title: "从一个问题开始",
+                                     message: "选择图片，在下方写下你想了解的内容。",
+                                     systemImage: "bubble.left.and.text.bubble.right")
+                }
+            } else {
+                Text(output)
+                    .font(.body)
+                    .lineSpacing(6)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if let metrics = latestMetrics {
+                Divider()
+                ViewThatFits(in: .horizontal) {
+                    HStack {
+                        Label(String(format: "%.2f tok/s", metrics.tokensPerSecond), systemImage: "speedometer")
+                        Spacer()
+                        Text("\(metrics.generatedTokens) tokens · " + String(format: "%.1f s", metrics.generationSeconds))
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(String(format: "%.2f tok/s", metrics.tokensPerSecond), systemImage: "speedometer")
+                        Text("\(metrics.generatedTokens) tokens · " + String(format: "%.1f s", metrics.generationSeconds))
+                    }
+                }
+                .font(.footnote.monospacedDigit())
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var composer: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            TextField("关于这张图片，你想了解什么？", text: $question, axis: .vertical)
+                .font(.body)
+                .lineLimit(1...4)
+                .focused($questionFocused)
+                .padding(.horizontal, 4)
+                .disabled(busy)
+                .accessibilityLabel("关于图片的问题")
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 16) {
+                    answerLengthPicker
+                    Spacer(minLength: 12)
+                    sendButton
+                }
+                VStack(alignment: .leading, spacing: 12) {
+                    answerLengthPicker
+                    sendButton.frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
+        }
+        .padding(20)
+        .modifier(BonsaiControlSurface())
+        .frame(maxWidth: 960)
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private var answerLengthPicker: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            Picker("回答长度", selection: $answerLength) {
+                ForEach(AnswerLengthPreset.allCases) { value in
+                    Text(value.label).tag(value)
+                }
+            }
+            .pickerStyle(.menu)
+            .disabled(busy)
+        } else {
+            Picker("回答长度", selection: $answerLength) {
+                ForEach(AnswerLengthPreset.allCases) { value in
+                    Text(value.label).tag(value)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(maxWidth: 300)
+            .disabled(busy)
+        }
+    }
+
+    private var sendButton: some View {
+        Button {
+            questionFocused = false
+            runProductVision()
+        } label: {
+            Label(busy ? "正在处理" : "发送", systemImage: "arrow.up")
+                .font(.body.weight(.semibold))
+                .padding(.horizontal, 10)
+                .frame(minHeight: 28)
+        }
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.capsule)
+        .controlSize(.large)
+        .keyboardShortcut(.return, modifiers: .command)
+        .disabled(!canSend)
+    }
+
+    private var runtimeStatusSection: some View {
+        Section("运行状态") {
+            HStack(spacing: 12) {
+                if busy { ProgressView() }
+                Text(status)
+                    .font(.subheadline.weight(.medium))
+            }
+            .accessibilityElement(children: .combine)
+            if !detail.isEmpty && latestMetrics == nil {
+                Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+        }
+    }
+
+    private var modelSettings: some View {
+        Form {
+            runtimeStatusSection
+            Section("模型") {
+                fileRow(
+                    title: "主模型",
+                    value: modelName,
+                    actionTitle: "选择 27B GGUF"
+                ) {
+                    showModelImporter = true
+                }
+                .fileImporter(
+                    isPresented: $showModelImporter,
+                    allowedContentTypes: [ggufType],
+                    allowsMultipleSelection: false
+                ) { result in
+                    handleImport(result, kind: .model)
+                }
+
+                fileRow(
+                    title: "视觉模型",
+                    value: mmprojName,
+                    actionTitle: "选择 Q8 mmproj"
+                ) {
+                    showMMProjImporter = true
+                }
+                .fileImporter(
+                    isPresented: $showMMProjImporter,
+                    allowedContentTypes: [ggufType],
+                    allowsMultipleSelection: false
+                ) { result in
+                    handleImport(result, kind: .mmproj)
+                }
+            }
+            Section {
+                Label("模型文件由你选择，推理在设备上完成。", systemImage: "lock.shield")
+                    .foregroundStyle(.secondary)
+                Text("局域网多模态 API 使用的 MLX Vision Tower 可在高级与诊断中导入。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(BonsaiCanvas())
+    }
+
+    private var apiSettings: some View {
+        Form {
+            runtimeStatusSection
+            Section("局域网 OpenAI API") {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(apiServer.isRunning ? "服务运行中" : "服务已停止")
+                            .font(.headline)
+                        Text(
+                            apiServer.isRunning
+                                ? apiServer.baseURL
+                                : "启动后可由同一局域网内的设备调用"
+                        )
+                        .font(.footnote.monospaced())
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                    }
+                    Spacer()
+                    Circle()
+                        .fill(apiServer.isRunning ? .green : .secondary)
+                        .frame(width: 10, height: 10)
+                }
+
+                if apiServer.isRunning {
+                    LabeledContent(
+                        "Model",
+                        value: apiServer.modelID
+                    )
+                    LabeledContent(
+                        "API Key",
+                        value: apiServer.apiKey
+                    )
+                    .font(.footnote.monospaced())
+                    .textSelection(.enabled)
+                    LabeledContent(
+                        "请求数",
+                        value: "\(apiServer.requestCount)"
+                    )
+
+                    Text(
+                        "兼容 /v1/models、/v1/models/{id} 与 /v1/chat/completions；支持 max_completion_tokens、stream=true 真 SSE 与 stream_options.include_usage。RC1.23.1 单图请求使用 data:image/png|jpeg;base64,...，并直接复用已验证的 MLX Hard Graph-Cut → Live Vision Injection 路径；不再要求 API 图片请求初始化 mmproj 或重启 App。"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                    Button("停止 API") {
+                        apiServer.stop()
+                        Task {
+                            await engine.unloadAll()
+                        }
+                    }
+                    .foregroundStyle(.red)
+
+                    Button("复制 API 配置") {
+                        copyAPIConfig()
+                    }
+
+                    Button("重新生成 API Key") {
+                        apiServer.regenerateKey()
+                    }
+                } else {
+                    Button("启动 OpenAI API") {
+                        startAPIServer()
+                    }
+                    .disabled(
+                        busy ||
+                        modelURL == nil
+                    )
+                }
+
+                if !apiServer.lastError.isEmpty {
+                    Text(apiServer.lastError)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.red)
+                        .textSelection(.enabled)
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(BonsaiCanvas())
+    }
+
+    private var diagnosticSettings: some View {
+        Form {
+            runtimeStatusSection
+            Section {
+                DisclosureGroup(
+                    "高级与诊断",
+                    isExpanded: $showAdvanced
+                ) {
+                    Picker("推理模式", selection: $inferenceMode) {
+                        ForEach(VisionInferenceMode.allCases) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    LabeledContent(
+                        "实际配置",
+                        value:
+                            "\(vision.contextTokens) ctx · "
+                            + "\(vision.imageMaxTokens) image tokens"
+                    )
+                    LabeledContent(
+                        "资源保护",
+                        value: "自动"
+                    )
+
+                    Picker(
+                        "实验：API Runtime Profile",
+                        selection: $apiRuntimeProfile
+                    ) {
+                        Text("Safe").tag("safe")
+                        Text("Full").tag("accelerated")
+                    }
+                    .pickerStyle(.segmented)
+                    .disabled(apiServer.isRunning)
+
+                    Text(
+                        apiRuntimeProfile == "safe"
+                            ? "Safe：兼容回退档，Flash/KQV/Op Offload 均关闭。"
+                            : "Full：RC1.23.3 推荐性能档，开启 Flash Attention + KQV/Op Offload。"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                    Picker(
+                        "实验：API Context",
+                        selection: $apiContextProfile
+                    ) {
+                        Text("512 Baseline").tag("512")
+                        Text("256 Experimental").tag("256")
+                    }
+                    .pickerStyle(.segmented)
+                    .disabled(apiServer.isRunning)
+
+                    Text(
+                        apiContextProfile == "256"
+                            ? "256：RC1.23.5 Phase B 真机 A/B 实验；仅用于验证更小 context 是否降低 TTFT / suffix prefill。"
+                            : "512：RC1.23.4 冻结基线。Build 48 默认保持此档。"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                    Toggle(
+                        "实验：Vision Prefix KV Reuse",
+                        isOn:
+                            $visionPrefixKVReuseEnabled
+                    )
+                    Text(
+                        visionPrefixKVReuseEnabled
+                            ? "RC1.23.2 实验路径已启用：同图 + 同 system prompt 时尝试保留 prefix+image KV；partial trim 不受支持时会自动清空并回退。"
+                            : "默认关闭。用于与 RC1.23.1 baseline 做受控 A/B；不会改变 BVCACHE1 或 Vision Tower。"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                    Text(
+                        "缓存命中时保持 warm session；新图且可用内存偏低时优先释放常驻状态，必要时才自动降低视觉档位。设备认证不会启用该策略。"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("完整诊断快照")
+                            .font(.headline)
+
+                        Button("刷新并复制完整诊断") {
+                            let snapshot =
+                                buildDiagnosticSnapshot()
+                            diagnosticSnapshot = snapshot
+                            UIPasteboard.general.string =
+                                snapshot
+                        }
+                        .buttonStyle(.borderedProminent)
+
+                        Text(
+                            "一次收集 API、模型、Vision、阶段、内存与最近一次 API Vision Metrics；不包含 API Key、原始图片、base64 或 prompt 正文。"
+                        )
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                        if !diagnosticSnapshot.isEmpty {
+                            Text(diagnosticSnapshot)
+                                .font(.caption.monospaced())
+                                .textSelection(.enabled)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("MLX Vision Sidecar Probe")
+                            .font(.headline)
+
+                        LabeledContent(
+                            "Vision Tower",
+                            value: mlxVisionWeightsName
+                        )
+                        .lineLimit(1)
+
+                        Button("选择 vision_tower.safetensors") {
+                            showMLXVisionImporter = true
+                        }
+                        .fileImporter(
+                            isPresented: $showMLXVisionImporter,
+                            allowedContentTypes: [safetensorsType],
+                            allowsMultipleSelection: false
+                        ) { result in
+                            handleImport(
+                                result,
+                                kind: .mlxVision
+                            )
+                        }
+
+                        Button(
+                            "运行 MLX Hard Graph-Cut Vision Probe"
+                        ) {
+                            runMLXVisionProbe()
+                        }
+                        .disabled(
+                            busy
+                            || !apiServer.isRunning
+                            || mlxVisionWeightsURL == nil
+                            || imageURL == nil
+                        )
+
+                        Button(
+                            "运行 Live Vision Injection"
+                        ) {
+                            runLiveVisionInjection()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(
+                            busy
+                            || !apiServer.isRunning
+                            || modelURL == nil
+                            || mlxVisionWeightsURL == nil
+                            || imageURL == nil
+                            || question
+                                .trimmingCharacters(
+                                    in: .whitespacesAndNewlines
+                                )
+                                .isEmpty
+                        )
+
+                        Text(
+                            "RC1.23.0 保留 RC1.22.5 Hard Graph-Cut 基线；先启动 OpenAI API 让 27B + Text Context 常驻，再把 MLX 的 projected embeddings 直接写入 BVCACHE1 并注入现有 llama context。Live 路径不会初始化 mmproj。"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                        if !mlxVisionSummary.isEmpty {
+                            Text(mlxVisionSummary)
+                                .font(.caption.monospaced())
+                                .textSelection(.enabled)
+                        }
+                    }
+
+                    Button("运行一键设备认证") {
+                        runCertification()
+                    }
+                    .disabled(
+                        busy ||
+                        modelURL == nil ||
+                        mmprojURL == nil ||
+                        imageURL == nil
+                    )
+
+                    if !certification.isEmpty {
+                        ForEach(certification) { row in
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack {
+                                    Text(row.quality.label)
+                                    Spacer()
+                                    Text(row.pass ? "PASS" : "FAIL")
+                                        .foregroundStyle(
+                                            row.pass ? .green : .red
+                                        )
+                                }
+                                Text(row.summary)
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    if !warmSessionSummary.isEmpty {
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack {
+                                Text("连续问答 / KV")
+                                Spacer()
+                                Text(
+                                    warmSessionPass == true
+                                        ? "PASS"
+                                        : "FAIL"
+                                )
+                                .foregroundStyle(
+                                    warmSessionPass == true
+                                        ? .green
+                                        : .red
+                                )
+                            }
+                            Text(warmSessionSummary)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    if !detail.isEmpty {
+                        Text(detail)
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                    }
+
+                    NavigationLink("Developer Diagnostics") {
+                        ContentView()
+                    }
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(BonsaiCanvas())
     }
 
     private enum ImportKind {
