@@ -45,7 +45,7 @@ assert "bounded_contact_sheet_before_vision_tower" in view
 assert (
     'Text("1.0 · RC1.25.0 Multi-Image OpenAI API")' in view
     or 'Text("1.0 · RC1.25.1 API Hardening")' in view
-    or 'Text("1.0 · RC1.25.2 API Usability")' in view
+    or 'Text("1.0 · RC1.25.2 Build 62 Context Switch Safety")' in view
 )
 
 # Production runtime remains the proven Full profile by default.
