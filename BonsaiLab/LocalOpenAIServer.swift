@@ -1237,7 +1237,8 @@ final class LocalOpenAIServer: ObservableObject {
                     var entry =
                         "User: " + message.text
 
-                    if index == visualUserIndex {
+                    if let visualUserIndex,
+                       index == visualUserIndex {
                         entry +=
                             "\n[The image(s) from this turn are attached "
                             + "as the active visual context for the "
@@ -1609,7 +1610,7 @@ private struct HTTPRequest {
         if transferEncoding
             .split(separator: ",")
             .map({
-                $0.trimmingCharacters(
+                String($0).trimmingCharacters(
                     in: .whitespacesAndNewlines
                 )
             })
@@ -1664,11 +1665,11 @@ private struct HTTPRequest {
                     ),
                 let sizeLine =
                     String(
-                        data:
+                        decoding:
                             data[
                                 cursor..<sizeLineRange.lowerBound
                             ],
-                        encoding: .utf8
+                        as: UTF8.self
                     )
             else {
                 return nil
