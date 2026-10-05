@@ -79,7 +79,7 @@ assert (
     or "Build61-API-Usability" in workflow
     or "Build62-API-Usability" in workflow
     or "Build63-Vision-Lifecycle-Safety" in workflow
-    or "Build64-Native-Prefill-Isolation" in workflow
+    or "Build64-Native-Prefill-Isolation" in workflow\n    or "Build65-Runtime-Optimization" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")
