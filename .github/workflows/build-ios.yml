@@ -1,4 +1,4 @@
-name: Build Bonsai iPad Lab v1 RC1.25.1 API Hardening
+name: Build Bonsai iPad Lab v1 RC1.25.2 API Usability
 
 on:
   push:
@@ -14,6 +14,7 @@ on:
       - lab-v1-rc1-24-1-build56-runtime-profile-ab
       - lab-v1-rc1-25-0-multi-image-openai-api
       - lab-v1-rc1-25-1-observability-error-hardening
+      - lab-v1-rc1-25-2-openai-api-usability
   workflow_dispatch:
 
 concurrency:
