@@ -455,6 +455,7 @@ jobs:
             RC1.25.2_OPENAI_API_USABILITY.md
             RC1.25.2_CLIENT_COMPATIBILITY_MATRIX.md
             tools/rc1252_api_usability_contract_tests.py
+            tools/rc1252_context_boundary_probe.ps1
             tools/rc1252_context_ladder_device_probe.ps1
             tools/rc1252_openai_python_sdk_probe.py
             tools/rc1252_openai_js_sdk_probe.mjs
