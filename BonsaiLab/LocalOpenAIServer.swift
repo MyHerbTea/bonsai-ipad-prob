@@ -953,24 +953,55 @@ final class LocalOpenAIServer: ObservableObject {
             throw APIServerError.unsupportedCandidateCount
         }
 
-        if let tools = root["tools"] as? [Any], !tools.isEmpty {
+        let tools = root["tools"] as? [Any] ?? []
+        let rawToolChoice = root["tool_choice"]
+        let toolChoiceName =
+            (rawToolChoice as? String)?
+                .lowercased()
+
+        if let rawToolChoice,
+           !(rawToolChoice is NSNull),
+           toolChoiceName != "none" {
             throw APIServerError.unsupportedTools
         }
 
-        if let toolChoice = root["tool_choice"],
-           !(toolChoice is NSNull) {
+        // OpenAI tool_choice="none" explicitly disables tool calls. In that
+        // case tool schemas are harmless compatibility metadata and can be
+        // ignored. Any request that may actually invoke a tool remains rejected.
+        if !tools.isEmpty && toolChoiceName != "none" {
             throw APIServerError.unsupportedTools
         }
 
-        var systemPrompt = "You are a helpful assistant."
-        var userPrompt = ""
-        var images: [OpenAIImageInput] = []
-        var imageOrdering: OpenAIImageOrdering = .none
+        struct NormalizedChatMessage {
+            let role: String
+            let text: String
+            let images: [OpenAIImageInput]
+            let ordering: OpenAIImageOrdering
+        }
+
+        var normalizedMessages: [NormalizedChatMessage] = []
         var totalImages = 0
         var bindingSummaries: [OpenAIMessageBindingSummary] = []
 
         for message in messages {
-            let role = message["role"] as? String ?? ""
+            let role =
+                (message["role"] as? String ?? "")
+                    .lowercased()
+
+            guard [
+                "system",
+                "developer",
+                "user",
+                "assistant"
+            ].contains(role) else {
+                throw APIServerError
+                    .unsupportedMessageRole(role)
+            }
+
+            if let toolCalls = message["tool_calls"],
+               !(toolCalls is NSNull) {
+                throw APIServerError.unsupportedTools
+            }
 
             let parsed =
                 try OpenAIMultimodalNormalizer
@@ -997,38 +1028,87 @@ final class LocalOpenAIServer: ObservableObject {
                     .tooManyImages
             }
 
-            if role == "system" {
-                if parsed.imageCount > 0 {
-                    throw OpenAIMultimodalError
-                        .invalidContentPart
-                }
-                if !parsed.text.isEmpty {
-                    systemPrompt = parsed.text
-                }
-            }
-
-            if role == "user" {
-                if !parsed.text.isEmpty {
-                    userPrompt = parsed.text
-                }
-
-                if !parsed.images.isEmpty {
-                    images = parsed.images
-                    imageOrdering = parsed.ordering
-                }
-            }
+            normalizedMessages.append(
+                NormalizedChatMessage(
+                    role: role,
+                    text: parsed.text,
+                    images: parsed.images,
+                    ordering: parsed.ordering
+                )
+            )
         }
 
         _ = try OpenAIMultimodalMessageBindingValidator
             .validate(bindingSummaries)
 
-        guard !userPrompt.isEmpty else {
+        guard let currentUserIndex =
+            normalizedMessages.lastIndex(
+                where: {
+                    $0.role == "user"
+                    && !$0.text.isEmpty
+                }
+            )
+        else {
             throw APIServerError.missingUserText
         }
+
+        let currentUser =
+            normalizedMessages[currentUserIndex]
+        var instructionParts: [String] = []
+        var historyParts: [String] = []
+
+        for (index, message) in
+            normalizedMessages.enumerated() {
+            switch message.role {
+            case "system", "developer":
+                if !message.text.isEmpty {
+                    instructionParts.append(message.text)
+                }
+
+            case "user":
+                if index < currentUserIndex,
+                   !message.text.isEmpty {
+                    historyParts.append(
+                        "User: " + message.text
+                    )
+                }
+
+            case "assistant":
+                if index < currentUserIndex,
+                   !message.text.isEmpty {
+                    historyParts.append(
+                        "Assistant: " + message.text
+                    )
+                }
+
+            default:
+                break
+            }
+        }
+
+        var systemPrompt =
+            instructionParts.isEmpty
+                ? "You are a helpful assistant."
+                : instructionParts.joined(
+                    separator: "\n\n"
+                )
+
+        if !historyParts.isEmpty {
+            systemPrompt +=
+                "\n\nConversation history:\n"
+                + historyParts.joined(
+                    separator: "\n"
+                )
+        }
+
+        let userPrompt = currentUser.text
+        let images = currentUser.images
+        let imageOrdering = currentUser.ordering
 
         let requested =
             (root["max_completion_tokens"] as? NSNumber)?.intValue
             ?? (root["max_tokens"] as? NSNumber)?.intValue
+            ?? (root["max_output_tokens"] as? NSNumber)?.intValue
             ?? 256
 
         let maxTokens = min(
@@ -1048,8 +1128,10 @@ final class LocalOpenAIServer: ObservableObject {
 
         guard [
             "none",
+            "minimal",
             "low",
             "medium",
+            "high",
             "xhigh"
         ].contains(reasoningEffort) else {
             throw APIServerError.unsupportedReasoningEffort
@@ -1090,6 +1172,7 @@ final class LocalOpenAIServer: ObservableObject {
         [
             "id": modelID,
             "object": "model",
+            "created": 0,
             "owned_by": "local",
             // Common OpenAI-compatible/OpenRouter-style discovery metadata.
             // Chatbox consumes context_length and architecture.input_modalities.
@@ -1102,6 +1185,7 @@ final class LocalOpenAIServer: ObservableObject {
             "supported_parameters": [
                 "max_tokens",
                 "max_completion_tokens",
+                "max_output_tokens",
                 "stream",
                 "stream_options"
             ],
@@ -1314,6 +1398,7 @@ enum APIServerError: LocalizedError {
     case invalidImageDataURL
     case unsupportedCandidateCount
     case unsupportedTools
+    case unsupportedMessageRole(String)
     case unsupportedReasoningEffort
 
     var errorDescription: String? {
@@ -1335,9 +1420,11 @@ enum APIServerError: LocalizedError {
         case .unsupportedCandidateCount:
             return "当前本地 API 仅支持 n=1。"
         case .unsupportedTools:
-            return "当前本地 API 尚不支持 tools/tool_choice；请使用普通 chat completions。"
+            return "当前本地 API 尚不支持实际 tool calls；tool_choice=none 可作为兼容模式使用。"
+        case .unsupportedMessageRole(let role):
+            return "当前本地 API 不支持消息角色：\(role)。支持 system、developer、user、assistant。"
         case .unsupportedReasoningEffort:
-            return "reasoning_effort 仅支持 none、low、medium、xhigh。"
+            return "reasoning_effort 仅支持 none、minimal、low、medium、high、xhigh。"
         }
     }
 }
