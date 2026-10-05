@@ -1376,6 +1376,10 @@ actor BonsaiEngine {
             effectiveMaxTokens: effectiveMaxTokens,
             terminationReason:
                 generated.terminationReason,
+            prefillSeconds:
+                prefill.prefill_ms / 1000.0,
+            decodeToFirstTokenSeconds:
+                decodeToFirstTokenSeconds,
             ttftSeconds:
                 prefill.prefill_ms / 1000.0
                 + decodeToFirstTokenSeconds,
@@ -2047,9 +2051,10 @@ actor BonsaiEngine {
 
         let start = DispatchTime.now().uptimeNanoseconds
         try evalTextTokens(tokens, context: context, batchSize: appliedRuntime.batch)
+        let prefillEnd = DispatchTime.now().uptimeNanoseconds
         mark("TEXT_02_PROMPT_DONE")
 
-        let generationStart = DispatchTime.now().uptimeNanoseconds
+        let generationStart = prefillEnd
         let generated = try decodeGeneratedTokens(
             context: context,
             vocab: vocab,
@@ -2067,7 +2072,12 @@ actor BonsaiEngine {
         }
 
         let first = generated.firstTokenTime ?? end
-        let ttft = Double(first - start) / 1_000_000_000.0
+        let prefillSeconds =
+            Double(prefillEnd - start) / 1_000_000_000.0
+        let decodeToFirstTokenSeconds =
+            Double(first - generationStart) / 1_000_000_000.0
+        let ttft =
+            prefillSeconds + decodeToFirstTokenSeconds
         let generationSeconds = max(
             0.000001,
             Double(end - generationStart) / 1_000_000_000.0
@@ -2081,6 +2091,9 @@ actor BonsaiEngine {
             effectiveMaxTokens: gen.maxTokens,
             terminationReason:
                 generated.terminationReason,
+            prefillSeconds: prefillSeconds,
+            decodeToFirstTokenSeconds:
+                decodeToFirstTokenSeconds,
             ttftSeconds: ttft,
             generationSeconds: generationSeconds,
             tokensPerSecond: Double(generated.count) / generationSeconds
