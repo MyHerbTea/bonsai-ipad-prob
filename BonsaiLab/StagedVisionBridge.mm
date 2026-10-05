@@ -1548,14 +1548,29 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
     result.image_tokens = cached.n_tokens;
     result.projection_dim = cached.projection_dim;
 
-    const int64_t required_context =
+    const int64_t positional_required_context =
         static_cast<int64_t>(planned_input_positions)
         + static_cast<int64_t>(requested_max_tokens)
         + 1;
 
+    // M-RoPE logical positions are not the same thing as KV cells. Image
+    // embeddings consume one KV cell per projected token even though their
+    // logical position span is only cached.n_pos. A request can therefore
+    // pass the positional check and still exhaust KV capacity during
+    // generation. Account for both dimensions before mutating the context.
+    const int64_t planned_prompt_kv_tokens =
+        static_cast<int64_t>(packet[0].tokens.size())
+        + static_cast<int64_t>(cached.n_tokens)
+        + static_cast<int64_t>(packet[2].tokens.size());
+    const int64_t kv_required_context =
+        planned_prompt_kv_tokens
+        + static_cast<int64_t>(requested_max_tokens);
+
     if (
         planned_input_positions >= context_limit ||
-        required_context > context_limit
+        positional_required_context > context_limit ||
+        planned_prompt_kv_tokens >= context_limit ||
+        kv_required_context > context_limit
     ) {
         write_stage(
             stage_path,
