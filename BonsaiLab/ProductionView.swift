@@ -3137,6 +3137,12 @@ struct ProductionView: View {
                         payload.maxTokens,
                         256
                     )
+                    gen.temperature =
+                        payload.temperature
+                    gen.topP =
+                        payload.topP
+                    gen.seed =
+                        payload.seed
 
                     let reasoningInstruction: String
                     switch payload.reasoningEffort {
