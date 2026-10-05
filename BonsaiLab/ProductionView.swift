@@ -2243,6 +2243,27 @@ struct ProductionView: View {
             "api_op_offload=\(apiOpOffload)",
             "api_kv_unified=true",
             "api_load_mode=mmap",
+            "rc1252_context_switch_state="
+                + (
+                    defaults.string(
+                        forKey:
+                            "BonsaiRC1252ContextSwitchState"
+                    ) ?? "none"
+                ),
+            "rc1252_context_switch_from="
+                + String(
+                    defaults.integer(
+                        forKey:
+                            "BonsaiRC1252ContextSwitchFrom"
+                    )
+                ),
+            "rc1252_context_switch_to="
+                + String(
+                    defaults.integer(
+                        forKey:
+                            "BonsaiRC1252ContextSwitchTo"
+                    )
+                ),
             "vision_prefix_kv_reuse_enabled="
                 + String(
                     defaults.bool(
@@ -2970,11 +2991,7 @@ struct ProductionView: View {
         }
 
         guard preservedRuntimeMatchesAPISelection else {
-            status = "API Context/Profile 已变更，正在重新预热…"
-            detail =
-                "不会把旧 Runtime 伪装成新 Context；将释放旧上下文并按当前选择重新加载。"
-            apiServer.stop()
-            startAPIServer()
+            reconfigureAPIRuntimePreservingModel()
             return
         }
 
@@ -3008,6 +3025,107 @@ struct ProductionView: View {
                 busy = false
                 status = "OpenAI API 恢复失败"
                 detail = error.localizedDescription
+            }
+        }
+    }
+
+    private func reconfigureAPIRuntimePreservingModel() {
+        let selectedRuntime = runtime
+        let selectedAPIRuntimeProfile =
+            selectedAPIRuntimeProfileValue
+        let selectedAPIContext =
+            selectedAPIContextValue
+        let sharedEngine = engine
+        let sharedVisionSidecar = mlxVisionSidecar
+
+        var apiRuntime = selectedRuntime
+        apiRuntime.context = selectedAPIContext
+        apiRuntime.batch = 8
+        apiRuntime.ubatch = 8
+
+        switch selectedAPIRuntimeProfile {
+        case "ab_flash_only":
+            apiRuntime.flashAttention = true
+            apiRuntime.offloadKQV = false
+            apiRuntime.opOffload = false
+        case "ab_flash_kqv":
+            apiRuntime.flashAttention = true
+            apiRuntime.offloadKQV = true
+            apiRuntime.opOffload = false
+        case "accelerated":
+            apiRuntime.flashAttention = true
+            apiRuntime.offloadKQV = true
+            apiRuntime.opOffload = true
+        default:
+            apiRuntime.flashAttention = false
+            apiRuntime.offloadKQV = false
+            apiRuntime.opOffload = false
+        }
+
+        apiRuntime.kvUnified = true
+        apiRuntime.loadMode = .mmap
+
+        busy = true
+        status = "正在安全切换 API Context/Profile…"
+        detail =
+            "保留 27B mmap 模型，只释放并重建 llama context；"
+            + "同时释放 MLX Vision 常驻状态，避免整模型卸载/重载造成峰值。"
+
+        Task { @MainActor in
+            do {
+                await sharedVisionSidecar
+                    .releaseResidentStateForContextSwitch()
+
+                let before =
+                    await sharedEngine.apiAdmissionSnapshot()
+
+                try await sharedEngine
+                    .reconfigureTextContextKeepingModel(
+                        runtime: apiRuntime
+                    )
+
+                let after =
+                    await sharedEngine.apiAdmissionSnapshot()
+
+                UserDefaults.standard.set(
+                    selectedAPIContext,
+                    forKey:
+                        "BonsaiRC1235ActiveAPIContext"
+                )
+                UserDefaults.standard.set(
+                    selectedAPIRuntimeProfile,
+                    forKey:
+                        "BonsaiRC1233ActiveAPIRuntimeProfile"
+                )
+                UserDefaults.standard.synchronize()
+
+                apiServer.configureModelMetadata(
+                    contextWindow: selectedAPIContext,
+                    maxOutputTokens: 256
+                )
+
+                try await resumeAPIListenerPreservingRuntime()
+                try await waitForCertificationAPIReady(
+                    timeoutSeconds: 30
+                )
+
+                busy = false
+                status =
+                    "OpenAI API 已切换到 Context "
+                    + "\(selectedAPIContext)"
+                detail =
+                    "27B model 未重载。\n"
+                    + "[BEFORE]\n"
+                    + before
+                    + "\n[AFTER]\n"
+                    + after
+            } catch {
+                busy = false
+                status = "API Context/Profile 切换失败"
+                detail =
+                    error.localizedDescription
+                    + "\n已尝试恢复旧 Context；"
+                    + "若仍不可用，请重新启动应用后再选择目标 Context。"
             }
         }
     }
