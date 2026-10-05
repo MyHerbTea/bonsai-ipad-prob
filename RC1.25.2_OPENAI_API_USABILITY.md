@@ -82,6 +82,16 @@ normalizes `system`, `developer`, `user`, and `assistant` messages:
 - image binding remains restricted to the effective current user turn;
 - tool-role/tool-call history is rejected until function calling exists.
 
+For visual follow-ups, the local engine still has one active visual binding per
+request. Build 61 therefore uses the **most recent user turn containing
+images** as the active visual source when the newest user turn is text-only.
+The client-supplied image bytes are re-injected through the existing certified
+1–3 image path, while the intervening text/assistant turns are preserved as
+history. Each individual visual turn remains limited to three images.
+
+Older visual turns are not simultaneously injected. This is an explicit
+compatibility adapter, not a claim of arbitrary multi-image-history attention.
+
 This gives Chatbox and SDK clients meaningful multi-turn behavior without
 changing the underlying proven two-input engine contract.
 
