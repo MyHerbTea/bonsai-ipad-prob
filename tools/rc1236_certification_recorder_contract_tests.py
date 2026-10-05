@@ -43,23 +43,33 @@ assert "ShareLink" in view
 assert "recoverInterruptedRunIfNeeded()" in view
 assert "buildDiagnosticSnapshot()" in view
 
-# Runtime invariants remain unchanged.
+# Runtime invariants remain unchanged except when a later release explicitly
+# promotes context selection. Batch/uBatch and native sequence ownership stay frozen.
 assert re.search(r'apiRuntime\.batch\s*=\s*8', view)
 assert re.search(r'apiRuntime\.ubatch\s*=\s*8', view)
 assert 'apiRuntimeProfile == "safe"' in view
 assert "n_seq_max" not in view  # remains owned by BonsaiEngine/native runtime
 assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
-assert '"实验：API Context"' not in view
-assert re.search(
-    r'if\s+apiContextProfile\s*!=\s*"512"\s*\{\s*'
-    r'apiContextProfile\s*=\s*"512"',
-    view,
-)
-assert re.search(
-    r'let\s+selectedAPIContext\s*=\s*512',
-    view,
-)
+
+if "RC1.25.2 API Usability" in view:
+    # RC1.25.2 intentionally evolves only the API context selector. 512 remains
+    # the default/fallback while 768/1024/2048 are explicit validation candidates.
+    for value in ["512", "768", "1024", "2048"]:
+        assert f'Text("{value}").tag("{value}")' in view
+    assert 'Int(apiContextProfile) ?? 512' in view
+    assert '"512", "768", "1024", "2048"' in view
+else:
+    assert '"实验：API Context"' not in view
+    assert re.search(
+        r'if\s+apiContextProfile\s*!=\s*"512"\s*\{\s*'
+        r'apiContextProfile\s*=\s*"512"',
+        view,
+    )
+    assert re.search(
+        r'let\s+selectedAPIContext\s*=\s*512',
+        view,
+    )
 
 # Build 49+ retains the recorder and CI coverage.
 build_match = re.search(
