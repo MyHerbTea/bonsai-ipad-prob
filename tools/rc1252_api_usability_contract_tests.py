@@ -129,6 +129,11 @@ assert 'root["response_format"]' in server
 assert 'type != "text"' in server
 assert "unsupportedResponseFormat" in server
 
+# Text and vision overflow must converge on the same client-visible error.
+assert view.count('"context_length_exceeded"') >= 2
+assert "let metrics: GenerationMetrics" in view
+assert "catch let error as LabError" in view
+
 # Build 60 invariants remain.
 assert 'request.path == "/v1/chat/completions"' in server
 assert 'request.path == "/v1/models"' in server
