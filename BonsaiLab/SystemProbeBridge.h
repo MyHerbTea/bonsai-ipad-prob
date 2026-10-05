@@ -17,10 +17,8 @@ typedef struct {
 } BonsaiSystemProbe;
 
 BonsaiSystemProbe BonsaiReadSystemProbe(void);
+uint64_t BonsaiRelieveHeapPressure(void);
 
 #ifdef __cplusplus
 }
 #endif
-
-
-uint64_t BonsaiRelieveHeapPressure(void);
