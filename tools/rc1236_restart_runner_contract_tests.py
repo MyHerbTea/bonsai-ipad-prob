@@ -14,7 +14,7 @@ assert "certificationRunnerRunning" in view
 assert "certificationRunnerProgress" in view
 assert "let certificationCycles = 4" in view
 assert 'private var apiContextProfile = "512"' in view
-if "RC1.25.2 API Usability" in view:
+if "RC1.25.2" in view:
     # Product API context is selectable now, but the historical restart
     # certification runner still forces the frozen 512 baseline before running.
     assert 'apiContextProfile = "512"' in view
