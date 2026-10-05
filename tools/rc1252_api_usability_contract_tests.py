@@ -14,10 +14,12 @@ js_sdk_probe = (root / "tools" / "rc1252_openai_js_sdk_probe.mjs").read_text(enc
 assert (
     'CURRENT_PROJECT_VERSION: "63"' in project
     or 'CURRENT_PROJECT_VERSION: "64"' in project
+    or 'CURRENT_PROJECT_VERSION: "65"' in project
 )
 assert (
     "RC1.25.2 Build 63 API Context Ladder" in view
     or "RC1.25.3 Build 64 API Context Ladder" in view
+    or "RC1.26 Build 65 Runtime Optimization Lab" in view
 )
 
 # Context ladder: frozen 512 default plus explicit device-validation candidates.
