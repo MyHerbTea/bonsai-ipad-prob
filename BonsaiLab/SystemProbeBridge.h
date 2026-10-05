@@ -21,3 +21,6 @@ BonsaiSystemProbe BonsaiReadSystemProbe(void);
 #ifdef __cplusplus
 }
 #endif
+
+
+uint64_t BonsaiRelieveHeapPressure(void);
