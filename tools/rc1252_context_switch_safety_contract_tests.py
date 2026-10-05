@@ -64,6 +64,7 @@ assert "python3 tools/rc1252_context_switch_safety_contract_tests.py" in workflo
 assert (
     'CFBundleVersion raw -o - "$APP/Info.plist")" = "63"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "64"' in workflow
+    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "65"' in workflow
 )
 
 print("RC1.25.2 Build 63 context switch safety contracts: PASS")
