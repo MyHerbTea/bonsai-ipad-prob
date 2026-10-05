@@ -54,10 +54,15 @@ assert (
 assert '"listener_restart_resident_runtime"' in runner
 assert "if cycle == 1" in runner
 
-# Frozen inference behavior remains unchanged.
+# Frozen listener semantics remain unchanged. RC1.25.2 may vary the product
+# context, while the inherited restart certification path remains pinned to 512.
 assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
-assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
+if "RC1.25.2 API Usability" in view:
+    assert 'Int(apiContextProfile) ?? 512' in view
+    assert 'apiContextProfile = "512"' in runner
+else:
+    assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
 assert 'apiRuntimeProfile = "accelerated"' in runner
 assert "visionPrefixKVReuseEnabled = true" in runner
 
