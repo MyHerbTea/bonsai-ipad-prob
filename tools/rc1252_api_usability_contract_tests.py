@@ -60,7 +60,7 @@ assert '"created": 0' in server
 # compile previous user/assistant turns, and keep the latest user turn current.
 for marker in [
     '"developer"',
-    '"Conversation history:\\n"',
+    "Conversation history:\\n",
     '"User: " + message.text',
     '"Assistant: " + message.text',
     "normalizedMessages.lastIndex",
@@ -128,6 +128,16 @@ assert "OpenAI-Project" in server
 assert 'root["response_format"]' in server
 assert 'type != "text"' in server
 assert "unsupportedResponseFormat" in server
+assert '"param": param ?? NSNull()' in server
+for name in [
+    "stop",
+    "frequency_penalty",
+    "presence_penalty",
+    "logprobs",
+    "top_logprobs",
+]:
+    assert name in server
+assert "unsupportedParameter" in server
 
 # Text and vision overflow must converge on the same client-visible error.
 assert view.count('"context_length_exceeded"') >= 2
