@@ -15,7 +15,7 @@ assert (
     or 'Text("1.0 · RC1.24.1 Runtime Profile A/B")' in view
     or 'Text("1.0 · RC1.25.0 Multi-Image OpenAI API")' in view
     or 'Text("1.0 · RC1.25.1 API Hardening")' in view
-    or 'Text("1.0 · RC1.25.2 API Usability")' in view
+    or 'Text("1.0 · RC1.25.2 Build 62 Context Switch Safety")' in view
 )
 assert "[RC1.24.0 SUSTAINED DECODE PROFILING]" in view
 assert "[RC1.23.3 LONG-RUN REQUEST HISTORY]" in view
@@ -85,7 +85,7 @@ assert "profilingLines(" in failure_history
 
 # Frozen runtime mechanics are unchanged. RC1.25.2 explicitly evolves only
 # the product context selector; batch/uBatch and the accelerated path remain.
-if "RC1.25.2 API Usability" in view:
+if "RC1.25.2" in view:
     assert 'Int(apiContextProfile) ?? 512' in view
     assert '"512", "768", "1024", "2048"' in view
 else:
