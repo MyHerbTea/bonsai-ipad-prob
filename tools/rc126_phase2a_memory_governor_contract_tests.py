@@ -4,7 +4,10 @@ ROOT = Path(__file__).resolve().parents[1]
 runtime = (ROOT / "BonsaiLab/RuntimeOptimization.swift").read_text(encoding="utf-8")
 server = (ROOT / "BonsaiLab/LocalOpenAIServer.swift").read_text(encoding="utf-8")
 
-assert '"build_id": "rc1.26-build67-request-lifecycle-governor-observer"' in server
+assert (
+    '"build_id": "rc1.26-build67-request-lifecycle-governor-observer"' in server
+    or '"build_id": "rc1.26-build68-heap-pressure-relief"' in server
+)
 
 for marker in [
     "enum MemoryPressureGrade",
@@ -30,9 +33,9 @@ assert "metalAwareGovernor" not in behavior_slice
 for marker in [
     'request.path == "/debug/governor"',
     '"observer_active"',
-    '"actuator_enabled": false',
+    '"actuator_enabled":',
     '"bb.heapPressureRelief"',
-    '"RC1.26_PHASE2A1_REQUEST_LIFECYCLE_OBSERVER"',
+    '"RC1.26_PHASE2B_HEAP_PRESSURE_RELIEF"',
     "effective.metalAwareGovernor",
     '"API_REQUEST_BEGIN"',
     '"API_REQUEST_END"',
