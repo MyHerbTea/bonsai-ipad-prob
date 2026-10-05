@@ -634,7 +634,11 @@ final class LocalOpenAIServer: ObservableObject {
                                 status: mapped.status,
                                 object: Self.errorObject(
                                     mapped.code,
-                                    mapped.message
+                                    mapped.message,
+                                    type:
+                                        mapped.status >= 500
+                                            ? "server_error"
+                                            : "invalid_request_error"
                                 )
                             )
                         }
@@ -668,7 +672,11 @@ final class LocalOpenAIServer: ObservableObject {
                     status: mapped.status,
                     object: Self.errorObject(
                         mapped.code,
-                        mapped.message
+                        mapped.message,
+                        type:
+                            mapped.status >= 500
+                                ? "server_error"
+                                : "invalid_request_error"
                     )
                 )
 
@@ -683,12 +691,20 @@ final class LocalOpenAIServer: ObservableObject {
     private func authorized(
         _ request: HTTPRequest
     ) -> Bool {
-        guard let value = request.headers["authorization"] else {
-            return false
+        let expected = "Bearer \(apiKey)"
+
+        if request.headers["authorization"] == expected {
+            return true
         }
 
-        let expected = "Bearer \(apiKey)"
-        return value == expected
+        // OpenAI-compatible clients overwhelmingly use Bearer auth, but a
+        // small set of local clients expose only an API-key header field.
+        // Accept this alias without advertising a different security model.
+        if request.headers["x-api-key"] == apiKey {
+            return true
+        }
+
+        return false
     }
 
     private func sendCompletion(
@@ -840,7 +856,11 @@ final class LocalOpenAIServer: ObservableObject {
         message: String
     ) {
         let event = streamEventData(
-            object: Self.errorObject(code, message)
+            object: Self.errorObject(
+                code,
+                message,
+                type: "server_error"
+            )
         ) ?? Data("data: {\"error\":{\"message\":\"stream failure\"}}\n\n".utf8)
         var body = event
         body.append(Data("data: [DONE]\n\n".utf8))
