@@ -12,7 +12,7 @@ for marker in [
     'request.path == "/debug/runtime/profile"',
     '"behavior_changes_enabled":',
     '"profile": state.profile.rawValue',
-    '"phase": "RC1.26_PHASE2A_MEMORY_GOVERNOR_OBSERVER"',
+    '"phase": "RC1.26_PHASE2A1_REQUEST_LIFECYCLE_OBSERVER"',
     '"unknown_runtime_flag"',
     "RuntimeTelemetrySnapshot.capture(",
     "effectiveRuntimeState()",
