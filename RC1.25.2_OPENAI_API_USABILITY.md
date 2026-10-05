@@ -110,6 +110,33 @@ updated from the active runtime.
 The UI explicitly distinguishes **Resume API** from **Apply settings and
 re-prewarm API**.
 
+### 6. Transport and error compatibility
+
+Build 61 accepts both ordinary `Content-Length` request bodies and HTTP/1.1
+chunked request bodies. This removes a client-transport dependency from the
+OpenAI-compatible surface.
+
+Authentication remains Bearer-token first. `X-API-Key` is accepted as a
+local-client compatibility alias.
+
+Parser failures now retain machine-readable error codes and a standard error
+envelope with `message`, `type`, `param`, and `code`. Handler failures
+with HTTP 5xx are typed as `server_error`; invalid client requests remain
+`invalid_request_error`.
+
+Build 61 deliberately distinguishes harmless/default compatibility fields from
+semantic features it cannot honor:
+
+- `tool_choice="none"` is accepted;
+- empty/default tool metadata is tolerated when it cannot execute;
+- `response_format.type="text"` is accepted;
+- non-text structured-output formats are rejected explicitly;
+- non-default `stop`, frequency/presence penalties, or logprobs are rejected
+  instead of being silently ignored.
+
+This is preferable to claiming API compatibility while changing request
+semantics invisibly.
+
 ## Device exploration plan
 
 Run the exact same request matrix at 512, 768, 1024, then 2048. Do not promote a
