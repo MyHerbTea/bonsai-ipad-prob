@@ -1052,7 +1052,10 @@ final class LocalOpenAIServer: ObservableObject {
             normalizedMessages.lastIndex(
                 where: {
                     $0.role == "user"
-                    && !$0.text.isEmpty
+                    && (
+                        !$0.text.isEmpty
+                        || !$0.images.isEmpty
+                    )
                 }
             )
         else {
@@ -1068,9 +1071,11 @@ final class LocalOpenAIServer: ObservableObject {
         // request already matches it exactly. RC1.25.2 additionally accepts
         // ordinary follow-up chats where the most recent image is in a prior
         // user turn and the latest user turn is text-only.
-        if imageMessageIndices.allSatisfy({
-            $0 == currentUserIndex
-        }) {
+        if !normalizedMessages[currentUserIndex]
+                .text.isEmpty,
+           imageMessageIndices.allSatisfy({
+               $0 == currentUserIndex
+           }) {
             _ = try OpenAIMultimodalMessageBindingValidator
                 .validate(bindingSummaries)
         }
@@ -1150,7 +1155,10 @@ final class LocalOpenAIServer: ObservableObject {
                 )
         }
 
-        let userPrompt = currentUser.text
+        let userPrompt =
+            currentUser.text.isEmpty
+                ? "Describe the provided image(s)."
+                : currentUser.text
         let images =
             visualUser?.images ?? []
         let imageOrdering =
@@ -1504,7 +1512,7 @@ enum APIServerError: LocalizedError {
         case .missingMessages:
             return "OpenAI 请求缺少 messages。"
         case .missingUserText:
-            return "请求中没有可用的 user 文本。"
+            return "请求中没有可用的 user 文本或图片内容。"
         case .imageMustBeDataURL:
             return "局域网 API 的图片当前请使用 data:image/...;base64,... 格式。"
         case .invalidImageDataURL:
