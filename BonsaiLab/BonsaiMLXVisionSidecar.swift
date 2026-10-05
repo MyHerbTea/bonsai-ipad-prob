@@ -870,6 +870,14 @@ actor MLXVisionSidecar {
         UserDefaults.standard.synchronize()
     }
 
+    func releaseResidentStateForContextSwitch() {
+        mark("MLX_CTX_SWITCH_00_RELEASE_BEGIN")
+        model = nil
+        loadedWeightsPath = nil
+        Memory.clearCache()
+        mark("MLX_CTX_SWITCH_01_RELEASE_DONE")
+    }
+
     private func runAllocatorSmoke() {
         // RC1.22.1 admission gate: prove that a minimal MLX/Metal
         // computation can execute while the Prism 27B runtime is resident
