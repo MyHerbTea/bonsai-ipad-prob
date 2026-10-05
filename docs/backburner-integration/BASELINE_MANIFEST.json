@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "baseline_id": "rc1.25.3-build64-device-certified",
+  "source_commit": "0d84e106daa10590ddbd1b7a3b6b3212114db6f7",
+  "frozen_branch": "frozen-v1-rc1-25-3-build64-device-certified",
+  "development_branch": "lab-v1-rc1-26-backburner-runtime",
+  "app_version": "1.0.0",
+  "app_build": 64,
+  "device_class": "iPad Pro M5",
+  "physical_memory_mib": 11524,
+  "os": "iPadOS 27.0.1",
+  "model": {
+    "api_id": "bonsai-2-27b-local",
+    "file_name": "Ternary-Bonsai-2-27B-PTQ1_0.gguf",
+    "sha256": null,
+    "sha256_status": "capture_on_next_device_manifest"
+  },
+  "vision_tower": {
+    "file_name": "Bonsai-2-27B-vision_tower-fp16.safetensors",
+    "sha256": null,
+    "sha256_status": "capture_on_next_device_manifest"
+  },
+  "runtime": {
+    "context_window": 2048,
+    "server_max_output_tokens": 256,
+    "vision": true,
+    "streaming": "chunked_sse",
+    "reasoning": false,
+    "tools": false,
+    "max_images_per_request": 3,
+    "api_vision_prefix_reuse_effective": false
+  },
+  "device_certification": {
+    "run_id": "20261005-212210",
+    "runner_revision": "V1.4_SSE_STRICTMODE_SAFE",
+    "overall": "PASS",
+    "crash_observed": false,
+    "recovery_count": 0,
+    "release_freeze_gate_candidate": "PASS",
+    "final_native_stage": "TWOPHASE_B99_PREFILL_READY",
+    "final_mlx_stage": "MLX_API_SUCCESS_CLEANUP",
+    "final_engine_stage": "TEXT_99_PASS"
+  },
+  "phase0_rule": "RC1.26 BASELINE must preserve Build 64 generation/API/Vision behavior; new behavior-changing flags default OFF."
+}
