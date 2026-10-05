@@ -157,21 +157,32 @@ common field name.
 
 ## Device exploration plan
 
-Run the exact same request matrix at 512, 768, 1024, then 2048. Do not promote a
-larger context just because the model loads.
+Use a two-stage ladder so device time is spent on the candidate that matters.
 
-For each context validate at minimum:
+### Phase A — fast boundary search
 
-- text streaming
-- text non-streaming
-- single-image
-- two-image
-- three-image
-- context-overflow structured rejection
-- API survival after rejection
-- Stop/Resume
-- memory and Metal allocation
-- prefill/decode latency and throughput
+512 is already device-certified in Build 60, so do not repeat the entire
+matrix at every context.
+
+For 768, 1024, then 2048:
+
+1. select the context while the API is stopped;
+2. let Build 61 re-prewarm the runtime;
+3. run `tools/rc1252_context_boundary_probe.ps1`;
+4. require `/v1/models.context_length` to match the selected runtime;
+5. require one context-scaled non-stream inference to complete;
+6. stop escalation immediately if the app/runtime becomes unstable.
+
+The fast probe writes only to:
+
+`D:\apple\re_output\rc1252-context-boundary`
+
+### Phase B — full certification of the winner
+
+Run the heavier `rc1252_context_ladder_device_probe.ps1` only on the largest
+stable Phase-A candidate. Then validate the complete API matrix, Vision,
+overflow handling, Stop/Resume, diagnostics, memory/Metal allocation, and real
+clients.
 
 Promotion rule:
 
