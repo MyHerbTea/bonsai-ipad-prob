@@ -74,7 +74,7 @@ function Require {
 
 $results = @()
 Write-Host "============================================================"
-Write-Host "BONSAI RC1.25.2 BUILD 61 CONTEXT LADDER DEVICE PROBE"
+Write-Host "BONSAI RC1.25.2 BUILD 62 CONTEXT LADDER DEVICE PROBE"
 Write-Host "Expected Context: $ExpectedContext"
 Write-Host "Output: $OutDir"
 Write-Host "============================================================"
