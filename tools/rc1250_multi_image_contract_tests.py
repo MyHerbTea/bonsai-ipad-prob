@@ -53,6 +53,10 @@ assert (
 
 
     or 'Text("1.0 · RC1.26 Build 67 Request Lifecycle Governor Observer")' in view
+
+
+
+    or 'Text("1.0 · RC1.26 Build 68 Heap Pressure Relief")' in view
 )
 
 # Production runtime remains the proven Full profile by default.
