@@ -13,10 +13,12 @@ workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text()
 assert (
     'Text("1.0 · RC1.25.1 API Hardening")' in view
     or 'Text("1.0 · RC1.25.2 Build 63 Vision Lifecycle Safety")' in view
+    or 'Text("1.0 · RC1.25.3 Build 64 Native Prefill Isolation")' in view
 )
 assert (
     'RC1.25.1 Build 60 Dual Context Admission' in view
     or 'RC1.25.2 Build 63 API Context Ladder' in view
+    or 'RC1.25.3 Build 64 API Context Ladder' in view
 )
 
 # Multi-image success telemetry must preserve the already computed request route.
@@ -76,6 +78,7 @@ assert (
     or "Build61-API-Usability" in workflow
     or "Build62-API-Usability" in workflow
     or "Build63-Vision-Lifecycle-Safety" in workflow
+    or "Build64-Native-Prefill-Isolation" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")
