@@ -1666,8 +1666,7 @@ private struct HTTPRequest {
                     String(
                         data:
                             data[
-                                cursor
-                                ..<sizeLineRange.lowerBound
+                                cursor..<sizeLineRange.lowerBound
                             ],
                         encoding: .utf8
                     )
