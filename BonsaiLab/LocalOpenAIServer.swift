@@ -415,11 +415,22 @@ final class LocalOpenAIServer: ObservableObject {
                             UserDefaults.standard.string(
                                 forKey: "BonsaiMLXVisionStage"
                             ) ?? "none",
+                        "last_two_phase_vision_stage":
+                            Self.persistedSupportText(
+                                "bonsai_two_phase_vision_stage.txt"
+                            ),
                         "vision_request_stage":
                             UserDefaults.standard.string(
                                 forKey:
                                     "BonsaiRC1252VisionRequestStage"
                             ) ?? "none",
+                        "configured_vision_prefix_kv_reuse_enabled":
+                            UserDefaults.standard.bool(
+                                forKey:
+                                    "BonsaiRC1232VisionPrefixKVReuseEnabled"
+                            ),
+                        "api_vision_prefix_reuse_effective":
+                            false,
                         "context_switch_state":
                             UserDefaults.standard.string(
                                 forKey:
@@ -1420,6 +1431,26 @@ final class LocalOpenAIServer: ObservableObject {
             code: "inference_error",
             message: error.localizedDescription
         )
+    }
+
+    private static func persistedSupportText(
+        _ filename: String
+    ) -> String {
+        let support = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        )[0]
+        let url = support.appendingPathComponent(filename)
+        return (
+            try? String(
+                contentsOf: url,
+                encoding: .utf8
+            )
+        )?
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+            ?? "none"
     }
 
     private static func modelObject(
