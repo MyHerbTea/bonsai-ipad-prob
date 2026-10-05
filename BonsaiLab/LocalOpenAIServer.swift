@@ -1022,7 +1022,13 @@ final class LocalOpenAIServer: ObservableObject {
                     .invalidContentPart
             }
 
-            totalImages += parsed.imageCount
+            // RC1.25.2 supports visual follow-up chats. Historical user
+            // turns may each carry images, but any one visual turn remains
+            // bounded to the certified 1–3 image adapter.
+            totalImages = max(
+                totalImages,
+                parsed.imageCount
+            )
             if totalImages > 3 {
                 throw OpenAIMultimodalError
                     .tooManyImages
@@ -1038,9 +1044,6 @@ final class LocalOpenAIServer: ObservableObject {
             )
         }
 
-        _ = try OpenAIMultimodalMessageBindingValidator
-            .validate(bindingSummaries)
-
         guard let currentUserIndex =
             normalizedMessages.lastIndex(
                 where: {
@@ -1052,8 +1055,42 @@ final class LocalOpenAIServer: ObservableObject {
             throw APIServerError.missingUserText
         }
 
+        let imageMessageIndices =
+            normalizedMessages.indices.filter {
+                !normalizedMessages[$0].images.isEmpty
+            }
+
+        // Preserve the frozen Build 60 same-turn validator whenever the
+        // request already matches it exactly. RC1.25.2 additionally accepts
+        // ordinary follow-up chats where the most recent image is in a prior
+        // user turn and the latest user turn is text-only.
+        if imageMessageIndices.allSatisfy({
+            $0 == currentUserIndex
+        }) {
+            _ = try OpenAIMultimodalMessageBindingValidator
+                .validate(bindingSummaries)
+        }
+
+        let visualUserIndex =
+            normalizedMessages.indices
+                .reversed()
+                .first(
+                    where: {
+                        $0 <= currentUserIndex
+                        && normalizedMessages[$0].role
+                            == "user"
+                        && !normalizedMessages[$0]
+                            .images.isEmpty
+                    }
+                )
+
         let currentUser =
             normalizedMessages[currentUserIndex]
+        let visualUser =
+            visualUserIndex.map {
+                normalizedMessages[$0]
+            }
+
         var instructionParts: [String] = []
         var historyParts: [String] = []
 
@@ -1068,9 +1105,17 @@ final class LocalOpenAIServer: ObservableObject {
             case "user":
                 if index < currentUserIndex,
                    !message.text.isEmpty {
-                    historyParts.append(
+                    var entry =
                         "User: " + message.text
-                    )
+
+                    if index == visualUserIndex {
+                        entry +=
+                            "\n[The image(s) from this turn are attached "
+                            + "as the active visual context for the "
+                            + "current follow-up.]"
+                    }
+
+                    historyParts.append(entry)
                 }
 
             case "assistant":
@@ -1102,8 +1147,10 @@ final class LocalOpenAIServer: ObservableObject {
         }
 
         let userPrompt = currentUser.text
-        let images = currentUser.images
-        let imageOrdering = currentUser.ordering
+        let images =
+            visualUser?.images ?? []
+        let imageOrdering =
+            visualUser?.ordering ?? .none
 
         let requested =
             (root["max_completion_tokens"] as? NSNumber)?.intValue
