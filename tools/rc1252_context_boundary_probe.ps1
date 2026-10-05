@@ -25,7 +25,7 @@ function Invoke-Request {
 
 $repeatMap = @{ 512=240; 768=520; 1024=760; 2048=1500 }
 $repeatCount = $repeatMap[$ExpectedContext]
-Write-Host "RC1.25.2 Build 61 FAST CONTEXT BOUNDARY PROBE"
+Write-Host "RC1.25.2 Build 62 FAST CONTEXT BOUNDARY PROBE"
 Write-Host "Expected Context: $ExpectedContext"
 Write-Host "Evidence: $OutDir"
 
