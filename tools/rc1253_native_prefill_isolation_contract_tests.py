@@ -14,6 +14,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "65"' in project
     or 'CURRENT_PROJECT_VERSION: "66"' in project
     or 'CURRENT_PROJECT_VERSION: "67"' in project
+    or 'CURRENT_PROJECT_VERSION: "68"' in project
 )
 assert (
     "RC1.25.3 Build 64 Native Prefill Isolation" in view
@@ -23,6 +24,10 @@ assert (
 
 
     or 'Text("1.0 · RC1.26 Build 67 Request Lifecycle Governor Observer")' in view
+
+
+
+    or 'Text("1.0 · RC1.26 Build 68 Heap Pressure Relief")' in view
 )
 
 assert "void BonsaiClearVisionPrefixKVSnapshot(void);" in bridge_h
@@ -73,6 +78,7 @@ assert (
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "65"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "66"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "67"' in workflow
+    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "68"' in workflow
 )
 
 print("RC1.25.3 Build 64 native prefill isolation contracts: PASS")
