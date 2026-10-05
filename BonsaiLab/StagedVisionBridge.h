@@ -116,6 +116,10 @@ int32_t BonsaiRetainVisionPrefixKV(
     int32_t prefix_positions
 );
 
+// RC1.25.3 Build 64: API vision requests can explicitly discard the
+// independent prefix-KV checkpoint without unloading the resident model/context.
+void BonsaiClearVisionPrefixKVSnapshot(void);
+
 void BonsaiReleaseStagedResidentModel(void);
 
 BonsaiStagedVisionResult BonsaiRunStagedVision(
