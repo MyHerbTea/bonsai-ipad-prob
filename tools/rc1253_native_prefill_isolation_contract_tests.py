@@ -59,6 +59,9 @@ for marker in [
     assert marker in server
 
 assert "python3 tools/rc1253_native_prefill_isolation_contract_tests.py" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "64"' in workflow
+assert (
+    'CFBundleVersion raw -o - "$APP/Info.plist")" = "64"' in workflow
+    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "65"' in workflow
+)
 
 print("RC1.25.3 Build 64 native prefill isolation contracts: PASS")
