@@ -454,6 +454,7 @@ jobs:
             RC1.25.1_API_HARDENING.md
             RC1.25.2_OPENAI_API_USABILITY.md
             RC1.25.2_CLIENT_COMPATIBILITY_MATRIX.md
+            RC1.25.2_OPENAI_CHAT_COMPAT_GAP_AUDIT.md
             tools/rc1252_api_usability_contract_tests.py
             tools/rc1252_context_boundary_probe.ps1
             tools/rc1252_context_ladder_device_probe.ps1
