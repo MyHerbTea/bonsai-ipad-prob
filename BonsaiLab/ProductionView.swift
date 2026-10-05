@@ -3425,6 +3425,23 @@ struct ProductionView: View {
                         let visionEncodeStart =
                             imageWriteEnd
 
+                        UserDefaults.standard.set(
+                            "pre_encode_context_drain",
+                            forKey:
+                                "BonsaiRC1252VisionRequestStage"
+                        )
+                        UserDefaults.standard.synchronize()
+
+                        await sharedEngine
+                            .prepareForAPIVisionEncode()
+
+                        UserDefaults.standard.set(
+                            "mlx_encode_begin",
+                            forKey:
+                                "BonsaiRC1252VisionRequestStage"
+                        )
+                        UserDefaults.standard.synchronize()
+
                         let packet: MLXVisionEmbeddingPacket
                         do {
                             packet =
@@ -3520,6 +3537,13 @@ struct ProductionView: View {
                         let visionEncodeEnd =
                             RC1232PerformanceDiagnostics.now()
 
+                        UserDefaults.standard.set(
+                            "mlx_encode_done",
+                            forKey:
+                                "BonsaiRC1252VisionRequestStage"
+                        )
+                        UserDefaults.standard.synchronize()
+
                         let imageMaxTokens =
                             VisionConfig.low512
                                 .imageMaxTokens
@@ -3568,6 +3592,13 @@ struct ProductionView: View {
                             RC1232PerformanceDiagnostics.now()
                         let generationStart =
                             cacheWriteEnd
+
+                        UserDefaults.standard.set(
+                            "native_prefill_begin",
+                            forKey:
+                                "BonsaiRC1252VisionRequestStage"
+                        )
+                        UserDefaults.standard.synchronize()
 
                         let metrics: VisionMetrics
                         do {
@@ -3696,6 +3727,25 @@ struct ProductionView: View {
                             forKey:
                                 "BonsaiRC1231LastAPIVisionMetrics"
                         )
+
+                        UserDefaults.standard.set(
+                            "success_cleanup_begin",
+                            forKey:
+                                "BonsaiRC1252VisionRequestStage"
+                        )
+                        UserDefaults.standard.synchronize()
+
+                        await sharedEngine
+                            .finishAPIVisionRequestSuccess()
+                        await sharedVisionSidecar
+                            .cleanupAfterRequestSuccess()
+
+                        UserDefaults.standard.set(
+                            "complete",
+                            forKey:
+                                "BonsaiRC1252VisionRequestStage"
+                        )
+                        UserDefaults.standard.synchronize()
 
                         return OpenAIHandlerResult(
                             text:
