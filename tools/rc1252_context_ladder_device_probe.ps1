@@ -5,7 +5,7 @@ param(
     [string]$ApiKey,
     [ValidateSet(512, 768, 1024, 2048)]
     [int]$ExpectedContext = 512,
-    [string]$OutDir = "D:\\apple\\re_output\\rc1252-context-probe"
+    [string]$OutDir = "D:\apple\re_output\rc1252-context-probe"
 )
 
 $ErrorActionPreference = "Stop"
