@@ -9,6 +9,9 @@ struct OpenAIRequestPayload: Sendable {
     let images: [OpenAIImageInput]
     let imageOrdering: OpenAIImageOrdering
     let maxTokens: Int
+    let temperature: Double
+    let topP: Double
+    let seed: Int
     let stream: Bool
     let includeUsage: Bool
     let reasoningEffort: String
@@ -1163,6 +1166,40 @@ final class LocalOpenAIServer: ObservableObject {
             max(1, requested)
         )
 
+        let temperature =
+            (root["temperature"] as? NSNumber)?
+                .doubleValue
+            ?? 0.7
+        guard temperature >= 0,
+              temperature <= 5
+        else {
+            throw APIServerError.invalidParameter(
+                "temperature must be in 0...5."
+            )
+        }
+
+        let topP =
+            (root["top_p"] as? NSNumber)?
+                .doubleValue
+            ?? 0.8
+        guard topP > 0,
+              topP <= 1
+        else {
+            throw APIServerError.invalidParameter(
+                "top_p must be in (0, 1]."
+            )
+        }
+
+        let seed =
+            (root["seed"] as? NSNumber)?
+                .intValue
+            ?? 1234
+        guard seed >= 0 else {
+            throw APIServerError.invalidParameter(
+                "seed must be >= 0."
+            )
+        }
+
         let streamOptions =
             root["stream_options"] as? [String: Any]
         let includeUsage =
@@ -1191,6 +1228,9 @@ final class LocalOpenAIServer: ObservableObject {
             images: images,
             imageOrdering: imageOrdering,
             maxTokens: maxTokens,
+            temperature: temperature,
+            topP: topP,
+            seed: seed,
             stream: root["stream"] as? Bool ?? false,
             includeUsage: includeUsage,
             reasoningEffort: reasoningEffort
@@ -1233,6 +1273,9 @@ final class LocalOpenAIServer: ObservableObject {
                 "max_tokens",
                 "max_completion_tokens",
                 "max_output_tokens",
+                "temperature",
+                "top_p",
+                "seed",
                 "stream",
                 "stream_options"
             ],
@@ -1446,6 +1489,7 @@ enum APIServerError: LocalizedError {
     case unsupportedCandidateCount
     case unsupportedTools
     case unsupportedMessageRole(String)
+    case invalidParameter(String)
     case unsupportedReasoningEffort
 
     var errorDescription: String? {
@@ -1470,6 +1514,8 @@ enum APIServerError: LocalizedError {
             return "当前本地 API 尚不支持实际 tool calls；tool_choice=none 可作为兼容模式使用。"
         case .unsupportedMessageRole(let role):
             return "当前本地 API 不支持消息角色：\(role)。支持 system、developer、user、assistant。"
+        case .invalidParameter(let message):
+            return message
         case .unsupportedReasoningEffort:
             return "reasoning_effort 仅支持 none、minimal、low、medium、high、xhigh。"
         }
