@@ -763,6 +763,14 @@ private enum RC1232PerformanceDiagnostics {
                         to: textGenerationEnd
                     )
                 ),
+            "prefill_ms="
+                + formatMilliseconds(
+                    metrics.prefillSeconds * 1_000
+                ),
+            "decode_to_first_token_ms="
+                + formatMilliseconds(
+                    metrics.decodeToFirstTokenSeconds * 1_000
+                ),
             "ttft_ms="
                 + formatMilliseconds(
                     metrics.ttftSeconds * 1_000
@@ -784,6 +792,18 @@ private enum RC1232PerformanceDiagnostics {
             "termination_reason=\(metrics.terminationReason.rawValue)",
             "finish_reason=\(metrics.terminationReason.openAIFinishReason)",
             "total_ms=\(totalMilliseconds)",
+            "prefill_ms="
+                + formatMilliseconds(
+                    metrics.prefillSeconds * 1_000
+                ),
+            "decode_to_first_token_ms="
+                + formatMilliseconds(
+                    metrics.decodeToFirstTokenSeconds * 1_000
+                ),
+            "ttft_ms="
+                + formatMilliseconds(
+                    metrics.ttftSeconds * 1_000
+                ),
             "decode_ms=\(decodeMilliseconds)",
             "tokens_per_second=\(tokensPerSecond)",
             "idle_gap_ms="
@@ -3756,7 +3776,19 @@ struct ProductionView: View {
                             finishReason:
                                 metrics.generation
                                     .terminationReason
-                                    .openAIFinishReason
+                                    .openAIFinishReason,
+                            prefillMilliseconds:
+                                metrics.generation
+                                    .prefillSeconds * 1_000,
+                            decodeToFirstTokenMilliseconds:
+                                metrics.generation
+                                    .decodeToFirstTokenSeconds * 1_000,
+                            ttftMilliseconds:
+                                metrics.generation
+                                    .ttftSeconds * 1_000,
+                            tokensPerSecond:
+                                metrics.generation
+                                    .tokensPerSecond
                         )
                     }
 
@@ -3834,7 +3866,15 @@ struct ProductionView: View {
                             metrics.generatedTokens,
                         finishReason:
                             metrics.terminationReason
-                                .openAIFinishReason
+                                .openAIFinishReason,
+                        prefillMilliseconds:
+                            metrics.prefillSeconds * 1_000,
+                        decodeToFirstTokenMilliseconds:
+                            metrics.decodeToFirstTokenSeconds * 1_000,
+                        ttftMilliseconds:
+                            metrics.ttftSeconds * 1_000,
+                        tokensPerSecond:
+                            metrics.tokensPerSecond
                     )
                 }
 
