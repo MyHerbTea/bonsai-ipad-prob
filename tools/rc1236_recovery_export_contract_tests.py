@@ -32,10 +32,16 @@ assert 'Button("运行 Restart Certification")' in view
 assert "runRestartCertification()" in view
 assert "let certificationCycles = 4" in view
 
-# Frozen runtime and rejected 256 behavior remain unchanged.
+# 512 remains the default/restart baseline; RC1.25.2 may expose larger
+# product API contexts without restoring the rejected 256 option.
 assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
-assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
+if "RC1.25.2 API Usability" in view:
+    assert 'Int(apiContextProfile) ?? 512' in view
+    for value in ["512", "768", "1024", "2048"]:
+        assert f'Text("{value}").tag("{value}")' in view
+else:
+    assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
 
 # Build 51+ retains recovery/export behavior.
 build_match = re.search(
