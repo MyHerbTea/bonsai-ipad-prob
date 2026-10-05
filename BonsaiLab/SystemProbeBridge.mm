@@ -44,6 +44,6 @@ BonsaiSystemProbe BonsaiReadSystemProbe(void) {
 }
 
 
-uint64_t BonsaiRelieveHeapPressure(void) {
+extern "C" uint64_t BonsaiRelieveHeapPressure(void) {
     return (uint64_t) malloc_zone_pressure_relief(NULL, 0);
 }
