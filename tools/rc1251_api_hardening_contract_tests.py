@@ -12,11 +12,11 @@ workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text()
 # RC1.25.1 semantics must survive in descendants.
 assert (
     'Text("1.0 · RC1.25.1 API Hardening")' in view
-    or 'Text("1.0 · RC1.25.2 API Usability")' in view
+    or 'Text("1.0 · RC1.25.2 Build 62 Context Switch Safety")' in view
 )
 assert (
     'RC1.25.1 Build 60 Dual Context Admission' in view
-    or 'RC1.25.2 Build 61 API Context Ladder' in view
+    or 'RC1.25.2 Build 62 API Context Ladder' in view
 )
 
 # Multi-image success telemetry must preserve the already computed request route.
@@ -53,7 +53,7 @@ assert '"Content-Type: text/event-stream; charset=utf-8"' in server
 # Production runtime mechanics remain frozen. RC1.25.2 explicitly evolves the
 # selectable context only; Full/Accelerated and batch/uBatch remain unchanged.
 assert 'private var apiRuntimeProfile = "accelerated"' in view
-if "RC1.25.2 API Usability" in view:
+if "RC1.25.2" in view:
     assert 'Int(apiContextProfile) ?? 512' in view
     assert '"512", "768", "1024", "2048"' in view
 else:
@@ -73,7 +73,7 @@ assert "tools/rc1251_api_hardening_contract_tests.py" in workflow
 assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "' in workflow
 assert (
     "Build60-Dual-Context-Admission" in workflow
-    or "Build61-API-Usability" in workflow
+    or "Build62-API-Usability" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")
