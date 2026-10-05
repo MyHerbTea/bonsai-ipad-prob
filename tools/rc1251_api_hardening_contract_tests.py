@@ -11,7 +11,7 @@ workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text()
 
 # RC1.25.1 product identity.
 assert 'Text("1.0 · RC1.25.1 API Hardening")' in view
-assert 'RC1.25.1 Build 58 API Hardening' in view
+assert 'RC1.25.1 Build 59 Context Admission Fix' in view
 
 # Multi-image success telemetry must preserve the already computed request route.
 vision_start = view.index("static func persistVisionSuccess(")
@@ -53,12 +53,12 @@ assert 'apiRuntime.loadMode = .mmap' in view
 
 match = re.search(r'CURRENT_PROJECT_VERSION:\s*"([0-9]+)"', project)
 assert match is not None
-assert int(match.group(1)) == 58
+assert int(match.group(1)) == 59
 
 assert "lab-v1-rc1-25-1-observability-error-hardening" in workflow
 assert "RC1.25.1 API hardening contracts" in workflow
 assert "tools/rc1251_api_hardening_contract_tests.py" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "58"' in workflow
-assert "Build58-API-Hardening" in workflow
+assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "59"' in workflow
+assert "Build59-Context-Admission-Fix" in workflow
 
-print("RC1.25.1 Build 58 API hardening contracts: PASS")
+print("RC1.25.1 Build 59 API hardening contracts: PASS")
