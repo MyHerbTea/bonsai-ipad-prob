@@ -227,6 +227,7 @@ assert "tools/rc1252_openai_js_sdk_probe.mjs" in workflow
 assert (
     'CFBundleVersion raw -o - "$APP/Info.plist")" = "63"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "64"' in workflow
+    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "65"' in workflow
 )
 
 print("RC1.25.2 Build 63 API usability contracts: PASS")
