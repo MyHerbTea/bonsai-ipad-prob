@@ -18,6 +18,10 @@ assert (
 
 
     or 'Text("1.0 · RC1.26 Build 67 Request Lifecycle Governor Observer")' in view
+
+
+
+    or 'Text("1.0 · RC1.26 Build 68 Heap Pressure Relief")' in view
 )
 assert 'Text("Safe").tag("safe")' in view
 assert 'Text("Flash").tag("ab_flash_only")' in view
