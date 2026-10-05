@@ -222,6 +222,13 @@ struct MemoryGovernorAssessment: Codable, Equatable, Sendable {
     }
 }
 
+struct RuntimeGovernorBoundaryRecord: Codable, Equatable, Sendable {
+    let sequence: Int
+    let stage: String
+    let telemetry: RuntimeTelemetrySnapshot
+    let assessment: MemoryGovernorAssessment
+}
+
 struct RuntimeOptimizationState: Codable, Equatable, Sendable {
     var profile: RuntimeOptimizationProfile = .baseline
     var requested: RuntimeFeatureFlags = .baseline
