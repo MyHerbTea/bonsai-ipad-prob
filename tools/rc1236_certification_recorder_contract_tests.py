@@ -43,23 +43,15 @@ assert "ShareLink" in view
 assert "recoverInterruptedRunIfNeeded()" in view
 assert "buildDiagnosticSnapshot()" in view
 
-# Runtime invariants remain unchanged.
+# Runtime invariants remain unchanged. Later releases may expose explicit
+# context exploration profiles, but the RC1.23.6/RC1.25.1 frozen default must
+# remain 512 and the production batch/ubatch/runtime ownership stays intact.
 assert re.search(r'apiRuntime\.batch\s*=\s*8', view)
 assert re.search(r'apiRuntime\.ubatch\s*=\s*8', view)
 assert 'apiRuntimeProfile == "safe"' in view
 assert "n_seq_max" not in view  # remains owned by BonsaiEngine/native runtime
 assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
-assert '"实验：API Context"' not in view
-assert re.search(
-    r'if\s+apiContextProfile\s*!=\s*"512"\s*\{\s*'
-    r'apiContextProfile\s*=\s*"512"',
-    view,
-)
-assert re.search(
-    r'let\s+selectedAPIContext\s*=\s*512',
-    view,
-)
 
 # Build 49+ retains the recorder and CI coverage.
 build_match = re.search(
