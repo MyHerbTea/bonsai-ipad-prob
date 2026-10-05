@@ -391,7 +391,7 @@ jobs:
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
           Full/Accelerated remains the production default: ctx=512, batch=8, ubatch=8, n_seq_max=1, C2-B unchanged.
-          Build 62 preserves the frozen Build 60 API/vision behavior, adds a 512/768/1024/2048 API context ladder, and advertises active context plus honest vision/streaming/tool/reasoning capability metadata through /v1/models.
+          Build 62 preserves the Build 61 API/context-ladder behavior and replaces full 27B in-process reload during Context/Profile changes with model-preserving llama-context recreation plus rollback telemetry.
           Model and Vision Tower weights are NOT bundled in the IPA.
           INFO
           echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
@@ -461,7 +461,9 @@ jobs:
             RC1.25.2_OPENAI_API_USABILITY.md
             RC1.25.2_CLIENT_COMPATIBILITY_MATRIX.md
             RC1.25.2_OPENAI_CHAT_COMPAT_GAP_AUDIT.md
+            RC1.25.2_BUILD62_CONTEXT_SWITCH_SAFETY.md
             tools/rc1252_api_usability_contract_tests.py
+            tools/rc1252_context_switch_safety_contract_tests.py
             tools/rc1252_context_boundary_probe.ps1
             tools/rc1252_context_ladder_device_probe.ps1
             tools/rc1252_openai_python_sdk_probe.py
