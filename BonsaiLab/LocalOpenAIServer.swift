@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import Darwin
+import Metal
 
 struct OpenAIRequestPayload: Sendable {
     let model: String
@@ -64,6 +65,17 @@ private struct OpenAIStreamSession: Sendable {
     let includeUsage: Bool
 }
 
+private struct RuntimePrefillObservation {
+    let sequence: Int
+    let capturedAt: Date
+    let promptTokens: Int
+    let completionTokens: Int
+    let prefillMilliseconds: Double
+    let decodeToFirstTokenMilliseconds: Double
+    let ttftMilliseconds: Double
+    let tokensPerSecond: Double
+}
+
 private final class OpenAILazyStreamState: @unchecked Sendable {
     let session: OpenAIStreamSession
     var started = false
@@ -96,6 +108,9 @@ final class LocalOpenAIServer: ObservableObject {
     private let heapPressureReliefLock = NSLock()
     private var heapPressureReliefSequence = 0
     private var lastHeapPressureRelief: RuntimeHeapPressureReliefRecord?
+    private let prefillObservationLock = NSLock()
+    private var prefillObservationSequence = 0
+    private var lastPrefillObservation: RuntimePrefillObservation?
 
     func configureModelMetadata(
         contextWindow: Int,
@@ -517,6 +532,16 @@ final class LocalOpenAIServer: ObservableObject {
         }
 
         if request.method == "GET",
+           request.path == "/debug/prefill" {
+            sendJSON(
+                connection,
+                status: 200,
+                object: debugPrefillObject()
+            )
+            return
+        }
+
+        if request.method == "GET",
            request.path == "/debug/governor" {
             sendJSON(
                 connection,
@@ -731,6 +756,7 @@ final class LocalOpenAIServer: ObservableObject {
                     _ = self.captureGovernorRequestBoundary(
                         stage: "API_REQUEST_END"
                     )
+                    self.recordPrefillObservation(result)
 
                     self.queue.async {
                         if !state.started {
@@ -802,6 +828,7 @@ final class LocalOpenAIServer: ObservableObject {
                 _ = self.captureGovernorRequestBoundary(
                     stage: "API_REQUEST_END"
                 )
+                self.recordPrefillObservation(result)
                 self.sendCompletion(
                     connection,
                     model: payload.model,
@@ -840,11 +867,96 @@ final class LocalOpenAIServer: ObservableObject {
         }
     }
 
+    private func recordPrefillObservation(
+        _ result: OpenAIHandlerResult
+    ) {
+        prefillObservationLock.lock()
+        prefillObservationSequence += 1
+        lastPrefillObservation = RuntimePrefillObservation(
+            sequence: prefillObservationSequence,
+            capturedAt: Date(),
+            promptTokens: result.promptTokens,
+            completionTokens: result.completionTokens,
+            prefillMilliseconds: result.prefillMilliseconds,
+            decodeToFirstTokenMilliseconds:
+                result.decodeToFirstTokenMilliseconds,
+            ttftMilliseconds: result.ttftMilliseconds,
+            tokensPerSecond: result.tokensPerSecond
+        )
+        prefillObservationLock.unlock()
+    }
+
+    private func debugPrefillObject() -> [String: Any] {
+        prefillObservationLock.lock()
+        let observation = lastPrefillObservation
+        prefillObservationLock.unlock()
+
+        let device = MTLCreateSystemDefaultDevice()
+        let tensorDisable = getenv(
+            "GGML_METAL_TENSOR_DISABLE"
+        ).map { String(cString: $0) }
+
+        let last: Any
+        if let observation {
+            last = [
+                "sequence": observation.sequence,
+                "captured_at":
+                    ISO8601DateFormatter().string(
+                        from: observation.capturedAt
+                    ),
+                "prompt_tokens":
+                    observation.promptTokens,
+                "completion_tokens":
+                    observation.completionTokens,
+                "prefill_ms":
+                    observation.prefillMilliseconds,
+                "decode_to_first_token_ms":
+                    observation.decodeToFirstTokenMilliseconds,
+                "ttft_ms":
+                    observation.ttftMilliseconds,
+                "tokens_per_second":
+                    observation.tokensPerSecond,
+                "ttft_reconstruction_error_ms":
+                    abs(
+                        observation.ttftMilliseconds
+                        - observation.prefillMilliseconds
+                        - observation.decodeToFirstTokenMilliseconds
+                    )
+            ] as [String: Any]
+        } else {
+            last = NSNull()
+        }
+
+        return [
+            "phase":
+                "RC1.26_PHASE2C_METAL_PREFILL_MEASUREMENT",
+            "measurement_ready":
+                observation != nil,
+            "metal_device":
+                device?.name ?? "unavailable",
+            "metal_has_unified_memory":
+                device?.hasUnifiedMemory ?? false,
+            "metal_recommended_working_set_bytes":
+                Int64(
+                    device?.recommendedMaxWorkingSetSize
+                    ?? 0
+                ),
+            "ggml_metal_tensor_disable":
+                tensorDisable ?? "unset",
+            "metal_tensor_prefill_effective":
+                false,
+            "metal_tensor_prefill_policy":
+                "measurement_only_frozen_workaround",
+            "last":
+                last
+        ]
+    }
+
     private func debugBuildObject() -> [String: Any] {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build68-heap-pressure-relief",
+            "build_id": "rc1.26-build69-metal-prefill-measurement",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",
@@ -921,7 +1033,7 @@ final class LocalOpenAIServer: ObservableObject {
                 "flags": state.effective.wireDictionary
             ],
             "fallbacks": state.fallbacks,
-            "phase": "RC1.26_PHASE2B_HEAP_PRESSURE_RELIEF",
+            "phase": "RC1.26_PHASE2C_METAL_PREFILL_MEASUREMENT",
             "behavior_changes_enabled":
                 state.effective.hasBehaviorChangingFeature
         ]
@@ -1178,7 +1290,7 @@ final class LocalOpenAIServer: ObservableObject {
             status: 200,
             object: [
                 "phase":
-                    "RC1.26_PHASE2B_HEAP_PRESSURE_RELIEF",
+                    "RC1.26_PHASE2C_METAL_PREFILL_MEASUREMENT",
                 "result":
                     heapPressureReliefRecordObject(record)
             ]
@@ -1324,6 +1436,12 @@ final class LocalOpenAIServer: ObservableObject {
             RuntimeFeatureFlags.fromWireDictionary(
                 rawFlags
             )
+
+        if profile == .baseline {
+            heapPressureReliefLock.lock()
+            lastHeapPressureRelief = nil
+            heapPressureReliefLock.unlock()
+        }
 
         sendJSON(
             connection,
