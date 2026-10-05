@@ -110,8 +110,7 @@ struct RuntimeFeatureFlags: Codable, Equatable, Sendable {
     }
 
     var hasBehaviorChangingFeature: Bool {
-        metalAwareGovernor
-            || heapPressureRelief
+        heapPressureRelief
             || metalTensorPrefill
             || metalFusionExperimental
             || lazyEmbedding
@@ -120,6 +119,106 @@ struct RuntimeFeatureFlags: Codable, Equatable, Sendable {
             || tieredKVQuantizedCold
             || aneColdKV
             || speculativeExperimental
+    }
+}
+
+enum MemoryPressureGrade: String, Codable, Sendable {
+    case nominal
+    case guarded
+    case constrained
+    case critical
+}
+
+struct MemoryGovernorAssessment: Codable, Equatable, Sendable {
+    let grade: MemoryPressureGrade
+    let metalHeadroomRatio: Double
+    let availableBytes: UInt64
+    let thermalState: String
+    let recommendedAction: String
+    let reasons: [String]
+
+    static func assess(
+        telemetry: RuntimeTelemetrySnapshot
+    ) -> MemoryGovernorAssessment {
+        let recommended = telemetry.metalRecommendedWorkingSetBytes
+        let ratio: Double = recommended > 0
+            ? Double(telemetry.metalHeadroomBytes) / Double(recommended)
+            : 1.0
+
+        var grade: MemoryPressureGrade = .nominal
+        var reasons: [String] = []
+
+        if telemetry.thermalState == "critical" {
+            grade = .critical
+            reasons.append("thermal_critical")
+        } else if telemetry.thermalState == "serious" {
+            grade = .constrained
+            reasons.append("thermal_serious")
+        }
+
+        if telemetry.availableBytes < 512 * 1_048_576 {
+            grade = .critical
+            reasons.append("available_lt_512mib")
+        } else if telemetry.availableBytes < 1_024 * 1_048_576,
+                  grade != .critical {
+            grade = maxGrade(grade, .constrained)
+            reasons.append("available_lt_1024mib")
+        } else if telemetry.availableBytes < 2_048 * 1_048_576,
+                  grade == .nominal {
+            grade = .guarded
+            reasons.append("available_lt_2048mib")
+        }
+
+        if recommended > 0 {
+            if ratio < 0.05 {
+                grade = .critical
+                reasons.append("metal_headroom_lt_5pct")
+            } else if ratio < 0.125,
+                      grade != .critical {
+                grade = maxGrade(grade, .constrained)
+                reasons.append("metal_headroom_lt_12_5pct")
+            } else if ratio < 0.25,
+                      grade == .nominal {
+                grade = .guarded
+                reasons.append("metal_headroom_lt_25pct")
+            }
+        }
+
+        let action: String
+        switch grade {
+        case .nominal:
+            action = "observe"
+        case .guarded:
+            action = "observe_and_avoid_optional_growth"
+        case .constrained:
+            action = "eligible_for_heap_pressure_relief"
+        case .critical:
+            action = "block_optional_growth_and_relieve"
+        }
+
+        return MemoryGovernorAssessment(
+            grade: grade,
+            metalHeadroomRatio: ratio,
+            availableBytes: telemetry.availableBytes,
+            thermalState: telemetry.thermalState,
+            recommendedAction: action,
+            reasons: reasons
+        )
+    }
+
+    private static func maxGrade(
+        _ lhs: MemoryPressureGrade,
+        _ rhs: MemoryPressureGrade
+    ) -> MemoryPressureGrade {
+        let rank: [MemoryPressureGrade: Int] = [
+            .nominal: 0,
+            .guarded: 1,
+            .constrained: 2,
+            .critical: 3
+        ]
+        return (rank[lhs] ?? 0) >= (rank[rhs] ?? 0)
+            ? lhs
+            : rhs
     }
 }
 
