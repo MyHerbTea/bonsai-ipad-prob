@@ -137,6 +137,24 @@ semantic features it cannot honor:
 This is preferable to claiming API compatibility while changing request
 semantics invisibly.
 
+### 7. Client-attempt observability
+
+The API now distinguishes three quantities that were previously conflated:
+
+- `request_attempt_count`: authorized `POST /v1/chat/completions` requests
+  that reached the chat route;
+- `request_count`: requests admitted to the inference handler;
+- `rejected_request_count`: parser/admission/inference failures.
+
+Diagnostics also expose `last_request_path` and `last_rejection_code`.
+This makes failures such as Chatbox accidentally enabling Tool Use visible
+without guessing from an unchanged inference-request counter.
+
+Model discovery also publishes both `context_length` and the additive
+`context_window` alias, plus a human-readable model name. This keeps Chatbox
+compatibility while improving interoperability with clients that use the other
+common field name.
+
 ## Device exploration plan
 
 Run the exact same request matrix at 512, 768, 1024, then 2048. Do not promote a
