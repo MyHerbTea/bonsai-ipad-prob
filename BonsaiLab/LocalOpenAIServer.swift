@@ -1446,9 +1446,12 @@ final class LocalOpenAIServer: ObservableObject {
             "type": type,
             "code": code
         ]
-        error["param"] =
-            param.map { $0 as Any }
-            ?? NSNull()
+
+        if let param {
+            error["param"] = param
+        } else {
+            error["param"] = NSNull()
+        }
 
         return [
             "error": error
@@ -1672,8 +1675,7 @@ private struct HTTPRequest {
                         data:
                             data.subdata(
                                 in:
-                                    cursor
-                                    ..<sizeLineRange.lowerBound
+                                    cursor..<sizeLineRange.lowerBound
                             ),
                         encoding: .utf8
                     )
