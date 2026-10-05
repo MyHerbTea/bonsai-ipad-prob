@@ -1,4 +1,4 @@
-# RC1.25.1 Build 59 — API Observability & Error Hardening
+# RC1.25.1 Build 60 — API Observability & Error Hardening
 
 Status: **CI / DEVICE CANDIDATE**
 
@@ -15,7 +15,7 @@ runtime architecture.
 RC1.25.0 computed `vision_multi` correctly at request admission, but the
 success recorder hard-coded `route=vision`.
 
-Build 59 passes the computed route into the success recorder, so two- and
+Build 60 passes the computed route into the success recorder, so two- and
 three-image requests remain `vision_multi` in both latest-request diagnostics
 and long-run history.
 
@@ -25,7 +25,7 @@ The old `promptTooLong` wording could report a number containing input
 positions + requested output + one reserve position as if all of it were
 "Prompt" tokens.
 
-Build 59 adds a dedicated API vision context-budget error containing:
+Build 60 adds a dedicated API vision context-budget error containing:
 
 - input_positions
 - requested_output_tokens
@@ -40,7 +40,7 @@ The HTTP code remains `context_length_exceeded`.
 SSE already declared `charset=utf-8`, while ordinary JSON replies used only
 `application/json`.
 
-Build 59 changes non-stream JSON replies to:
+Build 60 changes non-stream JSON replies to:
 
 `Content-Type: application/json; charset=utf-8`
 
@@ -67,7 +67,7 @@ Unchanged:
 - structured image validation errors
 
 
-## Build 58 device finding and Build 59 correction
+## Build 58 device finding and Build 60 correction
 
 Build 58 passed CI, multi-image route telemetry, and raw UTF-8 transport on
 device. Its context-budget wording path was not reliably reachable for a
@@ -76,7 +76,7 @@ large three-image request: native cached-vision prefill could call
 `input_positions`. The API then returned the generic
 `vision_injection_failed` HTTP 500.
 
-Build 59 corrects the ordering rather than masking the failure:
+Build 60 corrects the ordering rather than masking the failure:
 
 1. The native cached-vision bridge tokenizes prefix and suffix and already has
    the cached image M-RoPE position span.
@@ -92,3 +92,25 @@ Build 59 corrects the ordering rather than masking the failure:
 
 This change preserves valid-request decode math, the frozen BVCACHE1 format,
 and the RC1.25.0 contact-sheet adapter.
+
+
+## Build 59 device finding and Build 60 correction
+
+Build 59 moved context admission ahead of native prefill, but the device
+three-image stress case exposed a second independent constraint. M-RoPE image
+embeddings can occupy more physical KV cells than their logical position span.
+Build 59 checked only logical positions, so an oversized request could pass
+admission and later fail during generated-token decode with code 1.
+
+Build 60 checks both limits before native decode:
+
+- logical position requirement:
+  input_positions + requested_output_tokens + 1;
+- physical KV requirement:
+  prompt_kv_tokens + requested_output_tokens.
+
+If either exceeds the active context, the request is rejected with the existing
+HTTP 400 context_length_exceeded path. The structured error retains the
+previously required fields and adds prompt_kv_tokens so the limiting budget is
+visible. Valid requests keep the same BVCACHE1, M-RoPE, generation, and
+multi-image adapter paths.
