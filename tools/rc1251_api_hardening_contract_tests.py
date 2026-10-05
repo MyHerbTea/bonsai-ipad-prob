@@ -94,6 +94,7 @@ assert (
     or "Build66-Memory-Governor-Observer" in workflow
     or "Build67-Request-Lifecycle-Governor-Observer" in workflow
     or "Build68-Heap-Pressure-Relief" in workflow
+    or "Build69-Metal-Prefill-Measurement" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")
