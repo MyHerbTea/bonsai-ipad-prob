@@ -12,9 +12,15 @@ assert "int32_t requested_max_tokens" in header
 assert "int32_t context_limit" in bridge
 assert "int32_t requested_max_tokens" in bridge
 
-admission = bridge.index("const llama_pos planned_input_positions")
-prefill_loop = bridge.index("for (size_t i = begin_index; i < packet.size(); ++i)")
-decode_call = bridge.index("decode_text_chunk(", prefill_loop)
+bridge_func = bridge[
+    bridge.index("BonsaiVisionPrefillResult BonsaiPrefillCachedVision("):
+]
+
+admission = bridge_func.index("const llama_pos planned_input_positions")
+prefill_loop = bridge_func.index(
+    "for (size_t i = begin_index; i < packet.size(); ++i)"
+)
+decode_call = bridge_func.index("decode_text_chunk(", prefill_loop)
 assert admission < prefill_loop < decode_call
 
 for marker in [
@@ -25,11 +31,12 @@ for marker in [
     "TWOPHASE_B02_CONTEXT_BUDGET_REJECTED",
     "result.code = 9",
 ]:
-    assert marker in bridge
+    assert marker in bridge_func
 
-# Rejection must happen before memory-clear/reuse/decode mutation.
-rejection = bridge.index("TWOPHASE_B02_CONTEXT_BUDGET_REJECTED")
-memory_lookup = bridge.index("llama_memory_t mem = llama_get_memory(ctx)")
+# Rejection must happen before memory-clear/reuse/decode mutation in the
+# cached-vision prefill function itself.
+rejection = bridge_func.index("TWOPHASE_B02_CONTEXT_BUDGET_REJECTED")
+memory_lookup = bridge_func.index("llama_memory_t mem = llama_get_memory(ctx)")
 assert rejection < memory_lookup
 
 # Swift passes the exact values and translates native admission code 9 back
