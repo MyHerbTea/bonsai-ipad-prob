@@ -996,7 +996,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.25.2 API Usability")
+                            Text("1.0 · RC1.25.2 Build 62 Context Switch Safety")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -1260,7 +1260,7 @@ struct ProductionView: View {
                                 .foregroundStyle(.secondary)
                             } else {
                                 Text(
-                                    "Context/Profile 已与常驻 Runtime 不一致；启动时会释放旧 Runtime 并按新设置重新预热。"
+                                    "Context/Profile 已与常驻 Runtime 不一致；启动时将保留 27B mmap 模型，仅重建 llama context。"
                                 )
                                 .font(.caption)
                                 .foregroundStyle(.orange)
@@ -3147,7 +3147,7 @@ struct ProductionView: View {
         let sharedVisionSidecar = mlxVisionSidecar
 
         busy = true
-        status = "正在预热 RC1.25.2 Build 61 API Context Ladder…"
+        status = "正在预热 RC1.25.2 Build 62 API Context Ladder…"
         detail = """
         Build 60 的 API/视觉路径保持不变。
         RC1.25.2 新增 512/768/1024/2048 API Context Ladder；
