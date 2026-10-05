@@ -3583,17 +3583,40 @@ struct ProductionView: View {
 
                     let textGenerationStart =
                         RC1232PerformanceDiagnostics.now()
-                    let metrics =
-                        try await sharedEngine.generateText(
-                            systemPrompt:
-                                apiSystemPrompt,
-                            userPrompt:
-                                payload.userPrompt,
-                            generation: gen,
-                            reasoningEffort:
-                                payload.reasoningEffort,
-                            onDelta: onDelta
-                        )
+                    let metrics: GenerationMetrics
+                    do {
+                        metrics =
+                            try await sharedEngine.generateText(
+                                systemPrompt:
+                                    apiSystemPrompt,
+                                userPrompt:
+                                    payload.userPrompt,
+                                generation: gen,
+                                reasoningEffort:
+                                    payload.reasoningEffort,
+                                onDelta: onDelta
+                            )
+                    } catch let error as LabError {
+                        switch error {
+                        case .promptTooLong,
+                             .contextBudgetExceeded:
+                            throw OpenAIHandlerHTTPError(
+                                status: 400,
+                                code:
+                                    "context_length_exceeded",
+                                message:
+                                    error.localizedDescription
+                            )
+                        default:
+                            throw OpenAIHandlerHTTPError(
+                                status: 500,
+                                code:
+                                    "inference_error",
+                                message:
+                                    error.localizedDescription
+                            )
+                        }
+                    }
 
                     let textGenerationEnd =
                         RC1232PerformanceDiagnostics.now()
