@@ -1441,13 +1441,17 @@ final class LocalOpenAIServer: ObservableObject {
         type: String = "invalid_request_error",
         param: String? = nil
     ) -> [String: Any] {
-        [
-            "error": [
-                "message": message,
-                "type": type,
-                "param": param ?? NSNull(),
-                "code": code
-            ]
+        var error: [String: Any] = [
+            "message": message,
+            "type": type,
+            "code": code
+        ]
+        error["param"] =
+            param.map { $0 as Any }
+            ?? NSNull()
+
+        return [
+            "error": error
         ]
     }
 
@@ -1665,11 +1669,13 @@ private struct HTTPRequest {
                     ),
                 let sizeLine =
                     String(
-                        decoding:
-                            data[
-                                cursor..<sizeLineRange.lowerBound
-                            ],
-                        as: UTF8.self
+                        data:
+                            data.subdata(
+                                in:
+                                    cursor
+                                    ..<sizeLineRange.lowerBound
+                            ),
+                        encoding: .utf8
                     )
             else {
                 return nil
