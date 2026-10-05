@@ -3680,7 +3680,8 @@ struct ProductionView: View {
         Model: \(apiServer.modelID)
         API Key: \(apiServer.apiKey)
         Context Window: \(apiContextProfile)
-        Max Output Tokens: 256
+        Server Max Output Tokens: 256
+        Recommended Client Max Output: 128
 
         Capabilities
         Vision: ON
@@ -3695,7 +3696,7 @@ struct ProductionView: View {
         API Path: leave blank (default /chat/completions)
         Model: \(apiServer.modelID)
         Context Window: \(apiContextProfile)
-        Max Output Tokens: 256
+        Max Output Tokens: 128 (recommended)
         Vision: ON
         Reasoning: OFF
         Tool Use: OFF
