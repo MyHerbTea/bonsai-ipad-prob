@@ -1964,20 +1964,26 @@ actor BonsaiEngine {
             return
         }
 
-        // API requests are self-contained. A previous text/vision request may
-        // leave working KV populated until the next native prefill. MLX vision
-        // encoding happens before that prefill, so clear working KV first to
-        // avoid overlapping stale 27B context state with MLX allocations.
-        // Do NOT clear apiVisionPrefixReuseKey/positions here: the optional
-        // prefix snapshot lives independently and can still be restored later.
+        // RC1.25.3 Build 64: the Build 63 crash survived MLX encode and died
+        // after entering native cached-vision prefill. External OpenAI vision
+        // requests are self-contained, so do not carry an independent
+        // prefix-KV checkpoint across request boundaries while isolating this
+        // failure. Keep the mmap model and llama_context resident.
+        BonsaiClearVisionPrefixKVSnapshot()
+        apiVisionPrefixReuseKey = nil
+        apiVisionPrefixPositions = 0
+        mark("API_VISION_00_PREFIX_SNAPSHOT_CLEARED")
+
+        // A previous request may also leave working KV populated. MLX vision
+        // encoding happens before native prefill, so clear live working KV too.
         llama_memory_clear(
             llama_get_memory(context),
             true
         )
         persistSystemDiagnostics(
-            prefix: "BonsaiRC1252VisionPreEncode"
+            prefix: "BonsaiRC1253VisionPreEncode"
         )
-        mark("API_VISION_00_CONTEXT_CLEARED_BEFORE_MLX")
+        mark("API_VISION_01_CONTEXT_CLEARED_BEFORE_MLX")
     }
 
     func finishAPIVisionRequestSuccess() {
