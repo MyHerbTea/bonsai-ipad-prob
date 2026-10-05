@@ -34,6 +34,10 @@ struct OpenAIHandlerResult: Sendable {
     let promptTokens: Int
     let completionTokens: Int
     let finishReason: String
+    let prefillMilliseconds: Double
+    let decodeToFirstTokenMilliseconds: Double
+    let ttftMilliseconds: Double
+    let tokensPerSecond: Double
 }
 
 private struct OpenAINormalizedChatMessage: Sendable {
