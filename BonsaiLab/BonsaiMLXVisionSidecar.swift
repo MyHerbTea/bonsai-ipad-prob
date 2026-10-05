@@ -1456,6 +1456,11 @@ actor MLXVisionSidecar {
         )
     }
 
+    func cleanupAfterRequestSuccess() {
+        Memory.clearCache()
+        mark("MLX_API_SUCCESS_CLEANUP")
+    }
+
     func cleanupAfterRequestFailure() {
         Memory.clearCache()
         mark("MLX_API_FAIL_CLEANUP")
