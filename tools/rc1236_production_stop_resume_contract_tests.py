@@ -75,10 +75,15 @@ resident_branch = runner[resident_branch_start:resident_branch_end]
 assert "engine.unloadAll()" not in resident_branch
 assert "startAPIServer()" not in resident_branch
 
-# Frozen inference behavior remains untouched.
+# Frozen stop/resume semantics remain untouched. RC1.25.2 may expose a
+# larger product context while the inherited restart certification uses 512.
 assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
-assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
+if "RC1.25.2 API Usability" in view:
+    assert 'Int(apiContextProfile) ?? 512' in view
+    assert 'apiContextProfile = "512"' in runner
+else:
+    assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
 assert 'apiRuntimeProfile = "accelerated"' in runner
 assert "visionPrefixKVReuseEnabled = true" in runner
 
