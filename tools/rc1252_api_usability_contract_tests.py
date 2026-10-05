@@ -154,7 +154,9 @@ assert "recordRejection(" in server
 assert 'root["response_format"]' in server
 assert 'type != "text"' in server
 assert "unsupportedResponseFormat" in server
-assert '"param": param ?? NSNull()' in server
+assert 'error["param"] = param' in server
+assert 'error["param"] = NSNull()' in server
+assert '"error": error' in server
 for name in [
     "stop",
     "frequency_penalty",
