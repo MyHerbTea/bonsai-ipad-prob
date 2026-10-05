@@ -121,7 +121,7 @@ jobs:
           grep -q 'requireFullOutputBudget:' BonsaiLab/ProductionView.swift
           grep -q 'cleanupAfterRequestFailure' BonsaiLab/ProductionView.swift
           grep -q 'OpenAIMultimodalNormalizer' BonsaiLab/LocalOpenAIServer.swift
-          grep -q 'RC1.25.2 Build 63 Vision Lifecycle Safety' BonsaiLab/ProductionView.swift
+          grep -q 'RC1.25.3 Build 64 Native Prefill Isolation' BonsaiLab/ProductionView.swift
           grep -q 'Live Vision Injection' BonsaiLab/ContentView.swift
           grep -q 'Text("MLX Vision Metrics")' BonsaiLab/ContentView.swift
           grep -q 'maxPixels: Int = 65_536' BonsaiLab/BonsaiMLXVisionSidecar.swift
