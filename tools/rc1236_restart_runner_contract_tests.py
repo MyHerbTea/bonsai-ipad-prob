@@ -7,13 +7,14 @@ recorder = (root / "BonsaiLab" / "CertificationRunRecorder.swift").read_text()
 project = (root / "project.yml").read_text()
 workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text()
 
-# One-click UI and fixed 512-only test contract.
+# One-click UI and fixed 512-only certification-runner contract. Later product
+# releases may expose larger API contexts, but this historical runner must still
+# force the frozen 512 baseline when it starts.
 assert 'Button("运行 Restart Certification")' in view
 assert "runRestartCertification()" in view
 assert "certificationRunnerRunning" in view
 assert "certificationRunnerProgress" in view
 assert "let certificationCycles = 4" in view
-assert "let selectedAPIContext = 512" in view
 assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
 
@@ -56,6 +57,8 @@ runner_end = view.index(
 )
 runner_body = view[runner_start:runner_end]
 assert "mmprojURL" not in runner_body
+assert 'apiContextProfile = "512"' in runner_body
+assert '"api_context": "512"' in runner_body
 
 # Teardown is awaited inside the runner.
 assert re.search(
