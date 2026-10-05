@@ -20,6 +20,10 @@ assert (
 
 
     or 'Text("1.0 · RC1.26 Build 67 Request Lifecycle Governor Observer")' in view
+
+
+
+    or 'Text("1.0 · RC1.26 Build 68 Heap Pressure Relief")' in view
 )
 assert (
     'RC1.25.1 Build 60 Dual Context Admission' in view
@@ -88,6 +92,7 @@ assert (
     or "Build65-Runtime-Optimization" in workflow
     or "Build66-Memory-Governor-Observer" in workflow
     or "Build67-Request-Lifecycle-Governor-Observer" in workflow
+    or "Build68-Heap-Pressure-Relief" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")
