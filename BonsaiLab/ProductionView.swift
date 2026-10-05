@@ -3065,17 +3065,19 @@ struct ProductionView: View {
 
                     let reasoningInstruction: String
                     switch payload.reasoningEffort {
-                    case "xhigh":
+                    case "high", "xhigh":
                         reasoningInstruction =
-                            "Reasoning effort is set to xhigh. "
-                            + "Please think carefully through the task, "
-                            + "validate key assumptions, consider plausible "
+                            "Use a careful, thorough reasoning approach. "
+                            + "Validate key assumptions, consider plausible "
                             + "alternatives, and prioritize correctness, "
                             + "consistency, and clarity in the final answer."
-                    case "low":
+                    case "medium":
                         reasoningInstruction =
-                            "Reasoning effort is set to low. "
-                            + "Keep your thinking brief and focused, moving "
+                            "Use a balanced reasoning approach and verify "
+                            + "the important steps before answering."
+                    case "minimal", "low":
+                        reasoningInstruction =
+                            "Keep reasoning brief and focused, moving "
                             + "directly to the conclusion without unnecessary "
                             + "elaboration."
                     default:
