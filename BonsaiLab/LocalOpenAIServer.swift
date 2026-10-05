@@ -505,6 +505,16 @@ final class LocalOpenAIServer: ObservableObject {
             return
         }
 
+        if request.method == "GET",
+           request.path == "/debug/governor" {
+            sendJSON(
+                connection,
+                status: 200,
+                object: debugGovernorObject()
+            )
+            return
+        }
+
         if request.method == "POST",
            request.path == "/debug/runtime/profile" {
             updateDebugRuntimeProfile(
@@ -811,17 +821,40 @@ final class LocalOpenAIServer: ObservableObject {
         ]
     }
 
-    private func debugRuntimeObject() -> [String: Any] {
+    private func effectiveRuntimeState() -> RuntimeOptimizationState {
+        var effective = RuntimeFeatureFlags.baseline
         var fallbacks =
             runtimeRequestedFlags
                 .enabledBehaviorChangingWireKeys
                 .map { "not_implemented:\($0)" }
 
+        var effectiveProfile: RuntimeOptimizationProfile = .baseline
+
         if runtimeRequestedProfile != .baseline {
-            fallbacks.append(
-                "profile_not_promoted:\(runtimeRequestedProfile.rawValue)"
-            )
+            effective.extendedTelemetry =
+                runtimeRequestedFlags.extendedTelemetry
+            effective.metalAwareGovernor =
+                runtimeRequestedFlags.metalAwareGovernor
+
+            if effective.metalAwareGovernor {
+                effectiveProfile = .experimental
+            }
         }
+
+        if runtimeRequestedProfile == .accelerated {
+            fallbacks.append("accelerated_profile_not_promoted")
+        }
+
+        return RuntimeOptimizationState(
+            profile: effectiveProfile,
+            requested: runtimeRequestedFlags,
+            effective: effective,
+            fallbacks: fallbacks
+        )
+    }
+
+    private func debugRuntimeObject() -> [String: Any] {
+        let state = effectiveRuntimeState()
 
         return [
             "requested": [
@@ -829,12 +862,13 @@ final class LocalOpenAIServer: ObservableObject {
                 "flags": runtimeRequestedFlags.wireDictionary
             ],
             "effective": [
-                "profile": RuntimeOptimizationProfile.baseline.rawValue,
-                "flags": RuntimeFeatureFlags.baseline.wireDictionary
+                "profile": state.profile.rawValue,
+                "flags": state.effective.wireDictionary
             ],
-            "fallbacks": fallbacks,
-            "phase": "RC1.26_PHASE1_CONTROL_PLANE",
-            "behavior_changes_enabled": false
+            "fallbacks": state.fallbacks,
+            "phase": "RC1.26_PHASE2A_MEMORY_GOVERNOR_OBSERVER",
+            "behavior_changes_enabled":
+                state.effective.hasBehaviorChangingFeature
         ]
     }
 
@@ -867,6 +901,38 @@ final class LocalOpenAIServer: ObservableObject {
                 snapshot.hasUnifiedMemory,
             "thermal_state":
                 snapshot.thermalState
+        ]
+    }
+
+    private func debugGovernorObject() -> [String: Any] {
+        let state = effectiveRuntimeState()
+        let telemetry = RuntimeTelemetrySnapshot.capture(
+            stage: "DEBUG_GOVERNOR"
+        )
+        let assessment =
+            MemoryGovernorAssessment.assess(
+                telemetry: telemetry
+            )
+
+        return [
+            "observer_active":
+                state.effective.metalAwareGovernor,
+            "behavior_changes_enabled":
+                state.effective.hasBehaviorChangingFeature,
+            "grade": assessment.grade.rawValue,
+            "metal_headroom_ratio":
+                assessment.metalHeadroomRatio,
+            "available_bytes":
+                Int64(assessment.availableBytes),
+            "thermal_state":
+                assessment.thermalState,
+            "recommended_action":
+                assessment.recommendedAction,
+            "reasons":
+                assessment.reasons,
+            "actuator_enabled": false,
+            "actuator_flag":
+                "bb.heapPressureRelief"
         ]
     }
 
