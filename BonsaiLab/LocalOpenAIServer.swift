@@ -74,6 +74,10 @@ final class LocalOpenAIServer: ObservableObject {
     @Published private(set) var status = "已停止"
     @Published private(set) var port: UInt16 = 8080
     @Published private(set) var requestCount = 0
+    @Published private(set) var requestAttemptCount = 0
+    @Published private(set) var rejectedRequestCount = 0
+    @Published private(set) var lastRequestPath = ""
+    @Published private(set) var lastRejectionCode = ""
     @Published private(set) var lastError = ""
 
     let modelID = "bonsai-2-27b-local"
@@ -422,7 +426,7 @@ final class LocalOpenAIServer: ObservableObject {
                 status: 401,
                 object: Self.errorObject(
                     "invalid_api_key",
-                    "Use Authorization: Bearer <API key>."
+                    "Use Authorization: Bearer <API key> or X-API-Key."
                 )
             )
             return
@@ -491,7 +495,14 @@ final class LocalOpenAIServer: ObservableObject {
             return
         }
 
+        DispatchQueue.main.async {
+            self.requestAttemptCount += 1
+            self.lastRequestPath = request.path
+            self.lastRejectionCode = ""
+        }
+
         guard let handler else {
+            recordRejection("server_not_ready")
             sendJSON(
                 connection,
                 status: 503,
@@ -510,6 +521,7 @@ final class LocalOpenAIServer: ObservableObject {
                 defaultModel: modelID
             )
         } catch let error as OpenAIMultimodalError {
+            recordRejection(error.code)
             sendJSON(
                 connection,
                 status: error.status,
@@ -520,6 +532,7 @@ final class LocalOpenAIServer: ObservableObject {
             )
             return
         } catch let error as APIServerError {
+            recordRejection(error.code)
             sendJSON(
                 connection,
                 status: error.status,
@@ -532,6 +545,7 @@ final class LocalOpenAIServer: ObservableObject {
             )
             return
         } catch {
+            recordRejection("invalid_request_error")
             sendJSON(
                 connection,
                 status: 400,
@@ -544,6 +558,7 @@ final class LocalOpenAIServer: ObservableObject {
         }
 
         guard payload.model == modelID else {
+            recordRejection("model_not_found")
             sendJSON(
                 connection,
                 status: 404,
@@ -645,6 +660,9 @@ final class LocalOpenAIServer: ObservableObject {
                         }
                     }
 
+                    self.recordRejection(
+                        Self.mapHandlerError(error).code
+                    )
                     DispatchQueue.main.async {
                         self.status = "最近一次请求失败"
                         self.lastError = error.localizedDescription
@@ -681,11 +699,23 @@ final class LocalOpenAIServer: ObservableObject {
                     )
                 )
 
+                self.recordRejection(
+                    Self.mapHandlerError(error).code
+                )
                 DispatchQueue.main.async {
                     self.status = "最近一次请求失败"
                     self.lastError = error.localizedDescription
                 }
             }
+        }
+    }
+
+    private func recordRejection(
+        _ code: String
+    ) {
+        DispatchQueue.main.async {
+            self.rejectedRequestCount += 1
+            self.lastRejectionCode = code
         }
     }
 
@@ -768,7 +798,7 @@ final class LocalOpenAIServer: ObservableObject {
             "Connection: keep-alive",
             "Transfer-Encoding: chunked",
             "Access-Control-Allow-Origin: *",
-            "Access-Control-Allow-Headers: Authorization, Content-Type, Accept, OpenAI-Organization, OpenAI-Project, X-API-Key",
+            "Access-Control-Allow-Headers: Authorization, Content-Type, Accept, OpenAI-Organization, OpenAI-Project, OpenAI-Beta, X-API-Key, X-Stainless-Lang, X-Stainless-Package-Version, X-Stainless-OS, X-Stainless-Arch, X-Stainless-Runtime, X-Stainless-Runtime-Version, X-Stainless-Retry-Count, X-Stainless-Timeout",
             "Access-Control-Allow-Methods: GET, POST, OPTIONS",
             "",
             ""
@@ -947,7 +977,7 @@ final class LocalOpenAIServer: ObservableObject {
             "Content-Length: \(body.count)",
             "Connection: close",
             "Access-Control-Allow-Origin: *",
-            "Access-Control-Allow-Headers: Authorization, Content-Type, Accept, OpenAI-Organization, OpenAI-Project, X-API-Key",
+            "Access-Control-Allow-Headers: Authorization, Content-Type, Accept, OpenAI-Organization, OpenAI-Project, OpenAI-Beta, X-API-Key, X-Stainless-Lang, X-Stainless-Package-Version, X-Stainless-OS, X-Stainless-Arch, X-Stainless-Runtime, X-Stainless-Runtime-Version, X-Stainless-Retry-Count, X-Stainless-Timeout",
             "Access-Control-Allow-Methods: GET, POST, OPTIONS"
         ]
 
@@ -1364,12 +1394,14 @@ final class LocalOpenAIServer: ObservableObject {
     ) -> [String: Any] {
         [
             "id": modelID,
+            "name": "Bonsai 2 27B Local",
             "object": "model",
             "created": 0,
             "owned_by": "local",
             // Common OpenAI-compatible/OpenRouter-style discovery metadata.
             // Chatbox consumes context_length and architecture.input_modalities.
             "context_length": contextWindow,
+            "context_window": contextWindow,
             "max_output_tokens": maxOutputTokens,
             "architecture": [
                 "input_modalities": ["text", "image"],
