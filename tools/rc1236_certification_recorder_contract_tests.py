@@ -47,7 +47,11 @@ assert "buildDiagnosticSnapshot()" in view
 # promotes context selection. Batch/uBatch and native sequence ownership stay frozen.
 assert re.search(r'apiRuntime\.batch\s*=\s*8', view)
 assert re.search(r'apiRuntime\.ubatch\s*=\s*8', view)
-assert 'apiRuntimeProfile == "safe"' in view
+assert (
+    'apiRuntimeProfile == "safe"' in view
+    or 'case "safe":' in view
+)
+assert 'private var apiRuntimeProfile = "accelerated"' in view
 assert "n_seq_max" not in view  # remains owned by BonsaiEngine/native runtime
 assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
