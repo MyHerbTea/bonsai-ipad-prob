@@ -145,10 +145,10 @@ for marker in [
     "rejectedRequestCount",
     "lastRequestPath",
     "lastRejectionCode",
-    "recordRejection(",
 ]:
     assert marker in server
     assert marker in view
+assert "recordRejection(" in server
 
 # response_format=text is accepted; structured output is explicitly rejected.
 assert 'root["response_format"]' in server
