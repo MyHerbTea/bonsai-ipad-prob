@@ -85,6 +85,10 @@ final class LocalOpenAIServer: ObservableObject {
     private var advertisedMaxOutputTokens = 256
     private var runtimeRequestedProfile: RuntimeOptimizationProfile = .baseline
     private var runtimeRequestedFlags: RuntimeFeatureFlags = .baseline
+    private let governorObservationLock = NSLock()
+    private var governorObservationSequence = 0
+    private var lastGovernorRequestBegin: RuntimeGovernorBoundaryRecord?
+    private var lastGovernorRequestEnd: RuntimeGovernorBoundaryRecord?
 
     func configureModelMetadata(
         contextWindow: Int,
@@ -676,6 +680,9 @@ final class LocalOpenAIServer: ObservableObject {
             )
 
             Task {
+                _ = self.captureGovernorRequestBoundary(
+                    stage: "API_REQUEST_BEGIN"
+                )
                 do {
                     let result = try await handler(
                         payload,
@@ -706,6 +713,10 @@ final class LocalOpenAIServer: ObservableObject {
                         }
                     )
 
+                    _ = self.captureGovernorRequestBoundary(
+                        stage: "API_REQUEST_END"
+                    )
+
                     self.queue.async {
                         if !state.started {
                             self.beginStream(
@@ -727,6 +738,9 @@ final class LocalOpenAIServer: ObservableObject {
                         self.lastError = ""
                     }
                 } catch {
+                    _ = self.captureGovernorRequestBoundary(
+                        stage: "API_REQUEST_END_ERROR"
+                    )
                     self.queue.async {
                         let mapped = Self.mapHandlerError(error)
 
@@ -765,8 +779,14 @@ final class LocalOpenAIServer: ObservableObject {
         }
 
         Task {
+            _ = self.captureGovernorRequestBoundary(
+                stage: "API_REQUEST_BEGIN"
+            )
             do {
                 let result = try await handler(payload, nil)
+                _ = self.captureGovernorRequestBoundary(
+                    stage: "API_REQUEST_END"
+                )
                 self.sendCompletion(
                     connection,
                     model: payload.model,
@@ -777,6 +797,9 @@ final class LocalOpenAIServer: ObservableObject {
                     self.lastError = ""
                 }
             } catch {
+                _ = self.captureGovernorRequestBoundary(
+                    stage: "API_REQUEST_END_ERROR"
+                )
                 let mapped = Self.mapHandlerError(error)
                 self.sendJSON(
                     connection,
@@ -904,6 +927,76 @@ final class LocalOpenAIServer: ObservableObject {
         ]
     }
 
+    private func captureGovernorRequestBoundary(
+        stage: String
+    ) -> RuntimeGovernorBoundaryRecord? {
+        let state = effectiveRuntimeState()
+        guard state.effective.metalAwareGovernor else {
+            return nil
+        }
+
+        let telemetry = RuntimeTelemetrySnapshot.capture(
+            stage: stage
+        )
+        let assessment = MemoryGovernorAssessment.assess(
+            telemetry: telemetry
+        )
+
+        governorObservationLock.lock()
+        defer { governorObservationLock.unlock() }
+
+        governorObservationSequence += 1
+        let record = RuntimeGovernorBoundaryRecord(
+            sequence: governorObservationSequence,
+            stage: stage,
+            telemetry: telemetry,
+            assessment: assessment
+        )
+
+        if stage == "API_REQUEST_BEGIN" {
+            lastGovernorRequestBegin = record
+        } else {
+            lastGovernorRequestEnd = record
+        }
+
+        return record
+    }
+
+    private func governorRecordObject(
+        _ record: RuntimeGovernorBoundaryRecord?
+    ) -> Any {
+        guard let record else {
+            return NSNull()
+        }
+
+        return [
+            "sequence": record.sequence,
+            "stage": record.stage,
+            "captured_at":
+                ISO8601DateFormatter().string(
+                    from: record.telemetry.capturedAt
+                ),
+            "grade":
+                record.assessment.grade.rawValue,
+            "recommended_action":
+                record.assessment.recommendedAction,
+            "reasons":
+                record.assessment.reasons,
+            "available_bytes":
+                Int64(record.telemetry.availableBytes),
+            "phys_footprint_bytes":
+                Int64(record.telemetry.physFootprintBytes),
+            "metal_allocated_bytes":
+                Int64(record.telemetry.metalAllocatedBytes),
+            "metal_headroom_bytes":
+                Int64(record.telemetry.metalHeadroomBytes),
+            "metal_headroom_ratio":
+                record.assessment.metalHeadroomRatio,
+            "thermal_state":
+                record.telemetry.thermalState
+        ] as [String: Any]
+    }
+
     private func debugGovernorObject() -> [String: Any] {
         let state = effectiveRuntimeState()
         let telemetry = RuntimeTelemetrySnapshot.capture(
@@ -930,6 +1023,16 @@ final class LocalOpenAIServer: ObservableObject {
                 assessment.recommendedAction,
             "reasons":
                 assessment.reasons,
+            "request_observation_sequence":
+                governorObservationSequence,
+            "last_request_begin":
+                governorRecordObject(
+                    lastGovernorRequestBegin
+                ),
+            "last_request_end":
+                governorRecordObject(
+                    lastGovernorRequestEnd
+                ),
             "actuator_enabled": false,
             "actuator_flag":
                 "bb.heapPressureRelief"
