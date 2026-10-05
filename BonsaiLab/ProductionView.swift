@@ -947,6 +947,45 @@ struct ProductionView: View {
         return value
     }
 
+    private var selectedAPIContextValue: Int {
+        ["512", "768", "1024", "2048"]
+            .contains(apiContextProfile)
+            ? (Int(apiContextProfile) ?? 512)
+            : 512
+    }
+
+    private var selectedAPIRuntimeProfileValue: String {
+        switch apiRuntimeProfile {
+        case "safe":
+            return "safe"
+        case "ab_flash_only":
+            return "ab_flash_only"
+        case "ab_flash_kqv":
+            return "ab_flash_kqv"
+        default:
+            return "accelerated"
+        }
+    }
+
+    private var preservedRuntimeMatchesAPISelection: Bool {
+        guard apiServer.canResumePreservedRuntime else {
+            return false
+        }
+
+        let defaults = UserDefaults.standard
+        let activeContext =
+            defaults.integer(
+                forKey: "BonsaiRC1235ActiveAPIContext"
+            )
+        let activeProfile =
+            defaults.string(
+                forKey: "BonsaiRC1233ActiveAPIRuntimeProfile"
+            ) ?? "none"
+
+        return activeContext == selectedAPIContextValue
+            && activeProfile == selectedAPIRuntimeProfileValue
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -1188,7 +1227,11 @@ struct ProductionView: View {
                     } else {
                         Button(
                             apiServer.canResumePreservedRuntime
-                                ? "恢复 OpenAI API"
+                                ? (
+                                    preservedRuntimeMatchesAPISelection
+                                        ? "恢复 OpenAI API"
+                                        : "应用设置并重新预热 API"
+                                )
                                 : "启动 OpenAI API"
                         ) {
                             startOrResumeAPIServer()
@@ -1200,10 +1243,16 @@ struct ProductionView: View {
 
                         if apiServer.canResumePreservedRuntime {
                             Text(
-                                "27B Runtime 仍保持常驻；进入后台或更换关键模型资产时才会完整释放。"
+                                preservedRuntimeMatchesAPISelection
+                                    ? "27B Runtime 仍保持常驻；当前 Context/Profile 未变化，可直接恢复 listener。"
+                                    : "Context/Profile 已与常驻 Runtime 不一致；启动时会释放旧 Runtime 并按新设置重新预热。"
                             )
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(
+                                preservedRuntimeMatchesAPISelection
+                                    ? .secondary
+                                    : .orange
+                            )
                         }
                     }
 
@@ -2904,6 +2953,27 @@ struct ProductionView: View {
             return
         }
 
+        guard preservedRuntimeMatchesAPISelection else {
+            status = "API Context/Profile 已变更，正在重新预热…"
+            detail =
+                "不会把旧 Runtime 伪装成新 Context；将释放旧上下文并按当前选择重新加载。"
+            apiServer.stop()
+            startAPIServer()
+            return
+        }
+
+        let activeContext =
+            UserDefaults.standard.integer(
+                forKey: "BonsaiRC1235ActiveAPIContext"
+            )
+        apiServer.configureModelMetadata(
+            contextWindow:
+                activeContext > 0
+                    ? activeContext
+                    : selectedAPIContextValue,
+            maxOutputTokens: 256
+        )
+
         busy = true
         status = "正在恢复 OpenAI API listener…"
         detail = ""
@@ -2917,7 +2987,7 @@ struct ProductionView: View {
                 busy = false
                 status = "OpenAI API 已恢复；27B Runtime 未重载"
                 detail =
-                    "Build 54 Production Lifecycle：listener 已恢复，resident runtime 保持不变。"
+                    "Context/Profile 与常驻 Runtime 一致；仅恢复 listener。"
             } catch {
                 busy = false
                 status = "OpenAI API 恢复失败"
@@ -2935,21 +3005,10 @@ struct ProductionView: View {
         let selectedMLXVisionWeightsURL =
             mlxVisionWeightsURL
         let selectedRuntime = runtime
-        let selectedAPIRuntimeProfile: String
-        if apiRuntimeProfile == "safe" {
-            selectedAPIRuntimeProfile = "safe"
-        } else if apiRuntimeProfile == "ab_flash_only" {
-            selectedAPIRuntimeProfile = "ab_flash_only"
-        } else if apiRuntimeProfile == "ab_flash_kqv" {
-            selectedAPIRuntimeProfile = "ab_flash_kqv"
-        } else {
-            selectedAPIRuntimeProfile = "accelerated"
-        }
+        let selectedAPIRuntimeProfile =
+            selectedAPIRuntimeProfileValue
         let selectedAPIContext =
-            ["512", "768", "1024", "2048"]
-                .contains(apiContextProfile)
-                ? (Int(apiContextProfile) ?? 512)
-                : 512
+            selectedAPIContextValue
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
