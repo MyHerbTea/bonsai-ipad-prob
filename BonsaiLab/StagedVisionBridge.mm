@@ -1378,6 +1378,8 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
         return result;
     }
 
+    write_stage(stage_path, "TWOPHASE_B00_ENTER");
+
     CachedImagePacket cached;
     if (!load_cached_image(
         cache_path,
@@ -1393,6 +1395,8 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
         result.code = 2;
         return result;
     }
+
+    write_stage(stage_path, "TWOPHASE_B01_CACHE_LOADED");
 
     const int32_t full_n_embd =
         llama_model_n_embd_inp(model);
@@ -1585,6 +1589,8 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
         return result;
     }
 
+    write_stage(stage_path, "TWOPHASE_B02_ADMISSION_PASS");
+
     const llama_pos prefix_positions =
         packet[0].n_pos + packet[1].n_pos;
     const bool prefix_checkpoint_enabled =
@@ -1600,6 +1606,8 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
         result.code = 7;
         return result;
     }
+
+    write_stage(stage_path, "TWOPHASE_B03_PREFIX_REUSE_CHECK");
 
     bool can_reuse_prefix =
         prefix_checkpoint_enabled &&
@@ -1628,6 +1636,10 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
             stage_path,
             "TWOPHASE_B03_PREFIX_REUSE_MISS"
         );
+        write_stage(
+            stage_path,
+            "TWOPHASE_B03_PREFIX_STATE_CLEARED"
+        );
     }
 
     const auto prefill_start =
@@ -1643,6 +1655,14 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
         const bool is_last = i + 1 == packet.size();
         const auto chunk_start =
             std::chrono::steady_clock::now();
+
+        if (i == 0) {
+            write_stage(stage_path, "TWOPHASE_B10_PREFIX_TEXT_BEGIN");
+        } else if (i == 1) {
+            write_stage(stage_path, "TWOPHASE_B20_IMAGE_EMBED_BEGIN");
+        } else if (i == 2) {
+            write_stage(stage_path, "TWOPHASE_B30_SUFFIX_TEXT_BEGIN");
+        }
 
         const int32_t rc =
             packet[i].kind == PacketKind::Text
@@ -1692,11 +1712,23 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
             return result;
         }
 
+        if (i == 0) {
+            write_stage(stage_path, "TWOPHASE_B11_PREFIX_TEXT_DONE");
+        } else if (i == 1) {
+            write_stage(stage_path, "TWOPHASE_B21_IMAGE_EMBED_DONE");
+        } else if (i == 2) {
+            write_stage(stage_path, "TWOPHASE_B31_SUFFIX_TEXT_DONE");
+        }
+
         if (
             prefix_checkpoint_enabled &&
             !can_reuse_prefix &&
             i == 1
         ) {
+            write_stage(
+                stage_path,
+                "TWOPHASE_B22_PREFIX_SNAPSHOT_SAVE_BEGIN"
+            );
             const bool checkpoint_ready =
                 save_vision_prefix_state_locked(
                     ctx,
@@ -1783,6 +1815,11 @@ int32_t BonsaiRetainVisionPrefixKV(
     }
 
     return 1;
+}
+
+void BonsaiClearVisionPrefixKVSnapshot(void) {
+    std::lock_guard<std::mutex> lock(g_staged_mutex);
+    clear_vision_prefix_state_locked();
 }
 
 void BonsaiReleaseStagedResidentModel(void) {
