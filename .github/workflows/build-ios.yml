@@ -1,4 +1,4 @@
-name: Build Bonsai iPad Lab v1 RC1.25.3 Native Prefill Isolation
+name: Build Bonsai iPad Lab v1 RC1.26 Runtime Optimization
 
 on:
   push:
@@ -16,6 +16,7 @@ on:
       - lab-v1-rc1-25-1-observability-error-hardening
       - lab-v1-rc1-25-2-openai-api-usability
       - lab-v1-rc1-25-3-build64-native-prefill-isolation
+      - lab-v1-rc1-26-backburner-runtime
   workflow_dispatch:
 
 concurrency:
@@ -75,7 +76,7 @@ jobs:
           grep -q 'warm.kvReuseHit' BonsaiLab/ProductionView.swift
           grep -q 'UIPasteboard.general.string' BonsaiLab/ProductionView.swift
           grep -q 'MARKETING_VERSION: "1.0.0"' project.yml
-          grep -q 'CURRENT_PROJECT_VERSION: "64"' project.yml
+          grep -q 'CURRENT_PROJECT_VERSION: "65"' project.yml
           grep -q 'reasoningEffort' BonsaiLab/BonsaiEngine.swift
           grep -q 'payload.reasoningEffort' BonsaiLab/ProductionView.swift
           grep -q '<think>\\n\\n</think>\\n\\n' BonsaiLab/BonsaiEngine.swift
@@ -121,7 +122,7 @@ jobs:
           grep -q 'requireFullOutputBudget:' BonsaiLab/ProductionView.swift
           grep -q 'cleanupAfterRequestFailure' BonsaiLab/ProductionView.swift
           grep -q 'OpenAIMultimodalNormalizer' BonsaiLab/LocalOpenAIServer.swift
-          grep -q 'RC1.25.3 Build 64 Native Prefill Isolation' BonsaiLab/ProductionView.swift
+          grep -q 'RC1.26 Build 65 Runtime Optimization Lab' BonsaiLab/ProductionView.swift
           grep -q 'Live Vision Injection' BonsaiLab/ContentView.swift
           grep -q 'Text("MLX Vision Metrics")' BonsaiLab/ContentView.swift
           grep -q 'maxPixels: Int = 65_536' BonsaiLab/BonsaiMLXVisionSidecar.swift
@@ -314,6 +315,12 @@ jobs:
           set -euo pipefail
           python3 tools/rc1253_native_prefill_isolation_contract_tests.py
 
+      - name: RC1.26 Phase 0 + Phase 1 contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/rc126_phase0_phase1_contract_tests.py
+
       - name: Show Apple toolchain
         run: |
           set -euo pipefail
@@ -382,7 +389,7 @@ jobs:
           file "$FRAMEWORK"
           otool -L "$APP/BonsaiLab"
           test "$(plutil -extract CFBundleShortVersionString raw -o - "$APP/Info.plist")" = "1.0.0"
-          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "64"
+          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "65"
           nm -gU "$FRAMEWORK" > build/llama-symbols.txt
           grep -q '_mtmd_init_from_file' build/llama-symbols.txt
           grep -q '_mtmd_helper_eval_chunks' build/llama-symbols.txt
@@ -399,7 +406,7 @@ jobs:
           ditto "$APP" build/ipa/Payload/BonsaiLab.app
 
           cat > build/BUILD_INFO.txt <<'INFO'
-          Bonsai iPad Lab v1 RC1.25.3 Build 64
+          Bonsai iPad Lab v1 RC1.26 Build 65 Runtime Optimization Lab
           Prism: prism-b10743-adfffbe
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
@@ -411,17 +418,17 @@ jobs:
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.25.3-build64-native-prefill-isolation-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.26-build65-runtime-optimization-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.25.3-build64-native-prefill-isolation-unsigned.ipa | tee build/BonsaiLab-v1-RC1.25.3-build64-native-prefill-isolation-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.26-build65-runtime-optimization-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build65-runtime-optimization-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.25.3-Build64-Native-Prefill-Isolation
+          name: BonsaiLab-iPad-v1-RC1.26-Build65-Runtime-Optimization
           path: |
-            build/BonsaiLab-v1-RC1.25.3-build64-native-prefill-isolation-unsigned.ipa
-            build/BonsaiLab-v1-RC1.25.3-build64-native-prefill-isolation-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.26-build65-runtime-optimization-unsigned.ipa
+            build/BonsaiLab-v1-RC1.26-build65-runtime-optimization-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             RC1.20_RELEASE_ACCEPTANCE.md
             OPENAI_API_QUICKSTART_RC1.20.md
