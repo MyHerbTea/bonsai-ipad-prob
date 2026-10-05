@@ -4,11 +4,12 @@ ROOT = Path(__file__).resolve().parents[1]
 runtime = (ROOT / "BonsaiLab/RuntimeOptimization.swift").read_text(encoding="utf-8")
 server = (ROOT / "BonsaiLab/LocalOpenAIServer.swift").read_text(encoding="utf-8")
 
-assert '"build_id": "rc1.26-build66-memory-governor-observer"' in server
+assert '"build_id": "rc1.26-build67-request-lifecycle-governor-observer"' in server
 
 for marker in [
     "enum MemoryPressureGrade",
     "struct MemoryGovernorAssessment",
+    "struct RuntimeGovernorBoundaryRecord",
     "metal_headroom_lt_25pct",
     "metal_headroom_lt_12_5pct",
     "metal_headroom_lt_5pct",
@@ -31,8 +32,11 @@ for marker in [
     '"observer_active"',
     '"actuator_enabled": false',
     '"bb.heapPressureRelief"',
-    '"RC1.26_PHASE2A_MEMORY_GOVERNOR_OBSERVER"',
+    '"RC1.26_PHASE2A1_REQUEST_LIFECYCLE_OBSERVER"',
     "effective.metalAwareGovernor",
+    '"API_REQUEST_BEGIN"',
+    '"API_REQUEST_END"',
+    '"request_observation_sequence"',
 ]:
     assert marker in server, marker
 
