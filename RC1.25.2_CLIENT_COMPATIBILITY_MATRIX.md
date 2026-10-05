@@ -62,7 +62,7 @@ for prompt/history at the 512 baseline.
 | Multi-turn text | system/developer/user/assistant history preserved |
 | Visual follow-up | most recent prior visual user turn can be reused |
 | Max images per visual turn | 3 |
-| Structured overflow | HTTP 400 `context_length_exceeded` |
+| Structured overflow | text + vision both return HTTP 400 `context_length_exceeded` |
 | Parse errors | machine-readable error codes |
 | 5xx inference errors | `type=server_error` |
 
@@ -92,3 +92,23 @@ After the context boundary is chosen, certify the same matrix against:
 For every client test discovery, text non-stream, text stream, ordinary
 multi-turn, single-image, visual follow-up, context overflow, unsupported
 tools, and API survival after an error.
+
+
+## Semantic compatibility policy
+
+Build 61 does not silently pretend to support generation semantics it cannot
+honor. Harmless defaults are accepted; non-default unsupported behavior is a
+machine-readable HTTP 400.
+
+Examples:
+
+- `tool_choice="none"`: accepted;
+- empty `stop`: accepted;
+- `frequency_penalty=0`: accepted;
+- `presence_penalty=0`: accepted;
+- `logprobs=false`: accepted;
+- non-empty stop sequences or non-zero penalties: `unsupported_parameter`;
+- structured `response_format`: `unsupported_response_format`.
+
+Text and multimodal requests now share the same context-overflow contract:
+`context_length_exceeded` rather than leaking an internal inference error.
