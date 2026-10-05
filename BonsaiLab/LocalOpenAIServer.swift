@@ -67,6 +67,16 @@ final class LocalOpenAIServer: ObservableObject {
     @Published private(set) var lastError = ""
 
     let modelID = "bonsai-2-27b-local"
+    private var advertisedContextWindow = 512
+    private var advertisedMaxOutputTokens = 256
+
+    func configureModelMetadata(
+        contextWindow: Int,
+        maxOutputTokens: Int
+    ) {
+        advertisedContextWindow = contextWindow
+        advertisedMaxOutputTokens = maxOutputTokens
+    }
 
     private let queue = DispatchQueue(
         label: "local.bonsai.openai.server"
@@ -380,7 +390,17 @@ final class LocalOpenAIServer: ObservableObject {
                     "streaming": "chunked_sse",
                     "resource_governor": "v1",
                     "default_reasoning_effort": "none",
-                    "max_output_tokens": 256
+                    "context_window": advertisedContextWindow,
+                    "max_output_tokens": advertisedMaxOutputTokens,
+                    "capabilities": [
+                        "chat": true,
+                        "vision": true,
+                        "streaming": true,
+                        "tools": false,
+                        "reasoning": false,
+                        "responses_api": false,
+                        "max_images_per_request": 3
+                    ]
                 ]
             )
             return
@@ -405,7 +425,13 @@ final class LocalOpenAIServer: ObservableObject {
                 status: 200,
                 object: [
                     "object": "list",
-                    "data": [Self.modelObject(modelID)]
+                    "data": [
+                        Self.modelObject(
+                            modelID,
+                            contextWindow: advertisedContextWindow,
+                            maxOutputTokens: advertisedMaxOutputTokens
+                        )
+                    ]
                 ]
             )
             return
@@ -431,7 +457,11 @@ final class LocalOpenAIServer: ObservableObject {
             sendJSON(
                 connection,
                 status: 200,
-                object: Self.modelObject(modelID)
+                object: Self.modelObject(
+                    modelID,
+                    contextWindow: advertisedContextWindow,
+                    maxOutputTokens: advertisedMaxOutputTokens
+                )
             )
             return
         }
@@ -1053,12 +1083,37 @@ final class LocalOpenAIServer: ObservableObject {
     }
 
     private static func modelObject(
-        _ modelID: String
+        _ modelID: String,
+        contextWindow: Int,
+        maxOutputTokens: Int
     ) -> [String: Any] {
         [
             "id": modelID,
             "object": "model",
-            "owned_by": "local"
+            "owned_by": "local",
+            // Common OpenAI-compatible/OpenRouter-style discovery metadata.
+            // Chatbox consumes context_length and architecture.input_modalities.
+            "context_length": contextWindow,
+            "max_output_tokens": maxOutputTokens,
+            "architecture": [
+                "input_modalities": ["text", "image"],
+                "output_modalities": ["text"]
+            ],
+            "supported_parameters": [
+                "max_tokens",
+                "max_completion_tokens",
+                "stream",
+                "stream_options"
+            ],
+            "capabilities": [
+                "chat": true,
+                "vision": true,
+                "streaming": true,
+                "tools": false,
+                "reasoning": false,
+                "responses_api": false,
+                "max_images_per_request": 3
+            ]
         ]
     }
 
