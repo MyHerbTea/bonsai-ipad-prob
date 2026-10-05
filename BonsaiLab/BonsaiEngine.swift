@@ -183,6 +183,145 @@ actor BonsaiEngine {
         return metrics
     }
 
+    func reconfigureTextContextKeepingModel(
+        runtime: RuntimeConfig
+    ) throws {
+        let nextRuntime = try runtime.validated()
+        guard let model else {
+            throw LabError.noModel
+        }
+
+        let previousRuntime = appliedRuntime
+        let fromContext = previousRuntime.context
+        let toContext = nextRuntime.context
+
+        UserDefaults.standard.set(
+            fromContext,
+            forKey: "BonsaiRC1252ContextSwitchFrom"
+        )
+        UserDefaults.standard.set(
+            toContext,
+            forKey: "BonsaiRC1252ContextSwitchTo"
+        )
+        UserDefaults.standard.set(
+            "begin",
+            forKey: "BonsaiRC1252ContextSwitchState"
+        )
+        UserDefaults.standard.synchronize()
+
+        mark(
+            "CTX_SWITCH_00_BEGIN_"
+            + "\(fromContext)_TO_\(toContext)"
+        )
+
+        // A context/profile change does not require remapping the 27B mmap
+        // weights. Releasing and reloading the whole model creates a much
+        // larger transient lifecycle boundary and was observed to terminate
+        // the app on-device. Keep the model/vocab/file scope resident.
+        apiVisionPrefixReuseKey = nil
+        apiVisionPrefixPositions = 0
+        unloadVision()
+
+        // Any staged duplicate resident model is unrelated to the ordinary
+        // API runtime and only consumes headroom during the switch.
+        BonsaiReleaseStagedResidentModel()
+        stopStagedResidentModelScope()
+
+        if nextRuntime.disableMetalTensorAPI {
+            setenv("GGML_METAL_TENSOR_DISABLE", "1", 1)
+        } else {
+            unsetenv("GGML_METAL_TENSOR_DISABLE")
+        }
+
+        UserDefaults.standard.set(
+            "context_release_begin",
+            forKey: "BonsaiRC1252ContextSwitchState"
+        )
+        UserDefaults.standard.synchronize()
+        mark("CTX_SWITCH_01_CONTEXT_RELEASE_BEGIN")
+
+        if let context {
+            llama_free(context)
+            self.context = nil
+        }
+
+        UserDefaults.standard.set(
+            "context_released",
+            forKey: "BonsaiRC1252ContextSwitchState"
+        )
+        UserDefaults.standard.synchronize()
+        mark("CTX_SWITCH_02_CONTEXT_RELEASE_DONE")
+
+        do {
+            UserDefaults.standard.set(
+                "context_create_begin",
+                forKey: "BonsaiRC1252ContextSwitchState"
+            )
+            UserDefaults.standard.synchronize()
+            mark(
+                "CTX_SWITCH_03_CONTEXT_CREATE_BEGIN_CTX_"
+                + "\(toContext)"
+            )
+
+            let recreated = try makeContext(
+                model: model,
+                config: nextRuntime
+            )
+            context = recreated
+            vocab = llama_model_get_vocab(model)
+            appliedRuntime = nextRuntime
+
+            UserDefaults.standard.set(
+                "ready",
+                forKey: "BonsaiRC1252ContextSwitchState"
+            )
+            UserDefaults.standard.synchronize()
+            persistSystemDiagnostics(
+                prefix: "BonsaiRC1252ContextSwitch"
+            )
+            mark(
+                "CTX_SWITCH_04_READY_CTX_"
+                + "\(toContext)"
+            )
+        } catch {
+            UserDefaults.standard.set(
+                "target_create_failed",
+                forKey: "BonsaiRC1252ContextSwitchState"
+            )
+            UserDefaults.standard.synchronize()
+            mark("CTX_SWITCH_90_TARGET_CREATE_FAIL")
+
+            // Best-effort rollback keeps the previous API runtime usable when
+            // the requested larger context cannot be created.
+            if let restored = try? makeContext(
+                model: model,
+                config: previousRuntime
+            ) {
+                context = restored
+                vocab = llama_model_get_vocab(model)
+                appliedRuntime = previousRuntime
+                UserDefaults.standard.set(
+                    "rolled_back",
+                    forKey: "BonsaiRC1252ContextSwitchState"
+                )
+                UserDefaults.standard.synchronize()
+                mark(
+                    "CTX_SWITCH_91_ROLLBACK_READY_CTX_"
+                    + "\(fromContext)"
+                )
+            } else {
+                UserDefaults.standard.set(
+                    "rollback_failed",
+                    forKey: "BonsaiRC1252ContextSwitchState"
+                )
+                UserDefaults.standard.synchronize()
+                mark("CTX_SWITCH_99_ROLLBACK_FAIL")
+            }
+
+            throw error
+        }
+    }
+
     func loadVision(
         mmprojURL: URL,
         config: VisionConfig
