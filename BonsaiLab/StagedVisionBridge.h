@@ -104,6 +104,8 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
     int32_t non_thinking,
     int32_t reuse_prefix,
     int32_t expected_prefix_positions,
+    int32_t context_limit,
+    int32_t requested_max_tokens,
     char * out_error,
     size_t out_error_cap,
     const char * stage_path
