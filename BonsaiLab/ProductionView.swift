@@ -1193,8 +1193,18 @@ struct ProductionView: View {
                         .font(.footnote.monospaced())
                         .textSelection(.enabled)
                         LabeledContent(
-                            "请求数",
+                            "推理请求",
                             value: "\(apiServer.requestCount)"
+                        )
+                        LabeledContent(
+                            "API 尝试",
+                            value:
+                                "\(apiServer.requestAttemptCount)"
+                        )
+                        LabeledContent(
+                            "已拒绝/失败",
+                            value:
+                                "\(apiServer.rejectedRequestCount)"
                         )
                         LabeledContent(
                             "API Context",
@@ -2193,6 +2203,10 @@ struct ProductionView: View {
             "base_url=\(apiServer.baseURL)",
             "model=\(apiServer.modelID)",
             "request_count=\(apiServer.requestCount)",
+            "request_attempt_count=\(apiServer.requestAttemptCount)",
+            "rejected_request_count=\(apiServer.rejectedRequestCount)",
+            "last_request_path=\(apiServer.lastRequestPath.isEmpty ? "无" : apiServer.lastRequestPath)",
+            "last_rejection_code=\(apiServer.lastRejectionCode.isEmpty ? "无" : apiServer.lastRejectionCode)",
             "last_error=\(apiServer.lastError.isEmpty ? "无" : apiServer.lastError)",
             "api_key=[REDACTED]",
             "discovery_context_length=\(effectiveAPIContext)",
