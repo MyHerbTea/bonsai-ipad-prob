@@ -1242,17 +1242,19 @@ struct ProductionView: View {
                         )
 
                         if apiServer.canResumePreservedRuntime {
-                            Text(
-                                preservedRuntimeMatchesAPISelection
-                                    ? "27B Runtime 仍保持常驻；当前 Context/Profile 未变化，可直接恢复 listener。"
-                                    : "Context/Profile 已与常驻 Runtime 不一致；启动时会释放旧 Runtime 并按新设置重新预热。"
-                            )
-                            .font(.caption)
-                            .foregroundStyle(
-                                preservedRuntimeMatchesAPISelection
-                                    ? .secondary
-                                    : .orange
-                            )
+                            if preservedRuntimeMatchesAPISelection {
+                                Text(
+                                    "27B Runtime 仍保持常驻；当前 Context/Profile 未变化，可直接恢复 listener。"
+                                )
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            } else {
+                                Text(
+                                    "Context/Profile 已与常驻 Runtime 不一致；启动时会释放旧 Runtime 并按新设置重新预热。"
+                                )
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                            }
                         }
                     }
 
