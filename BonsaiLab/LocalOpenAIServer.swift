@@ -36,6 +36,13 @@ struct OpenAIHandlerResult: Sendable {
     let finishReason: String
 }
 
+private struct OpenAINormalizedChatMessage: Sendable {
+    let role: String
+    let text: String
+    let images: [OpenAIImageInput]
+    let ordering: OpenAIImageOrdering
+}
+
 struct OpenAIHandlerHTTPError: LocalizedError, Sendable {
     let status: Int
     let code: String
@@ -975,14 +982,8 @@ final class LocalOpenAIServer: ObservableObject {
             throw APIServerError.unsupportedTools
         }
 
-        struct NormalizedChatMessage {
-            let role: String
-            let text: String
-            let images: [OpenAIImageInput]
-            let ordering: OpenAIImageOrdering
-        }
-
-        var normalizedMessages: [NormalizedChatMessage] = []
+        var normalizedMessages:
+            [OpenAINormalizedChatMessage] = []
         var totalImages = 0
         var bindingSummaries: [OpenAIMessageBindingSummary] = []
 
@@ -1038,7 +1039,7 @@ final class LocalOpenAIServer: ObservableObject {
             }
 
             normalizedMessages.append(
-                NormalizedChatMessage(
+                OpenAINormalizedChatMessage(
                     role: role,
                     text: parsed.text,
                     images: parsed.images,
