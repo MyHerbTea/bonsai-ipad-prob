@@ -895,6 +895,26 @@ final class LocalOpenAIServer: ObservableObject {
         let tensorDisable = getenv(
             "GGML_METAL_TENSOR_DISABLE"
         ).map { String(cString: $0) }
+        let capability = BonsaiProbeMetalTensorCapability()
+        let requested = runtimeRequestedFlags.metalTensorPrefill
+        let pipelineCompiled =
+            capability.tensor_pipeline_compiled != 0
+        let embeddedLibrary =
+            capability.framework_embed_library == 1
+        let candidateProbeEligible =
+            capability.has_metal_device != 0
+            && capability.supports_metal4_family != 0
+            && pipelineCompiled
+            && embeddedLibrary
+
+        let fallbackReason: String
+        if requested {
+            fallbackReason = candidateProbeEligible
+                ? "fresh_process_backend_init_required"
+                : "metal_tensor_capability_unavailable"
+        } else {
+            fallbackReason = "baseline_frozen_workaround"
+        }
 
         let last: Any
         if let observation {
@@ -904,18 +924,13 @@ final class LocalOpenAIServer: ObservableObject {
                     ISO8601DateFormatter().string(
                         from: observation.capturedAt
                     ),
-                "prompt_tokens":
-                    observation.promptTokens,
-                "completion_tokens":
-                    observation.completionTokens,
-                "prefill_ms":
-                    observation.prefillMilliseconds,
+                "prompt_tokens": observation.promptTokens,
+                "completion_tokens": observation.completionTokens,
+                "prefill_ms": observation.prefillMilliseconds,
                 "decode_to_first_token_ms":
                     observation.decodeToFirstTokenMilliseconds,
-                "ttft_ms":
-                    observation.ttftMilliseconds,
-                "tokens_per_second":
-                    observation.tokensPerSecond,
+                "ttft_ms": observation.ttftMilliseconds,
+                "tokens_per_second": observation.tokensPerSecond,
                 "ttft_reconstruction_error_ms":
                     abs(
                         observation.ttftMilliseconds
@@ -929,26 +944,59 @@ final class LocalOpenAIServer: ObservableObject {
 
         return [
             "phase":
-                "RC1.26_PHASE2C_METAL_PREFILL_MEASUREMENT",
-            "measurement_ready":
-                observation != nil,
-            "metal_device":
-                device?.name ?? "unavailable",
+                "RC1.26_PHASE2C0_CAPABILITY_PROVENANCE_AUDIT",
+            "implementation_id":
+                "rc126.phase2c0.metal-tensor-capability.v1",
+            "measurement_ready": observation != nil,
+            "metal_device": device?.name ?? "unavailable",
             "metal_has_unified_memory":
                 device?.hasUnifiedMemory ?? false,
             "metal_recommended_working_set_bytes":
-                Int64(
-                    device?.recommendedMaxWorkingSetSize
-                    ?? 0
-                ),
+                Int64(device?.recommendedMaxWorkingSetSize ?? 0),
             "ggml_metal_tensor_disable":
                 tensorDisable ?? "unset",
-            "metal_tensor_prefill_effective":
-                false,
+            "metal_tensor_prefill_requested": requested,
+            "metal_tensor_prefill_effective": false,
             "metal_tensor_prefill_policy":
-                "measurement_only_frozen_workaround",
-            "last":
-                last
+                "capability_only_backend_latched",
+            "fallback_reason": fallbackReason,
+            "candidate_probe_eligible": candidateProbeEligible,
+            "backend_latch": [
+                "mode": "process_lifetime",
+                "latched_by": "first_llama_backend_init",
+                "runtime_toggle_safe": false,
+                "llama_backend_free_unloads_registry": false
+            ],
+            "provenance": [
+                "prism_release": "prism-b10743-adfffbe",
+                "prism_source_commit":
+                    "adfffbe41b2cabcd51fff326ab045662265062bb",
+                "xcframework_sha256":
+                    "d23bb0325cca43054c1a76a233c79950a1ce26d98a359466c8d81fafd3b1d9ad",
+                "frozen_baseline_commit":
+                    "0d84e106daa10590ddbd1b7a3b6b3212114db6f7",
+                "build68_certified_commit":
+                    "eb58c13626d28b1854519a485e5355418d3f5591"
+            ],
+            "capability": [
+                "metal_device_present":
+                    capability.has_metal_device != 0,
+                "metal4_family_supported":
+                    capability.supports_metal4_family != 0,
+                "metal_language_4_requested":
+                    capability.requested_metal_language_4 != 0,
+                "tensor_library_compiled":
+                    capability.tensor_library_compiled != 0,
+                "tensor_pipeline_compiled": pipelineCompiled,
+                "failure_stage": Int(capability.failure_stage),
+                "error_code": Int64(capability.error_code),
+                "probe_duration_ns": Int64(capability.duration_ns),
+                "framework_metal_registry_present":
+                    capability.framework_metal_registry_present != 0,
+                "framework_embed_library":
+                    Int(capability.framework_embed_library)
+            ],
+            "last": last
         ]
     }
 
@@ -1033,7 +1081,7 @@ final class LocalOpenAIServer: ObservableObject {
                 "flags": state.effective.wireDictionary
             ],
             "fallbacks": state.fallbacks,
-            "phase": "RC1.26_PHASE2C_METAL_PREFILL_MEASUREMENT",
+            "phase": "RC1.26_PHASE2C0_CAPABILITY_PROVENANCE_AUDIT",
             "behavior_changes_enabled":
                 state.effective.hasBehaviorChangingFeature
         ]
