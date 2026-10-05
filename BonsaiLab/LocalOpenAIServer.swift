@@ -83,6 +83,8 @@ final class LocalOpenAIServer: ObservableObject {
     let modelID = "bonsai-2-27b-local"
     private var advertisedContextWindow = 512
     private var advertisedMaxOutputTokens = 256
+    private var runtimeRequestedProfile: RuntimeOptimizationProfile = .baseline
+    private var runtimeRequestedFlags: RuntimeFeatureFlags = .baseline
 
     func configureModelMetadata(
         contextWindow: Int,
@@ -474,6 +476,45 @@ final class LocalOpenAIServer: ObservableObject {
         }
 
         if request.method == "GET",
+           request.path == "/debug/build" {
+            sendJSON(
+                connection,
+                status: 200,
+                object: debugBuildObject()
+            )
+            return
+        }
+
+        if request.method == "GET",
+           request.path == "/debug/runtime" {
+            sendJSON(
+                connection,
+                status: 200,
+                object: debugRuntimeObject()
+            )
+            return
+        }
+
+        if request.method == "GET",
+           request.path == "/debug/telemetry" {
+            sendJSON(
+                connection,
+                status: 200,
+                object: debugTelemetryObject()
+            )
+            return
+        }
+
+        if request.method == "POST",
+           request.path == "/debug/runtime/profile" {
+            updateDebugRuntimeProfile(
+                request,
+                connection: connection
+            )
+            return
+        }
+
+        if request.method == "GET",
            request.path == "/v1/models" {
             sendJSON(
                 connection,
@@ -749,6 +790,169 @@ final class LocalOpenAIServer: ObservableObject {
                 }
             }
         }
+    }
+
+    private func debugBuildObject() -> [String: Any] {
+        let info = Bundle.main.infoDictionary ?? [:]
+        return [
+            "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
+            "build_id": "rc1.26-build65-runtime-optimization-lab",
+            "version":
+                info["CFBundleShortVersionString"] as? String
+                ?? "unknown",
+            "build":
+                info["CFBundleVersion"] as? String
+                ?? "unknown",
+            "baseline_commit":
+                "0d84e106daa10590ddbd1b7a3b6b3212114db6f7",
+            "frozen_branch":
+                "frozen-v1-rc1-25-3-build64-device-certified",
+            "automation_control_plane": true
+        ]
+    }
+
+    private func debugRuntimeObject() -> [String: Any] {
+        var fallbacks =
+            runtimeRequestedFlags
+                .enabledBehaviorChangingWireKeys
+                .map { "not_implemented:\($0)" }
+
+        if runtimeRequestedProfile != .baseline {
+            fallbacks.append(
+                "profile_not_promoted:\(runtimeRequestedProfile.rawValue)"
+            )
+        }
+
+        return [
+            "requested": [
+                "profile": runtimeRequestedProfile.rawValue,
+                "flags": runtimeRequestedFlags.wireDictionary
+            ],
+            "effective": [
+                "profile": RuntimeOptimizationProfile.baseline.rawValue,
+                "flags": RuntimeFeatureFlags.baseline.wireDictionary
+            ],
+            "fallbacks": fallbacks,
+            "phase": "RC1.26_PHASE1_CONTROL_PLANE",
+            "behavior_changes_enabled": false
+        ]
+    }
+
+    private func debugTelemetryObject() -> [String: Any] {
+        let snapshot = RuntimeTelemetrySnapshot.capture(
+            stage: "DEBUG_TELEMETRY"
+        )
+
+        return [
+            "captured_at":
+                ISO8601DateFormatter().string(
+                    from: snapshot.capturedAt
+                ),
+            "stage": snapshot.stage,
+            "available_bytes":
+                Int64(snapshot.availableBytes),
+            "resident_bytes":
+                Int64(snapshot.residentBytes),
+            "virtual_bytes":
+                Int64(snapshot.virtualBytes),
+            "phys_footprint_bytes":
+                Int64(snapshot.physFootprintBytes),
+            "metal_allocated_bytes":
+                Int64(snapshot.metalAllocatedBytes),
+            "metal_recommended_working_set_bytes":
+                Int64(snapshot.metalRecommendedWorkingSetBytes),
+            "metal_headroom_bytes":
+                Int64(snapshot.metalHeadroomBytes),
+            "has_unified_memory":
+                snapshot.hasUnifiedMemory,
+            "thermal_state":
+                snapshot.thermalState
+        ]
+    }
+
+    private func updateDebugRuntimeProfile(
+        _ request: HTTPRequest,
+        connection: NWConnection
+    ) {
+        let root: [String: Any]
+
+        do {
+            guard
+                let object = try JSONSerialization.jsonObject(
+                    with: request.body
+                ) as? [String: Any]
+            else {
+                throw APIServerError.invalidJSON
+            }
+            root = object
+        } catch {
+            sendJSON(
+                connection,
+                status: 400,
+                object: Self.errorObject(
+                    "invalid_runtime_profile",
+                    "Expected a JSON object with profile and flags."
+                )
+            )
+            return
+        }
+
+        let rawProfile =
+            (root["profile"] as? String)?
+                .uppercased()
+            ?? "BASELINE"
+
+        guard
+            let profile = RuntimeOptimizationProfile(
+                rawValue: rawProfile
+            )
+        else {
+            sendJSON(
+                connection,
+                status: 400,
+                object: Self.errorObject(
+                    "invalid_runtime_profile",
+                    "profile must be BASELINE, EXPERIMENTAL, or ACCELERATED."
+                )
+            )
+            return
+        }
+
+        let rawFlags =
+            root["flags"] as? [String: Any]
+            ?? [:]
+        let knownKeys = Set(
+            RuntimeFeatureFlags.baseline
+                .wireDictionary
+                .keys
+        )
+        let unknownKeys = Set(rawFlags.keys)
+            .subtracting(knownKeys)
+            .sorted()
+
+        guard unknownKeys.isEmpty else {
+            sendJSON(
+                connection,
+                status: 400,
+                object: Self.errorObject(
+                    "unknown_runtime_flag",
+                    "Unknown runtime flags: \(unknownKeys.joined(separator: ", "))."
+                )
+            )
+            return
+        }
+
+        runtimeRequestedProfile = profile
+        runtimeRequestedFlags =
+            RuntimeFeatureFlags.fromWireDictionary(
+                rawFlags
+            )
+
+        sendJSON(
+            connection,
+            status: 200,
+            object: debugRuntimeObject()
+        )
     }
 
     private func recordRejection(
