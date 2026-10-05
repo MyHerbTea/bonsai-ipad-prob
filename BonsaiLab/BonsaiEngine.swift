@@ -1061,6 +1061,8 @@ actor BonsaiEngine {
                             requestPrefixReuse
                                 ? apiVisionPrefixPositions
                                 : 0,
+                            Int32(appliedRuntime.context),
+                            Int32(gen.maxTokens),
                             &errorBuffer,
                             errorBuffer.count,
                             stagePath
@@ -1081,6 +1083,17 @@ actor BonsaiEngine {
         mark(stage)
 
         guard prefill.code == 0 else {
+            if prefill.code == 9 {
+                throw LabError.contextBudgetExceeded(
+                    inputPositions:
+                        Int(prefill.input_positions),
+                    requestedOutputTokens:
+                        gen.maxTokens,
+                    contextLimit:
+                        appliedRuntime.context
+                )
+            }
+
             throw LabError.invalidConfig(
                 "Two-phase vision Phase B 失败 "
                 + "code=\(prefill.code): "
