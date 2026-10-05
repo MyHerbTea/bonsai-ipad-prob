@@ -3,6 +3,7 @@
 #include <mach/mach.h>
 #include <os/proc.h>
 #import <Metal/Metal.h>
+#include <malloc/malloc.h>
 
 BonsaiSystemProbe BonsaiReadSystemProbe(void) {
     BonsaiSystemProbe out = {};
@@ -40,4 +41,9 @@ BonsaiSystemProbe BonsaiReadSystemProbe(void) {
     }
 
     return out;
+}
+
+
+uint64_t BonsaiRelieveHeapPressure(void) {
+    return (uint64_t) malloc_zone_pressure_relief(NULL, 0);
 }
