@@ -75,10 +75,12 @@ resident_branch = runner[resident_branch_start:resident_branch_end]
 assert "engine.unloadAll()" not in resident_branch
 assert "startAPIServer()" not in resident_branch
 
-# Frozen inference behavior remains untouched.
+# Frozen default/restart-runner inference behavior remains untouched. Later
+# product releases may expose larger explicit contexts, but the certification
+# runner continues to force the certified 512/accelerated baseline.
 assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
-assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
+assert 'apiContextProfile = "512"' in runner
 assert 'apiRuntimeProfile = "accelerated"' in runner
 assert "visionPrefixKVReuseEnabled = true" in runner
 
