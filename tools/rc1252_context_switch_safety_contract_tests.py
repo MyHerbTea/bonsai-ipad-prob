@@ -7,8 +7,14 @@ view = (root / "BonsaiLab" / "ProductionView.swift").read_text(encoding="utf-8")
 project = (root / "project.yml").read_text(encoding="utf-8")
 workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text(encoding="utf-8")
 
-assert 'CURRENT_PROJECT_VERSION: "63"' in project
-assert "RC1.25.2 Build 63 Vision Lifecycle Safety" in view
+assert (
+    'CURRENT_PROJECT_VERSION: "63"' in project
+    or 'CURRENT_PROJECT_VERSION: "64"' in project
+)
+assert (
+    "RC1.25.2 Build 63 Vision Lifecycle Safety" in view
+    or "RC1.25.3 Build 64 Native Prefill Isolation" in view
+)
 
 # The risky old path reloaded the full 27B model after a paused-listener context
 # change. The new path must keep the mmap-backed model resident and recreate only
@@ -53,6 +59,9 @@ for marker in [
     assert marker in view
 
 assert "python3 tools/rc1252_context_switch_safety_contract_tests.py" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "63"' in workflow
+assert (
+    'CFBundleVersion raw -o - "$APP/Info.plist")" = "63"' in workflow
+    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "64"' in workflow
+)
 
 print("RC1.25.2 Build 63 context switch safety contracts: PASS")
