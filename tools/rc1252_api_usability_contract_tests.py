@@ -5,6 +5,7 @@ server = (root / "BonsaiLab" / "LocalOpenAIServer.swift").read_text(encoding="ut
 view = (root / "BonsaiLab" / "ProductionView.swift").read_text(encoding="utf-8")
 project = (root / "project.yml").read_text(encoding="utf-8")
 workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text(encoding="utf-8")
+boundary_probe = (root / "tools" / "rc1252_context_boundary_probe.ps1").read_text(encoding="utf-8")
 probe = (root / "tools" / "rc1252_context_ladder_device_probe.ps1").read_text(encoding="utf-8")
 py_sdk_probe = (root / "tools" / "rc1252_openai_python_sdk_probe.py").read_text(encoding="utf-8")
 js_sdk_probe = (root / "tools" / "rc1252_openai_js_sdk_probe.mjs").read_text(encoding="utf-8")
@@ -175,8 +176,12 @@ assert 'request.path == "/v1/models"' in server
 assert "unsupportedTools" in server
 assert "context_length_exceeded" in view
 
-# Device probe must keep all generated evidence on D:, never in the Windows
+# Device probes must keep all generated evidence on D:, never in the Windows
 # user temp directory.
+assert r'D:\apple\re_output\rc1252-context-boundary' in boundary_probe
+assert '$env:TEMP' not in boundary_probe
+assert "SUMMARY-boundary-" in boundary_probe
+assert "context_length" in boundary_probe
 assert r'D:\apple\re_output\rc1252-context-probe' in probe
 assert '$env:TEMP' not in probe
 assert "SUMMARY-context-" in probe
@@ -198,6 +203,7 @@ assert "tool_choice" in js_sdk_probe
 # CI must execute this contract and package Build 61.
 assert "python3 tools/rc1252_api_usability_contract_tests.py" in workflow
 assert "RC1.25.2_CLIENT_COMPATIBILITY_MATRIX.md" in workflow
+assert "tools/rc1252_context_boundary_probe.ps1" in workflow
 assert "tools/rc1252_context_ladder_device_probe.ps1" in workflow
 assert "tools/rc1252_openai_python_sdk_probe.py" in workflow
 assert "tools/rc1252_openai_js_sdk_probe.mjs" in workflow
