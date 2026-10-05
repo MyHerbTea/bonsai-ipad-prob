@@ -17,13 +17,54 @@ function Write-JsonFile {
 }
 
 function Invoke-CurlJson {
-    param([string]$Name, [string]$Method, [string]$Url, [string]$BodyPath = "")
-    $headersPath = Join-Path $OutDir ($Name + ".headers.txt")
-    $bodyPath = Join-Path $OutDir ($Name + ".body.txt")
-    $args = @("-sS", "-D", $headersPath, "-o", $bodyPath, "-w", "%{http_code}", "-X", $Method, "-H", ("Authorization: Bearer " + $ApiKey), "-H", "Accept: application/json")
-    if ($BodyPath) { $args += @("-H", "Content-Type: application/json", "--data-binary", ("@" + $BodyPath)) }
-    $status = & curl.exe @args $Url
-    return [pscustomobject]@{ Name=$Name; Status=[int]$status; HeadersPath=$headersPath; BodyPath=$bodyPath; Body=(Get-Content -Raw -Path $bodyPath) }
+    param(
+        [string]$Name,
+        [string]$Method,
+        [string]$Url,
+        [string]$RequestBodyPath = ""
+    )
+
+    # PowerShell variable names are case-insensitive. Keep request and response
+    # paths deliberately different; $BodyPath/$bodyPath would alias.
+    $responseHeadersPath = Join-Path $OutDir ($Name + ".headers.txt")
+    $responseBodyPath = Join-Path $OutDir ($Name + ".body.txt")
+
+    $args = @(
+        "-sS",
+        "-D", $responseHeadersPath,
+        "-o", $responseBodyPath,
+        "-w", "%{http_code}",
+        "-X", $Method,
+        "-H", ("Authorization: Bearer " + $ApiKey),
+        "-H", "Accept: application/json"
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($RequestBodyPath)) {
+        Require (Test-Path -LiteralPath $RequestBodyPath) (
+            "Request body file not found: " + $RequestBodyPath
+        )
+        $args += @(
+            "-H", "Content-Type: application/json",
+            "--data-binary", ("@" + $RequestBodyPath)
+        )
+    }
+
+    $statusText = & curl.exe @args $Url
+    if ($LASTEXITCODE -ne 0) {
+        throw "curl failed for $Name with exit code $LASTEXITCODE."
+    }
+
+    Require (Test-Path -LiteralPath $responseBodyPath) (
+        "Response body file was not created: " + $responseBodyPath
+    )
+
+    return [pscustomobject]@{
+        Name = $Name
+        Status = [int]$statusText
+        HeadersPath = $responseHeadersPath
+        BodyPath = $responseBodyPath
+        Body = Get-Content -Raw -Path $responseBodyPath
+    }
 }
 
 function Require {
@@ -54,7 +95,7 @@ $results += "discovery=PASS"
 $nonStreamRequest = @{ model=$Model; messages=@(@{role="system";content="Reply concisely."}, @{role="user";content="Reply exactly: BUILD61_TEXT_OK"}); max_completion_tokens=64; temperature=0; top_p=1; stream=$false }
 $nonStreamPath = Join-Path $OutDir "02_text_request.json"
 Write-JsonFile -Path $nonStreamPath -Object $nonStreamRequest
-$textResult = Invoke-CurlJson -Name "02_text" -Method "POST" -Url ($BaseUrl + "/chat/completions") -BodyPath $nonStreamPath
+$textResult = Invoke-CurlJson -Name "02_text" -Method "POST" -Url ($BaseUrl + "/chat/completions") -RequestBodyPath $nonStreamPath
 Require ($textResult.Status -eq 200) "Non-stream text expected HTTP 200."
 $textJson = $textResult.Body | ConvertFrom-Json
 Require ($textJson.choices.Count -ge 1) "Non-stream response has no choices."
@@ -65,7 +106,7 @@ $results += "text_non_stream=PASS"
 $multiTurnRequest = @{ model=$Model; messages=@(@{role="system";content="Use conversation history."}, @{role="user";content="Remember this code: ORCHID-61."}, @{role="assistant";content="I will remember ORCHID-61."}, @{role="user";content="What code did I give you? Reply with the code only."}); max_completion_tokens=48; temperature=0; stream=$false }
 $multiTurnPath = Join-Path $OutDir "03_multiturn_request.json"
 Write-JsonFile -Path $multiTurnPath -Object $multiTurnRequest
-$multiTurn = Invoke-CurlJson -Name "03_multiturn" -Method "POST" -Url ($BaseUrl + "/chat/completions") -BodyPath $multiTurnPath
+$multiTurn = Invoke-CurlJson -Name "03_multiturn" -Method "POST" -Url ($BaseUrl + "/chat/completions") -RequestBodyPath $multiTurnPath
 Require ($multiTurn.Status -eq 200) "Multi-turn request expected HTTP 200."
 $multiTurnJson = $multiTurn.Body | ConvertFrom-Json
 $multiTurnText = [string]$multiTurnJson.choices[0].message.content
@@ -76,7 +117,7 @@ $results += "multi_turn=PASS"
 $toolNoneRequest = @{ model=$Model; messages=@(@{role="user";content="Reply exactly: TOOL_NONE_OK"}); tools=@(@{type="function";function=@{name="dummy";description="Compatibility-only dummy tool";parameters=@{type="object";properties=@{}}}}); tool_choice="none"; max_completion_tokens=48; stream=$false }
 $toolNonePath = Join-Path $OutDir "04_tool_none_request.json"
 Write-JsonFile -Path $toolNonePath -Object $toolNoneRequest
-$toolNone = Invoke-CurlJson -Name "04_tool_none" -Method "POST" -Url ($BaseUrl + "/chat/completions") -BodyPath $toolNonePath
+$toolNone = Invoke-CurlJson -Name "04_tool_none" -Method "POST" -Url ($BaseUrl + "/chat/completions") -RequestBodyPath $toolNonePath
 Require ($toolNone.Status -eq 200) "tool_choice=none compatibility expected HTTP 200."
 $results += "tool_choice_none=PASS"
 
@@ -84,7 +125,7 @@ $results += "tool_choice_none=PASS"
 $toolAutoRequest = @{ model=$Model; messages=@(@{role="user";content="Do not execute tools."}); tools=$toolNoneRequest.tools; tool_choice="auto"; max_completion_tokens=32; stream=$false }
 $toolAutoPath = Join-Path $OutDir "05_tool_auto_request.json"
 Write-JsonFile -Path $toolAutoPath -Object $toolAutoRequest
-$toolAuto = Invoke-CurlJson -Name "05_tool_auto" -Method "POST" -Url ($BaseUrl + "/chat/completions") -BodyPath $toolAutoPath
+$toolAuto = Invoke-CurlJson -Name "05_tool_auto" -Method "POST" -Url ($BaseUrl + "/chat/completions") -RequestBodyPath $toolAutoPath
 Require ($toolAuto.Status -eq 400) "tool_choice=auto expected HTTP 400."
 Require ($toolAuto.Body -match '"code"\s*:\s*"tools_not_supported"') "tool_choice=auto did not return tools_not_supported."
 $results += "tool_execution_rejection=PASS"
@@ -94,7 +135,7 @@ $overflowText = ("overflow-token " * 5000)
 $overflowRequest = @{ model=$Model; messages=@(@{role="user";content=$overflowText}); max_completion_tokens=128; stream=$false }
 $overflowPath = Join-Path $OutDir "06_overflow_request.json"
 Write-JsonFile -Path $overflowPath -Object $overflowRequest
-$overflow = Invoke-CurlJson -Name "06_overflow" -Method "POST" -Url ($BaseUrl + "/chat/completions") -BodyPath $overflowPath
+$overflow = Invoke-CurlJson -Name "06_overflow" -Method "POST" -Url ($BaseUrl + "/chat/completions") -RequestBodyPath $overflowPath
 Require ($overflow.Status -eq 400) "Overflow request expected HTTP 400."
 Require ($overflow.Body -match '"code"\s*:\s*"context_length_exceeded"') "Overflow did not return context_length_exceeded."
 $results += "text_context_overflow=PASS"
