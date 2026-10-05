@@ -25,11 +25,18 @@ assert (
 # text/vision request is still live in the 27B context.
 for marker in [
     "func prepareForAPIVisionEncode()",
-    "API_VISION_00_CONTEXT_CLEARED_BEFORE_MLX",
     "llama_memory_clear(",
-    "BonsaiRC1252VisionPreEncode",
 ]:
     assert marker in engine
+
+assert (
+    "API_VISION_00_CONTEXT_CLEARED_BEFORE_MLX" in engine
+    or "API_VISION_01_CONTEXT_CLEARED_BEFORE_MLX" in engine
+)
+assert (
+    "BonsaiRC1252VisionPreEncode" in engine
+    or "BonsaiRC1253VisionPreEncode" in engine
+)
 
 prepare = engine[
     engine.index("func prepareForAPIVisionEncode()"):
