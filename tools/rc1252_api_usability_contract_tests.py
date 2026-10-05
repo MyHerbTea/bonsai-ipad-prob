@@ -153,7 +153,7 @@ assert "context_length_exceeded" in view
 
 # Device probe must keep all generated evidence on D:, never in the Windows
 # user temp directory.
-assert 'D:\\apple\\re_output\\rc1252-context-probe' in probe
+assert r'D:\apple\re_output\rc1252-context-probe' in probe
 assert '$env:TEMP' not in probe
 assert "SUMMARY-context-" in probe
 assert "context_length" in probe
