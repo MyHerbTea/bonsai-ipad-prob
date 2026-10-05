@@ -122,7 +122,7 @@ struct RuntimeFeatureFlags: Codable, Equatable, Sendable {
     }
 }
 
-enum MemoryPressureGrade: String, Codable, Sendable {
+enum MemoryPressureGrade: String, Codable, Hashable, Sendable {
     case nominal
     case guarded
     case constrained
