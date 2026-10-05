@@ -25,13 +25,19 @@ assert admission < prefill_loop < decode_call
 
 for marker in [
     "planned_input_positions",
-    "required_context",
+    "positional_required_context",
+    "planned_prompt_kv_tokens",
+    "kv_required_context",
     "requested_max_tokens",
     "context_limit",
     "TWOPHASE_B02_CONTEXT_BUDGET_REJECTED",
     "result.code = 9",
 ]:
     assert marker in bridge_func
+
+assert "positional_required_context > context_limit" in bridge_func
+assert "planned_prompt_kv_tokens >= context_limit" in bridge_func
+assert "kv_required_context > context_limit" in bridge_func
 
 # Rejection must happen before memory-clear/reuse/decode mutation in the
 # cached-vision prefill function itself.
@@ -46,4 +52,4 @@ assert "Int32(gen.maxTokens)" in engine
 assert "if prefill.code == 9" in engine
 assert "LabError.contextBudgetExceeded(" in engine
 
-print("RC1.25.1 Build 59 native context admission contracts: PASS")
+print("RC1.25.1 Build 60 dual context admission contracts: PASS")
