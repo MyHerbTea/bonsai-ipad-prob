@@ -9,9 +9,15 @@ server = (root / "BonsaiLab" / "LocalOpenAIServer.swift").read_text()
 project = (root / "project.yml").read_text()
 workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text()
 
-# RC1.25.1 product identity.
-assert 'Text("1.0 · RC1.25.1 API Hardening")' in view
-assert 'RC1.25.1 Build 60 Dual Context Admission' in view
+# RC1.25.1 semantics must survive in descendants.
+assert (
+    'Text("1.0 · RC1.25.1 API Hardening")' in view
+    or 'Text("1.0 · RC1.25.2 API Usability")' in view
+)
+assert (
+    'RC1.25.1 Build 60 Dual Context Admission' in view
+    or 'RC1.25.2 Build 61 API Context Ladder' in view
+)
 
 # Multi-image success telemetry must preserve the already computed request route.
 vision_start = view.index("static func persistVisionSuccess(")
@@ -44,9 +50,14 @@ assert '"context_length_exceeded"' in view
 assert 'contentType: "application/json; charset=utf-8"' in server
 assert '"Content-Type: text/event-stream; charset=utf-8"' in server
 
-# Production inference defaults remain frozen.
+# Production runtime mechanics remain frozen. RC1.25.2 explicitly evolves the
+# selectable context only; Full/Accelerated and batch/uBatch remain unchanged.
 assert 'private var apiRuntimeProfile = "accelerated"' in view
-assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
+if "RC1.25.2 API Usability" in view:
+    assert 'Int(apiContextProfile) ?? 512' in view
+    assert '"512", "768", "1024", "2048"' in view
+else:
+    assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
 assert re.search(r'apiRuntime\.batch\s*=\s*8', view)
 assert re.search(r'apiRuntime\.ubatch\s*=\s*8', view)
 assert 'apiRuntime.kvUnified = true' in view
@@ -54,12 +65,15 @@ assert 'apiRuntime.loadMode = .mmap' in view
 
 match = re.search(r'CURRENT_PROJECT_VERSION:\s*"([0-9]+)"', project)
 assert match is not None
-assert int(match.group(1)) == 60
+assert int(match.group(1)) >= 60
 
 assert "lab-v1-rc1-25-1-observability-error-hardening" in workflow
 assert "RC1.25.1 API hardening contracts" in workflow
 assert "tools/rc1251_api_hardening_contract_tests.py" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "60"' in workflow
-assert "Build60-Dual-Context-Admission" in workflow
+assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "' in workflow
+assert (
+    "Build60-Dual-Context-Admission" in workflow
+    or "Build61-API-Usability" in workflow
+)
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")
