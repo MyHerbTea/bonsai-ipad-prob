@@ -996,7 +996,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.25.2 Build 62 Context Switch Safety")
+                            Text("1.0 · RC1.25.2 Build 63 Vision Lifecycle Safety")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -3147,7 +3147,7 @@ struct ProductionView: View {
         let sharedVisionSidecar = mlxVisionSidecar
 
         busy = true
-        status = "正在预热 RC1.25.2 Build 62 API Context Ladder…"
+        status = "正在预热 RC1.25.2 Build 63 API Context Ladder…"
         detail = """
         Build 60 的 API/视觉路径保持不变。
         RC1.25.2 新增 512/768/1024/2048 API Context Ladder；
