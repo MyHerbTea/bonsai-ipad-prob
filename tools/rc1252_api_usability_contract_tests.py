@@ -74,6 +74,19 @@ assert 'toolChoiceName != "none"' in server
 assert 'message["tool_calls"]' in server
 assert "unsupportedTools" in server
 
+# Visual follow-up chats may reuse the most recent prior user image turn while
+# keeping the latest text-only user turn as the active question.
+for marker in [
+    "imageMessageIndices",
+    "visualUserIndex",
+    "visualUser?.images ?? []",
+    "visualUser?.ordering ?? .none",
+    "active visual context for the",
+]:
+    assert marker in server
+assert "totalImages = max(" in server
+assert "OpenAIMultimodalMessageBindingValidator" in server
+
 # User-facing copy config must state the exact client capability contract.
 for marker in [
     "Chatbox",
