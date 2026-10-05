@@ -12,6 +12,7 @@ assert (
     or 'Text("1.0 · RC1.25.1 API Hardening")' in view
     or 'Text("1.0 · RC1.25.2 Build 63 Vision Lifecycle Safety")' in view
     or 'Text("1.0 · RC1.25.3 Build 64 Native Prefill Isolation")' in view
+    or 'Text("1.0 · RC1.26 Build 65 Runtime Optimization Lab")' in view
 )
 assert 'Text("Safe").tag("safe")' in view
 assert 'Text("Flash").tag("ab_flash_only")' in view
