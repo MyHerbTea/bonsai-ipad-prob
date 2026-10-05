@@ -87,6 +87,7 @@ assert (
     or "Build64-Native-Prefill-Isolation" in workflow
     or "Build65-Runtime-Optimization" in workflow
     or "Build66-Memory-Governor-Observer" in workflow
+    or "Build67-Request-Lifecycle-Governor-Observer" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")
