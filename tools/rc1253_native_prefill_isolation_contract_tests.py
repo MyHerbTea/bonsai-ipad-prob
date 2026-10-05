@@ -9,7 +9,10 @@ server = (root / "BonsaiLab" / "LocalOpenAIServer.swift").read_text(encoding="ut
 project = (root / "project.yml").read_text(encoding="utf-8")
 workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text(encoding="utf-8")
 
-assert 'CURRENT_PROJECT_VERSION: "64"' in project
+assert (
+    'CURRENT_PROJECT_VERSION: "64"' in project
+    or 'CURRENT_PROJECT_VERSION: "65"' in project
+)
 assert "RC1.25.3 Build 64 Native Prefill Isolation" in view
 or 'Text("1.0 · RC1.26 Build 65 Runtime Optimization Lab")' in view
 
