@@ -2,10 +2,19 @@
 
 #include <mach/mach.h>
 #include <os/proc.h>
+#import <Metal/Metal.h>
 
 BonsaiSystemProbe BonsaiReadSystemProbe(void) {
     BonsaiSystemProbe out = {};
     out.available_bytes = os_proc_available_memory();
+
+    id<MTLDevice> metal = MTLCreateSystemDefaultDevice();
+    if (metal != nil) {
+        out.metal_allocated_bytes = (uint64_t) metal.currentAllocatedSize;
+        out.metal_recommended_bytes =
+            (uint64_t) metal.recommendedMaxWorkingSetSize;
+        out.has_unified_memory = metal.hasUnifiedMemory ? 1 : 0;
+    }
 
     mach_task_basic_info_data_t basic = {};
     mach_msg_type_number_t basic_count = MACH_TASK_BASIC_INFO_COUNT;
