@@ -1055,10 +1055,32 @@ final class LocalOpenAIServer: ObservableObject {
     private static func modelObject(
         _ modelID: String
     ) -> [String: Any] {
-        [
+        let configuredContext =
+            UserDefaults.standard.integer(
+                forKey: "BonsaiRC1235ActiveAPIContext"
+            )
+        let contextWindow =
+            configuredContext > 0 ? configuredContext : 512
+
+        return [
             "id": modelID,
             "object": "model",
-            "owned_by": "local"
+            "owned_by": "local",
+            "context_window": contextWindow,
+            "max_output_tokens": 256,
+            "max_images_per_request": 3,
+            "capabilities": [
+                "chat": true,
+                "vision": true,
+                "streaming": true,
+                "multi_image": true,
+                "tools": false,
+                "reasoning": false,
+                "responses_api": false
+            ],
+            "input_modalities": ["text", "image"],
+            "output_modalities": ["text"],
+            "compatibility": "openai_chat_completions"
         ]
     }
 
