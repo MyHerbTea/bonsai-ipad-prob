@@ -7,6 +7,7 @@ server = (ROOT / "BonsaiLab/LocalOpenAIServer.swift").read_text(encoding="utf-8"
 assert (
     '"build_id": "rc1.26-build67-request-lifecycle-governor-observer"' in server
     or '"build_id": "rc1.26-build68-heap-pressure-relief"' in server
+    or '"build_id": "rc1.26-build69-metal-prefill-measurement"' in server
 )
 
 for marker in [
