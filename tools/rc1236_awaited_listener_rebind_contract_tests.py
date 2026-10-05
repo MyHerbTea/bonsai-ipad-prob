@@ -58,7 +58,7 @@ assert "if cycle == 1" in runner
 # context, while the inherited restart certification path remains pinned to 512.
 assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
-if "RC1.25.2 API Usability" in view:
+if "RC1.25.2" in view:
     assert 'Int(apiContextProfile) ?? 512' in view
     assert 'apiContextProfile = "512"' in runner
 else:
