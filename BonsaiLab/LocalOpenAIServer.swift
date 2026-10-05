@@ -526,7 +526,8 @@ final class LocalOpenAIServer: ObservableObject {
                 object: Self.errorObject(
                     error.code,
                     error.localizedDescription,
-                    type: error.type
+                    type: error.type,
+                    param: error.param
                 )
             )
             return
@@ -1013,6 +1014,60 @@ final class LocalOpenAIServer: ObservableObject {
             throw APIServerError.unsupportedTools
         }
 
+        if let stop = root["stop"],
+           !(stop is NSNull) {
+            let hasStop: Bool
+            if let value = stop as? String {
+                hasStop = !value.isEmpty
+            } else if let values = stop as? [String] {
+                hasStop = !values.isEmpty
+            } else {
+                hasStop = true
+            }
+
+            if hasStop {
+                throw APIServerError
+                    .unsupportedParameter("stop")
+            }
+        }
+
+        if let frequencyPenalty =
+            (root["frequency_penalty"] as? NSNumber)?
+                .doubleValue,
+           frequencyPenalty != 0 {
+            throw APIServerError
+                .unsupportedParameter(
+                    "frequency_penalty"
+                )
+        }
+
+        if let presencePenalty =
+            (root["presence_penalty"] as? NSNumber)?
+                .doubleValue,
+           presencePenalty != 0 {
+            throw APIServerError
+                .unsupportedParameter(
+                    "presence_penalty"
+                )
+        }
+
+        if let logprobs =
+            root["logprobs"] as? Bool,
+           logprobs {
+            throw APIServerError
+                .unsupportedParameter("logprobs")
+        }
+
+        if let topLogprobs =
+            (root["top_logprobs"] as? NSNumber)?
+                .intValue,
+           topLogprobs != 0 {
+            throw APIServerError
+                .unsupportedParameter(
+                    "top_logprobs"
+                )
+        }
+
         var normalizedMessages:
             [OpenAINormalizedChatMessage] = []
         var totalImages = 0
@@ -1346,12 +1401,14 @@ final class LocalOpenAIServer: ObservableObject {
     private static func errorObject(
         _ code: String,
         _ message: String,
-        type: String = "invalid_request_error"
+        type: String = "invalid_request_error",
+        param: String? = nil
     ) -> [String: Any] {
         [
             "error": [
                 "message": message,
                 "type": type,
+                "param": param ?? NSNull(),
                 "code": code
             ]
         ]
@@ -1663,6 +1720,7 @@ enum APIServerError: LocalizedError {
     case unsupportedTools
     case unsupportedMessageRole(String)
     case invalidParameter(String)
+    case unsupportedParameter(String)
     case unsupportedResponseFormat(String)
     case unsupportedReasoningEffort
 
@@ -1690,6 +1748,8 @@ enum APIServerError: LocalizedError {
             return "当前本地 API 不支持消息角色：\(role)。支持 system、developer、user、assistant。"
         case .invalidParameter(let message):
             return message
+        case .unsupportedParameter(let name):
+            return "当前本地 API 尚不支持非默认参数：\(name)。"
         case .unsupportedResponseFormat(let type):
             return "response_format.type=\(type) 尚不支持；当前仅支持 text。"
         case .unsupportedReasoningEffort:
@@ -1739,10 +1799,42 @@ enum APIServerError: LocalizedError {
             return "unsupported_message_role"
         case .invalidParameter:
             return "invalid_parameter"
+        case .unsupportedParameter:
+            return "unsupported_parameter"
         case .unsupportedResponseFormat:
             return "unsupported_response_format"
         case .unsupportedReasoningEffort:
             return "unsupported_reasoning_effort"
+        }
+    }
+
+    var param: String? {
+        switch self {
+        case .missingMessages:
+            return "messages"
+        case .missingUserText:
+            return "messages"
+        case .unsupportedCandidateCount:
+            return "n"
+        case .unsupportedTools:
+            return "tools"
+        case .unsupportedMessageRole:
+            return "messages"
+        case .invalidParameter:
+            return nil
+        case .unsupportedParameter(let name):
+            return name
+        case .unsupportedResponseFormat:
+            return "response_format"
+        case .unsupportedReasoningEffort:
+            return "reasoning_effort"
+        case .imageMustBeDataURL,
+             .invalidImageDataURL:
+            return "messages"
+        case .invalidPort,
+             .handlerUnavailable,
+             .invalidJSON:
+            return nil
         }
     }
 }
