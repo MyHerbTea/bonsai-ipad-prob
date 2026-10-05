@@ -11,6 +11,7 @@ workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text(encoding
 
 assert 'CURRENT_PROJECT_VERSION: "64"' in project
 assert "RC1.25.3 Build 64 Native Prefill Isolation" in view
+or 'Text("1.0 · RC1.26 Build 65 Runtime Optimization Lab")' in view
 
 assert "void BonsaiClearVisionPrefixKVSnapshot(void);" in bridge_h
 assert "void BonsaiClearVisionPrefixKVSnapshot(void)" in bridge_mm
