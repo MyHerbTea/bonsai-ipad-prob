@@ -4,6 +4,8 @@ ROOT = Path(__file__).resolve().parents[1]
 runtime = (ROOT / "BonsaiLab/RuntimeOptimization.swift").read_text(encoding="utf-8")
 server = (ROOT / "BonsaiLab/LocalOpenAIServer.swift").read_text(encoding="utf-8")
 
+assert '"build_id": "rc1.26-build66-memory-governor-observer"' in server
+
 for marker in [
     "enum MemoryPressureGrade",
     "struct MemoryGovernorAssessment",
