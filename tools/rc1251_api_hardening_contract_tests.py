@@ -15,6 +15,8 @@ assert (
     or 'Text("1.0 · RC1.25.2 Build 63 Vision Lifecycle Safety")' in view
     or 'Text("1.0 · RC1.25.3 Build 64 Native Prefill Isolation")' in view
     or 'Text("1.0 · RC1.26 Build 65 Runtime Optimization Lab")' in view
+
+    or 'Text("1.0 · RC1.26 Build 66 Memory Governor Observer")' in view
 )
 assert (
     'RC1.25.1 Build 60 Dual Context Admission' in view
@@ -81,6 +83,7 @@ assert (
     or "Build63-Vision-Lifecycle-Safety" in workflow
     or "Build64-Native-Prefill-Isolation" in workflow
     or "Build65-Runtime-Optimization" in workflow
+    or "Build66-Memory-Governor-Observer" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")
