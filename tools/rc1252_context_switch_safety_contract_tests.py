@@ -14,6 +14,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "66"' in project
     or 'CURRENT_PROJECT_VERSION: "67"' in project
     or 'CURRENT_PROJECT_VERSION: "68"' in project
+    or 'CURRENT_PROJECT_VERSION: "69"' in project
 )
 assert (
     "RC1.25.2 Build 63 Vision Lifecycle Safety" in view
