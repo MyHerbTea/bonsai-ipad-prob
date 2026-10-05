@@ -203,6 +203,7 @@ assert "tool_choice" in js_sdk_probe
 # CI must execute this contract and package Build 61.
 assert "python3 tools/rc1252_api_usability_contract_tests.py" in workflow
 assert "RC1.25.2_CLIENT_COMPATIBILITY_MATRIX.md" in workflow
+assert "RC1.25.2_OPENAI_CHAT_COMPAT_GAP_AUDIT.md" in workflow
 assert "tools/rc1252_context_boundary_probe.ps1" in workflow
 assert "tools/rc1252_context_ladder_device_probe.ps1" in workflow
 assert "tools/rc1252_openai_python_sdk_probe.py" in workflow
