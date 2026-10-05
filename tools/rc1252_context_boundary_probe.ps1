@@ -38,7 +38,7 @@ Require ([int]$modelInfo.context_length -eq $ExpectedContext) "Discovered contex
 Write-Host "[PASS] discovery context_length=$ExpectedContext"
 
 # 2. One context-scaled prompt. This is intentionally the only inference in the fast gate.
-$probeText = ("context-probe " * $repeatCount) + " Reply with OK only."
+$probeText = ("hello " * $repeatCount) + " Reply with OK only."
 $request = @{model=$Model;messages=@(@{role="user";content=$probeText});max_completion_tokens=16;temperature=0;stream=$false}
 $requestPath = Join-Path $OutDir ("02_context_" + $ExpectedContext + "_request.json")
 Save-Json -Path $requestPath -Object $request
