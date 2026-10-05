@@ -11,8 +11,8 @@ py_sdk_probe = (root / "tools" / "rc1252_openai_python_sdk_probe.py").read_text(
 js_sdk_probe = (root / "tools" / "rc1252_openai_js_sdk_probe.mjs").read_text(encoding="utf-8")
 
 # Build identity
-assert 'CURRENT_PROJECT_VERSION: "62"' in project
-assert "RC1.25.2 Build 62 API Context Ladder" in view
+assert 'CURRENT_PROJECT_VERSION: "63"' in project
+assert "RC1.25.2 Build 63 API Context Ladder" in view
 
 # Context ladder: frozen 512 default plus explicit device-validation candidates.
 for value in ["512", "768", "1024", "2048"]:
@@ -22,7 +22,7 @@ assert 'Int(apiContextProfile) ?? 512' in view
 assert 'apiRuntime.context = selectedAPIContext' in view
 
 # Changing Context/Profile while the listener is paused must never silently
-# resume the old context. Build 62 preserves the mmap-backed 27B model and
+# resume the old context. Build 63 preserves the mmap-backed 27B model and
 # recreates only the llama context to avoid the observed in-process reload crash.
 for marker in [
     "selectedAPIContextValue",
@@ -208,7 +208,7 @@ for sdk_probe in [py_sdk_probe, js_sdk_probe]:
 assert "tool_choice" in py_sdk_probe
 assert "tool_choice" in js_sdk_probe
 
-# CI must execute this contract and package Build 62.
+# CI must execute this contract and package Build 63.
 assert "python3 tools/rc1252_api_usability_contract_tests.py" in workflow
 assert "RC1.25.2_CLIENT_COMPATIBILITY_MATRIX.md" in workflow
 assert "RC1.25.2_OPENAI_CHAT_COMPAT_GAP_AUDIT.md" in workflow
@@ -216,6 +216,6 @@ assert "tools/rc1252_context_boundary_probe.ps1" in workflow
 assert "tools/rc1252_context_ladder_device_probe.ps1" in workflow
 assert "tools/rc1252_openai_python_sdk_probe.py" in workflow
 assert "tools/rc1252_openai_js_sdk_probe.mjs" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "62"' in workflow
+assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "63"' in workflow
 
-print("RC1.25.2 Build 62 API usability contracts: PASS")
+print("RC1.25.2 Build 63 API usability contracts: PASS")
