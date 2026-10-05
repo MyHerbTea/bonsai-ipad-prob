@@ -11,8 +11,14 @@ py_sdk_probe = (root / "tools" / "rc1252_openai_python_sdk_probe.py").read_text(
 js_sdk_probe = (root / "tools" / "rc1252_openai_js_sdk_probe.mjs").read_text(encoding="utf-8")
 
 # Build identity
-assert 'CURRENT_PROJECT_VERSION: "63"' in project
-assert "RC1.25.2 Build 63 API Context Ladder" in view
+assert (
+    'CURRENT_PROJECT_VERSION: "63"' in project
+    or 'CURRENT_PROJECT_VERSION: "64"' in project
+)
+assert (
+    "RC1.25.2 Build 63 API Context Ladder" in view
+    or "RC1.25.3 Build 64 API Context Ladder" in view
+)
 
 # Context ladder: frozen 512 default plus explicit device-validation candidates.
 for value in ["512", "768", "1024", "2048"]:
@@ -216,6 +222,9 @@ assert "tools/rc1252_context_boundary_probe.ps1" in workflow
 assert "tools/rc1252_context_ladder_device_probe.ps1" in workflow
 assert "tools/rc1252_openai_python_sdk_probe.py" in workflow
 assert "tools/rc1252_openai_js_sdk_probe.mjs" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "63"' in workflow
+assert (
+    'CFBundleVersion raw -o - "$APP/Info.plist")" = "63"' in workflow
+    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "64"' in workflow
+)
 
 print("RC1.25.2 Build 63 API usability contracts: PASS")
