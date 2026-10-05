@@ -579,6 +579,7 @@ enum LabError: LocalizedError {
     case promptTooLong(Int, Int)
     case contextBudgetExceeded(
         inputPositions: Int,
+        promptKVTokens: Int,
         requestedOutputTokens: Int,
         contextLimit: Int
     )
@@ -602,16 +603,25 @@ enum LabError: LocalizedError {
             return "Prompt 已占用 \(used) tokens，超过 Context \(limit)。"
         case .contextBudgetExceeded(
             let inputPositions,
+            let promptKVTokens,
             let requestedOutputTokens,
             let contextLimit
         ):
-            let requiredContext =
+            let positionalRequired =
                 inputPositions + requestedOutputTokens + 1
+            let kvRequired =
+                promptKVTokens + requestedOutputTokens
+            let requiredContext =
+                max(positionalRequired, kvRequired)
             let maximumSafeOutput =
-                max(0, contextLimit - inputPositions - 1)
+                min(
+                    max(0, contextLimit - inputPositions - 1),
+                    max(0, contextLimit - promptKVTokens)
+                )
             return (
                 "Context budget 不足："
                 + "input_positions=\(inputPositions), "
+                + "prompt_kv_tokens=\(promptKVTokens), "
                 + "requested_output_tokens=\(requestedOutputTokens), "
                 + "required_context=\(requiredContext), "
                 + "configured_context=\(contextLimit), "
