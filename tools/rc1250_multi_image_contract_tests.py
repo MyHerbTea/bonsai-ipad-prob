@@ -50,6 +50,9 @@ assert (
     or 'Text("1.0 · RC1.26 Build 65 Runtime Optimization Lab")' in view
 
     or 'Text("1.0 · RC1.26 Build 66 Memory Governor Observer")' in view
+
+
+    or 'Text("1.0 · RC1.26 Build 67 Request Lifecycle Governor Observer")' in view
 )
 
 # Production runtime remains the proven Full profile by default.
