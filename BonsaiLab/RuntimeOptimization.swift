@@ -229,6 +229,19 @@ struct RuntimeGovernorBoundaryRecord: Codable, Equatable, Sendable {
     let assessment: MemoryGovernorAssessment
 }
 
+struct RuntimeHeapPressureReliefRecord: Codable, Equatable, Sendable {
+    let sequence: Int
+    let trigger: String
+    let forced: Bool
+    let eligible: Bool
+    let performed: Bool
+    let reason: String
+    let bytesReleased: UInt64
+    let durationMilliseconds: Double
+    let before: RuntimeTelemetrySnapshot
+    let after: RuntimeTelemetrySnapshot
+}
+
 struct RuntimeOptimizationState: Codable, Equatable, Sendable {
     var profile: RuntimeOptimizationProfile = .baseline
     var requested: RuntimeFeatureFlags = .baseline
