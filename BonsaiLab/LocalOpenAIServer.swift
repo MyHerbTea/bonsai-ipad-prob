@@ -806,7 +806,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build65-runtime-optimization-lab",
+            "build_id": "rc1.26-build66-memory-governor-observer",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",
