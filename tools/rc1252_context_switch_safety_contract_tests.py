@@ -10,6 +10,7 @@ workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text(encoding
 assert (
     'CURRENT_PROJECT_VERSION: "63"' in project
     or 'CURRENT_PROJECT_VERSION: "64"' in project
+    or 'CURRENT_PROJECT_VERSION: "65"' in project
 )
 assert (
     "RC1.25.2 Build 63 Vision Lifecycle Safety" in view
