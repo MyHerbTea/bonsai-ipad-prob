@@ -81,6 +81,7 @@ assert (
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "66"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "67"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "68"' in workflow
+    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "69"' in workflow
 )
 
 print("RC1.25.3 Build 64 native prefill isolation contracts: PASS")
