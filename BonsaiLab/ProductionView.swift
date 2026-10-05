@@ -2922,7 +2922,7 @@ struct ProductionView: View {
         let sharedVisionSidecar = mlxVisionSidecar
 
         busy = true
-        status = "正在预热 RC1.25.1 Build 59 Context Admission Fix…"
+        status = "正在预热 RC1.25.1 Build 60 Dual Context Admission…"
         detail = """
         Text API 继续使用冻结的 RC1.20.7 路径。
         1–3 图请求使用 RC1.23.0 MLX Live Vision Injection；
@@ -3534,7 +3534,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.25.1 Build 59 Context Admission Fix 已预热"
+                        "RC1.25.1 Build 60 Dual Context Admission 已预热"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
