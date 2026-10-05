@@ -315,6 +315,8 @@ struct GenerationMetrics: Sendable {
     let promptTokens: Int
     let effectiveMaxTokens: Int
     let terminationReason: GenerationTerminationReason
+    let prefillSeconds: Double
+    let decodeToFirstTokenSeconds: Double
     let ttftSeconds: Double
     let generationSeconds: Double
     let tokensPerSecond: Double
