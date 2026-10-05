@@ -144,7 +144,11 @@ for ($cycle = 1; $cycle -le $Cycles; $cycle++) {
             thermal_before = $before.thermal_state
             thermal_after_primary = $afterPrimary.thermal_state
             governor_grade = $governorAfterPrimary.grade
-            automatic_relief = $governorAfterPrimary.last_heap_pressure_relief
+            last_relief_observation = $governorAfterPrimary.last_heap_pressure_relief
+            automatic_relief_triggered = (
+                $null -ne $governorAfterPrimary.last_heap_pressure_relief -and
+                $governorAfterPrimary.last_heap_pressure_relief.trigger -eq "automatic_request_end"
+            )
             forced_trim = if ($null -ne $trim) { $trim.response.result } else { $null }
             forced_trim_endpoint_elapsed_ms = if ($null -ne $trim) { $trim.endpoint_elapsed_ms } else { $null }
             telemetry_after_trim = $afterTrim
