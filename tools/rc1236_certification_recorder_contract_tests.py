@@ -56,7 +56,7 @@ assert "n_seq_max" not in view  # remains owned by BonsaiEngine/native runtime
 assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
 
-if "RC1.25.2 API Usability" in view:
+if "RC1.25.2" in view:
     # RC1.25.2 intentionally evolves only the API context selector. 512 remains
     # the default/fallback while 768/1024/2048 are explicit validation candidates.
     for value in ["512", "768", "1024", "2048"]:
