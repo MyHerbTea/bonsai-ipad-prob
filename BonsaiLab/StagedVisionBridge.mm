@@ -1345,6 +1345,8 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
     int32_t non_thinking,
     int32_t reuse_prefix,
     int32_t expected_prefix_positions,
+    int32_t context_limit,
+    int32_t requested_max_tokens,
     char * out_error,
     size_t out_error_cap,
     const char * stage_path
@@ -1363,7 +1365,9 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
         ctx == nullptr ||
         cache_path == nullptr ||
         question == nullptr ||
-        n_batch <= 0
+        n_batch <= 0 ||
+        context_limit <= 0 ||
+        requested_max_tokens <= 0
     ) {
         set_error(
             out_error,
@@ -1525,6 +1529,46 @@ BonsaiVisionPrefillResult BonsaiPrefillCachedVision(
     packet.push_back(std::move(prefix_chunk));
     packet.push_back(std::move(image_chunk));
     packet.push_back(std::move(suffix_chunk));
+
+    const llama_pos planned_input_positions =
+        packet[0].n_pos
+        + packet[1].n_pos
+        + packet[2].n_pos;
+
+    // RC1.25.1 Build 59: admission must happen before llama_decode.
+    // The previous Swift-only check ran after native prefill, which meant
+    // an oversized request could make llama_decode fail first and surface
+    // as a misleading HTTP 500 vision_injection_failed.
+    result.input_positions =
+        static_cast<int32_t>(planned_input_positions);
+    result.prompt_tokens =
+        static_cast<int32_t>(packet[0].tokens.size())
+        + cached.n_tokens
+        + static_cast<int32_t>(packet[2].tokens.size());
+    result.image_tokens = cached.n_tokens;
+    result.projection_dim = cached.projection_dim;
+
+    const int64_t required_context =
+        static_cast<int64_t>(planned_input_positions)
+        + static_cast<int64_t>(requested_max_tokens)
+        + 1;
+
+    if (
+        planned_input_positions >= context_limit ||
+        required_context > context_limit
+    ) {
+        write_stage(
+            stage_path,
+            "TWOPHASE_B02_CONTEXT_BUDGET_REJECTED"
+        );
+        set_error(
+            out_error,
+            out_error_cap,
+            "cached vision context budget exceeded"
+        );
+        result.code = 9;
+        return result;
+    }
 
     const llama_pos prefix_positions =
         packet[0].n_pos + packet[1].n_pos;
