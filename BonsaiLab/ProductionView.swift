@@ -937,6 +937,14 @@ struct ProductionView: View {
         return value
     }
 
+    private var requestedAPIContextProfile: APIContextProfile {
+        APIContextProfile.normalized(apiContextProfile)
+    }
+
+    private var requestedAPIContext: Int {
+        requestedAPIContextProfile.contextTokens
+    }
+
     private var vision: VisionConfig {
         quality.preset.config
     }
@@ -957,7 +965,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.25.1 API Hardening")
+                            Text("1.0 · RC1.25.2 API Compatibility")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -1317,13 +1325,20 @@ struct ProductionView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
-                        LabeledContent(
-                            "API Context",
-                            value: "512 · RC1.23.4 Frozen"
-                        )
+                        Picker(
+                            "实验：API Context",
+                            selection: $apiContextProfile
+                        ) {
+                            ForEach(APIContextProfile.allCases) { profile in
+                                Text(profile.label).tag(profile.rawValue)
+                            }
+                        }
+                        .disabled(apiServer.isRunning)
 
                         Text(
-                            "RC1.23.5 的 256 Dynamic Context 实验已被真机 A/B 拒绝。RC1.23.6 固定回到 512，不再暴露 256 选择入口。"
+                            requestedAPIContextProfile == .baseline512
+                                ? "512 是 RC1.25.1 已冻结真机基线。"
+                                : "当前为 RC1.25.2 真机边界探索档；停止 API 后才能切换。尚未通过设备认证前，不作为生产默认。"
                         )
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -1512,8 +1527,8 @@ struct ProductionView: View {
                 if apiRuntimeProfile == "flash" {
                     apiRuntimeProfile = "accelerated"
                 }
-                if apiContextProfile != "512" {
-                    apiContextProfile = "512"
+                if APIContextProfile(rawValue: apiContextProfile) == nil {
+                    apiContextProfile = APIContextProfile.baseline512.rawValue
                 }
                 certificationRecorder
                     .recoverInterruptedRunIfNeeded()
@@ -2091,8 +2106,10 @@ struct ProductionView: View {
         let apiOpOffload =
             effectiveAPIRuntimeProfile == "accelerated"
 
-        let requestedAPIContextProfile = "512"
-        let requestedAPIContext = 512
+        let requestedAPIContextProfile =
+            self.requestedAPIContextProfile.rawValue
+        let requestedAPIContext =
+            self.requestedAPIContext
         let activeAPIContext =
             defaults.integer(
                 forKey: "BonsaiRC1235ActiveAPIContext"
@@ -2917,17 +2934,19 @@ struct ProductionView: View {
         } else {
             selectedAPIRuntimeProfile = "accelerated"
         }
-        let selectedAPIContext = 512
+        let selectedAPIContext =
+            APIContextProfile
+                .normalized(apiContextProfile)
+                .contextTokens
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
         busy = true
-        status = "正在预热 RC1.25.1 Build 60 Dual Context Admission…"
+        status = "正在预热 RC1.25.2 Build 61 API Compatibility…"
         detail = """
-        Text API 继续使用冻结的 RC1.20.7 路径。
-        1–3 图请求使用 RC1.23.0 MLX Live Vision Injection；
-        2–3 图在进入 Vision Tower 前使用有界联系表适配，
-        不初始化 mmproj，不要求 App 重启。
+        API Context=(selectedAPIContext)。512 保持 RC1.25.1 冻结基线；
+        768 / 1024 / 2048 仅用于 RC1.25.2 真机边界探索。
+        1–3 图继续使用冻结的 MLX Live Vision Injection 与有界联系表适配。
         """
 
         Task {
