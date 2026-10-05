@@ -9,9 +9,7 @@ server = (root / "BonsaiLab" / "LocalOpenAIServer.swift").read_text()
 project = (root / "project.yml").read_text()
 workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text()
 
-# RC1.25.1 product identity.
-assert 'Text("1.0 · RC1.25.1 API Hardening")' in view
-assert 'RC1.25.1 Build 60 Dual Context Admission' in view
+# RC1.25.1 behavior remains inherited even when a later release changes UI identity.
 
 # Multi-image success telemetry must preserve the already computed request route.
 vision_start = view.index("static func persistVisionSuccess(")
@@ -44,9 +42,10 @@ assert '"context_length_exceeded"' in view
 assert 'contentType: "application/json; charset=utf-8"' in server
 assert '"Content-Type: text/event-stream; charset=utf-8"' in server
 
-# Production inference defaults remain frozen.
+# Production runtime invariants remain inherited. Later releases may add
+# explicit context profiles, but 512 must remain the default/frozen baseline.
 assert 'private var apiRuntimeProfile = "accelerated"' in view
-assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
+assert 'private var apiContextProfile = "512"' in view
 assert re.search(r'apiRuntime\.batch\s*=\s*8', view)
 assert re.search(r'apiRuntime\.ubatch\s*=\s*8', view)
 assert 'apiRuntime.kvUnified = true' in view
@@ -54,12 +53,9 @@ assert 'apiRuntime.loadMode = .mmap' in view
 
 match = re.search(r'CURRENT_PROJECT_VERSION:\s*"([0-9]+)"', project)
 assert match is not None
-assert int(match.group(1)) == 60
+assert int(match.group(1)) >= 60
 
-assert "lab-v1-rc1-25-1-observability-error-hardening" in workflow
 assert "RC1.25.1 API hardening contracts" in workflow
 assert "tools/rc1251_api_hardening_contract_tests.py" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "60"' in workflow
-assert "Build60-Dual-Context-Admission" in workflow
 
-print("RC1.25.1 Build 60 API hardening contracts: PASS")
+print("RC1.25.1 inherited API hardening contracts: PASS")
