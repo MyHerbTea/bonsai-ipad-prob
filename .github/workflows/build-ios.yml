@@ -73,7 +73,7 @@ jobs:
           grep -q 'warm.kvReuseHit' BonsaiLab/ProductionView.swift
           grep -q 'UIPasteboard.general.string' BonsaiLab/ProductionView.swift
           grep -q 'MARKETING_VERSION: "1.0.0"' project.yml
-          grep -q 'CURRENT_PROJECT_VERSION: "60"' project.yml
+          grep -q 'CURRENT_PROJECT_VERSION: "61"' project.yml
           grep -q 'reasoningEffort' BonsaiLab/BonsaiEngine.swift
           grep -q 'payload.reasoningEffort' BonsaiLab/ProductionView.swift
           grep -q '<think>\\n\\n</think>\\n\\n' BonsaiLab/BonsaiEngine.swift
@@ -288,6 +288,12 @@ jobs:
           set -euo pipefail
           python3 tools/rc1251_context_admission_contract_tests.py
 
+      - name: RC1.25.2 API usability contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/rc1252_api_usability_contract_tests.py
+
       - name: Show Apple toolchain
         run: |
           set -euo pipefail
@@ -356,7 +362,7 @@ jobs:
           file "$FRAMEWORK"
           otool -L "$APP/BonsaiLab"
           test "$(plutil -extract CFBundleShortVersionString raw -o - "$APP/Info.plist")" = "1.0.0"
-          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "60"
+          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "61"
           nm -gU "$FRAMEWORK" > build/llama-symbols.txt
           grep -q '_mtmd_init_from_file' build/llama-symbols.txt
           grep -q '_mtmd_helper_eval_chunks' build/llama-symbols.txt
@@ -373,29 +379,29 @@ jobs:
           ditto "$APP" build/ipa/Payload/BonsaiLab.app
 
           cat > build/BUILD_INFO.txt <<'INFO'
-          Bonsai iPad Lab v1 RC1.25.1 Build 60
+          Bonsai iPad Lab v1 RC1.25.2 Build 61
           Prism: prism-b10743-adfffbe
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
           Full/Accelerated remains the production default: ctx=512, batch=8, ubatch=8, n_seq_max=1, C2-B unchanged.
-          Build 60 preserves RC1.25.0 multi-image behavior, keeps the telemetry/UTF-8 hardening, and performs dual logical-position plus physical-KV context admission before native decode so oversized requests return structured HTTP 400 instead of a late llama_decode failure.
+          Build 61 preserves the frozen Build 60 API/vision behavior, adds a 512/768/1024/2048 API context ladder, and advertises active context plus honest vision/streaming/tool/reasoning capability metadata through /v1/models.
           Model and Vision Tower weights are NOT bundled in the IPA.
           INFO
           echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.25.1-build60-dual-context-admission-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.25.2-build61-api-usability-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.25.1-build60-dual-context-admission-unsigned.ipa | tee build/BonsaiLab-v1-RC1.25.1-build60-dual-context-admission-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.25.2-build61-api-usability-unsigned.ipa | tee build/BonsaiLab-v1-RC1.25.2-build61-api-usability-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.25.1-Build60-Dual-Context-Admission
+          name: BonsaiLab-iPad-v1-RC1.25.2-Build61-API-Usability
           path: |
-            build/BonsaiLab-v1-RC1.25.1-build60-dual-context-admission-unsigned.ipa
-            build/BonsaiLab-v1-RC1.25.1-build60-dual-context-admission-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.25.2-build61-api-usability-unsigned.ipa
+            build/BonsaiLab-v1-RC1.25.2-build61-api-usability-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             RC1.20_RELEASE_ACCEPTANCE.md
             OPENAI_API_QUICKSTART_RC1.20.md
@@ -445,6 +451,8 @@ jobs:
             RC1.25.0_FROZEN_MANIFEST.json
             NEXT_STAGE_AFTER_RC1.25.0.md
             RC1.25.1_API_HARDENING.md
+            RC1.25.2_OPENAI_API_USABILITY.md
+            tools/rc1252_api_usability_contract_tests.py
             tools/rc1232_observability_contract_tests.py
             tools/rc1233_long_run_observability_contract_tests.py
             tools/rc1233_thermal_recovery_probe.ps1
