@@ -1157,9 +1157,17 @@ struct ProductionView: View {
                             "请求数",
                             value: "\(apiServer.requestCount)"
                         )
+                        LabeledContent(
+                            "API Context",
+                            value: apiContextProfile
+                        )
+                        LabeledContent(
+                            "能力",
+                            value: "Chat · Vision · Stream"
+                        )
 
                         Text(
-                            "兼容 /v1/models、/v1/models/{id} 与 /v1/chat/completions；支持 max_completion_tokens、stream=true 真 SSE 与 stream_options.include_usage。RC1.23.1 单图请求使用 data:image/png|jpeg;base64,...，并直接复用已验证的 MLX Hard Graph-Cut → Live Vision Injection 路径；不再要求 API 图片请求初始化 mmproj 或重启 App。"
+                            "RC1.25.2：/v1/models 会公布 context_length 与 Vision 能力；Tools、Reasoning、Responses API 不宣称支持。兼容 max_tokens / max_completion_tokens / max_output_tokens、stream=true 真 SSE 与 stream_options.include_usage。"
                         )
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -2136,6 +2144,14 @@ struct ProductionView: View {
             "request_count=\(apiServer.requestCount)",
             "last_error=\(apiServer.lastError.isEmpty ? "无" : apiServer.lastError)",
             "api_key=[REDACTED]",
+            "discovery_context_length=\(effectiveAPIContext)",
+            "discovery_max_output_tokens=256",
+            "capability_chat=true",
+            "capability_vision=true",
+            "capability_streaming=true",
+            "capability_tools=false",
+            "capability_reasoning=false",
+            "capability_responses_api=false",
             "",
             "[SELECTED ASSETS]",
             "main_model=\(modelName)",
@@ -3586,14 +3602,40 @@ struct ProductionView: View {
     }
 
     private func copyAPIConfig() {
+        let chatboxHost =
+            apiServer.baseURL.hasSuffix("/v1")
+                ? String(apiServer.baseURL.dropLast(3))
+                : apiServer.baseURL
+
         let text = """
+        OpenAI Compatible API
         Base URL: \(apiServer.baseURL)
         Model: \(apiServer.modelID)
         API Key: \(apiServer.apiKey)
+        Context Window: \(apiContextProfile)
+        Max Output Tokens: 256
+
+        Capabilities
+        Vision: ON
+        Streaming: ON
+        Reasoning: OFF
+        Tool Use: OFF
+        Responses API: OFF
+
+        Chatbox
+        Mode: OpenAI API Compatible
+        API Host: \(chatboxHost)
+        API Path: leave blank (default /chat/completions)
+        Model: \(apiServer.modelID)
+        Context Window: \(apiContextProfile)
+        Max Output Tokens: 256
+        Vision: ON
+        Reasoning: OFF
+        Tool Use: OFF
         """
 
         UIPasteboard.general.string = text
-        status = "API 配置已复制"
+        status = "API / Chatbox 配置已复制"
     }
 
     private func runCertification() {
