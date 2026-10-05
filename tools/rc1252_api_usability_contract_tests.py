@@ -97,6 +97,38 @@ for marker in [
 ]:
     assert marker in view
 
+# HTTP transport must accept both Content-Length and chunked request bodies.
+for marker in [
+    'headers["transfer-encoding"]',
+    '.contains("chunked")',
+    "decodeChunkedBody(",
+    'split(separator: ";", maxSplits: 1)',
+]:
+    assert marker in server
+
+# Parse errors are machine-readable and 5xx failures are server_error.
+for marker in [
+    "catch let error as APIServerError",
+    "var code: String",
+    '"tools_not_supported"',
+    '"unsupported_message_role"',
+    '"unsupported_response_format"',
+    '"invalid_parameter"',
+    '"server_error"',
+]:
+    assert marker in server
+
+# Browser/local clients may use either Bearer or X-API-Key.
+assert 'request.headers["authorization"] == expected' in server
+assert 'request.headers["x-api-key"] == apiKey' in server
+assert "OpenAI-Organization" in server
+assert "OpenAI-Project" in server
+
+# response_format=text is accepted; structured output is explicitly rejected.
+assert 'root["response_format"]' in server
+assert 'type != "text"' in server
+assert "unsupportedResponseFormat" in server
+
 # Build 60 invariants remain.
 assert 'request.path == "/v1/chat/completions"' in server
 assert 'request.path == "/v1/models"' in server
