@@ -1290,7 +1290,7 @@ final class LocalOpenAIServer: ObservableObject {
             status: 200,
             object: [
                 "phase":
-                    "RC1.26_PHASE2C_METAL_PREFILL_MEASUREMENT",
+                    "RC1.26_PHASE2B_HEAP_PRESSURE_RELIEF",
                 "result":
                     heapPressureReliefRecordObject(record)
             ]
