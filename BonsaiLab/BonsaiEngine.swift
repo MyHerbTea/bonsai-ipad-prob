@@ -1087,6 +1087,8 @@ actor BonsaiEngine {
                 throw LabError.contextBudgetExceeded(
                     inputPositions:
                         Int(prefill.input_positions),
+                    promptKVTokens:
+                        Int(prefill.prompt_tokens),
                     requestedOutputTokens:
                         gen.maxTokens,
                     contextLimit:
@@ -1101,15 +1103,22 @@ actor BonsaiEngine {
             )
         }
 
-        let available =
+        let positionalAvailable =
             appliedRuntime.context
             - Int(prefill.input_positions)
             - 1
+        let kvAvailable =
+            appliedRuntime.context
+            - Int(prefill.prompt_tokens)
+        let available =
+            min(positionalAvailable, kvAvailable)
         guard available > 0 else {
             if requireFullOutputBudget {
                 throw LabError.contextBudgetExceeded(
                     inputPositions:
                         Int(prefill.input_positions),
+                    promptKVTokens:
+                        Int(prefill.prompt_tokens),
                     requestedOutputTokens:
                         gen.maxTokens,
                     contextLimit:
@@ -1128,6 +1137,8 @@ actor BonsaiEngine {
             throw LabError.contextBudgetExceeded(
                 inputPositions:
                     Int(prefill.input_positions),
+                promptKVTokens:
+                    Int(prefill.prompt_tokens),
                 requestedOutputTokens:
                     gen.maxTokens,
                 contextLimit:
