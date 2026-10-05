@@ -840,7 +840,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build67-request-lifecycle-governor-observer",
+            "build_id": "rc1.26-build68-heap-pressure-relief",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",
