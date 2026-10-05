@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "release": "RC1.25.1",
+  "build": 60,
+  "status": "DEVICE_CERTIFIED_FROZEN",
+  "frozen_branch": "frozen-v1-rc1-25-1-build60-device-certified",
+  "tested_source_commit": "5fc6e1cfaea4feb188b0635e26b9772ada83d303",
+  "parent_baseline": "RC1.25.0 Build 57 device-certified frozen baseline",
+  "ci": {
+    "run_number": 87,
+    "run_id": 37259610302,
+    "conclusion": "success",
+    "artifact_name": "BonsaiLab-iPad-v1-RC1.25.1-Build60-Dual-Context-Admission",
+    "artifact_id": 11323884102,
+    "artifact_digest": "sha256:c9b696dacb3cea3d2578a82cb04cbd152fe2cc27fa51ad88d1acf38fdcb85bd1",
+    "ipa_name": "BonsaiLab-v1-RC1.25.1-build60-dual-context-admission-unsigned.ipa",
+    "ipa_sha256": "af0795754e2f6995ebb165eae09c418b6e8574b04d426acaf0e3c1f68ad5337e"
+  },
+  "device": {
+    "os": "iPadOS 27.0.1",
+    "physical_memory_mib": 11524,
+    "api_context": 512,
+    "api_batch": 8,
+    "api_ubatch": 8,
+    "runtime_profile": "accelerated",
+    "flash_attention": true,
+    "offload_kqv": true,
+    "op_offload": true,
+    "kv_unified": true,
+    "load_mode": "mmap"
+  },
+  "device_certification": {
+    "overall": "PASS",
+    "oversized_three_image_context_admission": "PASS",
+    "valid_two_image_regression": "PASS",
+    "api_survival_after_rejection": "PASS",
+    "vision_multi_route_telemetry": "PASS",
+    "utf8_json_transport": "PASS_INHERITED_WITHIN_RC1_25_1"
+  },
+  "accepted_behavior": {
+    "max_images_per_request": 3,
+    "two_image_layout": "left-right",
+    "three_image_layout": "left-center-right",
+    "adapter": "bounded_contact_sheet_before_vision_tower",
+    "context_admission": [
+      "logical_mrope_positions",
+      "physical_kv_cells"
+    ],
+    "structured_context_error_code": "context_length_exceeded"
+  },
+  "inherited_constraints": [
+    "API context remains 512",
+    "production max completion path remains capped at 256",
+    "2/3-image requests use a bounded contact-sheet adapter",
+    "sustained decode slowdown characteristics are unchanged",
+    "not a long-soak memory-leak proof"
+  ]
+}
