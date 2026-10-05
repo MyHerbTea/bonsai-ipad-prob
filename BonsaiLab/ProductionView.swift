@@ -957,7 +957,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.25.1 API Hardening")
+                            Text("1.0 · RC1.25.2 API Usability")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -1317,13 +1317,20 @@ struct ProductionView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
-                        LabeledContent(
+                        Picker(
                             "API Context",
-                            value: "512 · RC1.23.4 Frozen"
-                        )
+                            selection: $apiContextProfile
+                        ) {
+                            Text("512").tag("512")
+                            Text("768").tag("768")
+                            Text("1024").tag("1024")
+                            Text("2048").tag("2048")
+                        }
+                        .pickerStyle(.segmented)
+                        .disabled(apiServer.isRunning)
 
                         Text(
-                            "RC1.23.5 的 256 Dynamic Context 实验已被真机 A/B 拒绝。RC1.23.6 固定回到 512，不再暴露 256 选择入口。"
+                            "RC1.25.2 Context Ladder：512 为冻结基线；768/1024/2048 为真机验证候选。切换 Context 需要先停止 API，再重新预热。"
                         )
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -1512,7 +1519,8 @@ struct ProductionView: View {
                 if apiRuntimeProfile == "flash" {
                     apiRuntimeProfile = "accelerated"
                 }
-                if apiContextProfile != "512" {
+                if !["512", "768", "1024", "2048"]
+                    .contains(apiContextProfile) {
                     apiContextProfile = "512"
                 }
                 certificationRecorder
@@ -2091,8 +2099,12 @@ struct ProductionView: View {
         let apiOpOffload =
             effectiveAPIRuntimeProfile == "accelerated"
 
-        let requestedAPIContextProfile = "512"
-        let requestedAPIContext = 512
+        let requestedAPIContextProfile =
+            defaults.string(
+                forKey: "BonsaiRC1235APIContextProfile"
+            ) ?? "512"
+        let requestedAPIContext =
+            Int(requestedAPIContextProfile) ?? 512
         let activeAPIContext =
             defaults.integer(
                 forKey: "BonsaiRC1235ActiveAPIContext"
@@ -2917,17 +2929,20 @@ struct ProductionView: View {
         } else {
             selectedAPIRuntimeProfile = "accelerated"
         }
-        let selectedAPIContext = 512
+        let selectedAPIContext =
+            ["512", "768", "1024", "2048"]
+                .contains(apiContextProfile)
+                ? (Int(apiContextProfile) ?? 512)
+                : 512
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
         busy = true
-        status = "正在预热 RC1.25.1 Build 60 Dual Context Admission…"
+        status = "正在预热 RC1.25.2 Build 61 API Context Ladder…"
         detail = """
-        Text API 继续使用冻结的 RC1.20.7 路径。
-        1–3 图请求使用 RC1.23.0 MLX Live Vision Injection；
-        2–3 图在进入 Vision Tower 前使用有界联系表适配，
-        不初始化 mmproj，不要求 App 重启。
+        Build 60 的 API/视觉路径保持不变。
+        RC1.25.2 新增 512/768/1024/2048 API Context Ladder；
+        /v1/models 会公布当前 context_length、vision 与 unsupported tool/reasoning 能力。
         """
 
         Task {
@@ -2979,6 +2994,11 @@ struct ProductionView: View {
                 )
 
                 RC1232PerformanceDiagnostics.beginSession()
+
+                apiServer.configureModelMetadata(
+                    contextWindow: selectedAPIContext,
+                    maxOutputTokens: 256
+                )
 
                 try apiServer.start(port: 8080) {
                     payload,
@@ -3534,7 +3554,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.25.1 Build 60 Dual Context Admission 已预热"
+                        "RC1.25.2 Build 61 API Context Ladder 已预热"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
