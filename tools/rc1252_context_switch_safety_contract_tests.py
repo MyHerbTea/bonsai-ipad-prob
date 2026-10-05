@@ -14,6 +14,7 @@ assert (
 assert (
     "RC1.25.2 Build 63 Vision Lifecycle Safety" in view
     or "RC1.25.3 Build 64 Native Prefill Isolation" in view
+    or 'Text("1.0 · RC1.26 Build 65 Runtime Optimization Lab")' in view
 )
 
 # The risky old path reloaded the full 27B model after a paused-listener context
