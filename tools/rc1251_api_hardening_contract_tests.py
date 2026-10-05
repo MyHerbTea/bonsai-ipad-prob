@@ -73,7 +73,9 @@ assert "tools/rc1251_api_hardening_contract_tests.py" in workflow
 assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "' in workflow
 assert (
     "Build60-Dual-Context-Admission" in workflow
-    or "Build63-API-Usability" in workflow
+    or "Build61-API-Usability" in workflow
+    or "Build62-API-Usability" in workflow
+    or "Build63-Vision-Lifecycle-Safety" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")
