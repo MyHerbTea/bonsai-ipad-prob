@@ -996,7 +996,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.25.3 Build 64 Native Prefill Isolation")
+                            Text("1.0 · RC1.26 Build 65 Runtime Optimization Lab")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
