@@ -519,6 +519,17 @@ final class LocalOpenAIServer: ObservableObject {
                 )
             )
             return
+        } catch let error as APIServerError {
+            sendJSON(
+                connection,
+                status: error.status,
+                object: Self.errorObject(
+                    error.code,
+                    error.localizedDescription,
+                    type: error.type
+                )
+            )
+            return
         } catch {
             sendJSON(
                 connection,
@@ -740,7 +751,7 @@ final class LocalOpenAIServer: ObservableObject {
             "Connection: keep-alive",
             "Transfer-Encoding: chunked",
             "Access-Control-Allow-Origin: *",
-            "Access-Control-Allow-Headers: Authorization, Content-Type",
+            "Access-Control-Allow-Headers: Authorization, Content-Type, Accept, OpenAI-Organization, OpenAI-Project, X-API-Key",
             "Access-Control-Allow-Methods: GET, POST, OPTIONS",
             "",
             ""
@@ -915,7 +926,7 @@ final class LocalOpenAIServer: ObservableObject {
             "Content-Length: \(body.count)",
             "Connection: close",
             "Access-Control-Allow-Origin: *",
-            "Access-Control-Allow-Headers: Authorization, Content-Type",
+            "Access-Control-Allow-Headers: Authorization, Content-Type, Accept, OpenAI-Organization, OpenAI-Project, X-API-Key",
             "Access-Control-Allow-Methods: GET, POST, OPTIONS"
         ]
 
@@ -1230,6 +1241,17 @@ final class LocalOpenAIServer: ObservableObject {
             throw APIServerError.unsupportedReasoningEffort
         }
 
+        if let responseFormat =
+            root["response_format"]
+                as? [String: Any],
+           let type =
+                responseFormat["type"]
+                    as? String,
+           type != "text" {
+            throw APIServerError
+                .unsupportedResponseFormat(type)
+        }
+
         return OpenAIRequestPayload(
             model: root["model"] as? String ?? defaultModel,
             systemPrompt: systemPrompt,
@@ -1285,6 +1307,7 @@ final class LocalOpenAIServer: ObservableObject {
                 "temperature",
                 "top_p",
                 "seed",
+                "response_format",
                 "stream",
                 "stream_options"
             ],
@@ -1302,12 +1325,13 @@ final class LocalOpenAIServer: ObservableObject {
 
     private static func errorObject(
         _ code: String,
-        _ message: String
+        _ message: String,
+        type: String = "invalid_request_error"
     ) -> [String: Any] {
         [
             "error": [
                 "message": message,
-                "type": "invalid_request_error",
+                "type": type,
                 "code": code
             ]
         ]
@@ -1619,6 +1643,7 @@ enum APIServerError: LocalizedError {
     case unsupportedTools
     case unsupportedMessageRole(String)
     case invalidParameter(String)
+    case unsupportedResponseFormat(String)
     case unsupportedReasoningEffort
 
     var errorDescription: String? {
@@ -1645,8 +1670,59 @@ enum APIServerError: LocalizedError {
             return "当前本地 API 不支持消息角色：\(role)。支持 system、developer、user、assistant。"
         case .invalidParameter(let message):
             return message
+        case .unsupportedResponseFormat(let type):
+            return "response_format.type=\(type) 尚不支持；当前仅支持 text。"
         case .unsupportedReasoningEffort:
             return "reasoning_effort 仅支持 none、minimal、low、medium、high、xhigh。"
+        }
+    }
+
+    var status: Int {
+        switch self {
+        case .invalidPort, .handlerUnavailable:
+            return 503
+        default:
+            return 400
+        }
+    }
+
+    var type: String {
+        switch self {
+        case .handlerUnavailable:
+            return "server_error"
+        default:
+            return "invalid_request_error"
+        }
+    }
+
+    var code: String {
+        switch self {
+        case .invalidPort:
+            return "invalid_port"
+        case .handlerUnavailable:
+            return "server_not_ready"
+        case .invalidJSON:
+            return "invalid_json"
+        case .missingMessages:
+            return "missing_messages"
+        case .missingUserText:
+            return "missing_user_content"
+        case .imageMustBeDataURL:
+            return "image_must_be_data_url"
+        case .invalidImageDataURL:
+            return "invalid_image_data_url"
+        case .unsupportedCandidateCount:
+            return "unsupported_candidate_count"
+        case .unsupportedTools:
+            return "tools_not_supported"
+        case .unsupportedMessageRole:
+            return "unsupported_message_role"
+        case .invalidParameter:
+            return "invalid_parameter"
+        case .unsupportedResponseFormat:
+            return "unsupported_response_format"
+        case .unsupportedReasoningEffort:
+            return "unsupported_reasoning_effort"
         }
     }
 }
