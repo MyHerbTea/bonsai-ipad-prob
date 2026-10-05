@@ -112,3 +112,54 @@ Examples:
 
 Text and multimodal requests now share the same context-overflow contract:
 `context_length_exceeded` rather than leaking an internal inference error.
+
+
+## SDK probes shipped with Build 61
+
+### Python OpenAI SDK
+
+The artifact contains:
+
+`tools/rc1252_openai_python_sdk_probe.py`
+
+Typical Windows execution:
+
+```powershell
+py -m pip install -U openai
+py .\tools\rc1252_openai_python_sdk_probe.py `
+  --base-url http://192.168.0.103:8080/v1 `
+  --api-key <BONSAI_API_KEY>
+```
+
+Default evidence directory:
+
+`D:\apple\re_output\rc1252-python-sdk-probe`
+
+The probe covers model listing, non-stream chat, multi-turn history,
+`response_format=text`, `tool_choice=none`, and SSE streaming with usage.
+
+### JavaScript OpenAI SDK
+
+The artifact also contains:
+
+`tools/rc1252_openai_js_sdk_probe.mjs`
+
+Typical execution:
+
+```powershell
+npm install openai
+node .\tools\rc1252_openai_js_sdk_probe.mjs `
+  --base-url http://192.168.0.103:8080/v1 `
+  --api-key <BONSAI_API_KEY>
+```
+
+Default evidence directory:
+
+`D:\apple\re_output\rc1252-js-sdk-probe`
+
+### Browser/private-network access
+
+Build 61 CORS responses include the common OpenAI SDK headers plus
+`Access-Control-Allow-Private-Network: true`. This is intended to make
+browser-based LAN clients easier to certify later without changing the native
+API contract.
