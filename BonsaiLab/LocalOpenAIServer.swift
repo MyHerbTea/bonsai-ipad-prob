@@ -800,6 +800,8 @@ final class LocalOpenAIServer: ObservableObject {
             "Access-Control-Allow-Origin: *",
             "Access-Control-Allow-Headers: Authorization, Content-Type, Accept, OpenAI-Organization, OpenAI-Project, OpenAI-Beta, X-API-Key, X-Stainless-Lang, X-Stainless-Package-Version, X-Stainless-OS, X-Stainless-Arch, X-Stainless-Runtime, X-Stainless-Runtime-Version, X-Stainless-Retry-Count, X-Stainless-Timeout",
             "Access-Control-Allow-Methods: GET, POST, OPTIONS",
+            "Access-Control-Allow-Private-Network: true",
+            "Access-Control-Max-Age: 600",
             "",
             ""
         ]
@@ -978,7 +980,9 @@ final class LocalOpenAIServer: ObservableObject {
             "Connection: close",
             "Access-Control-Allow-Origin: *",
             "Access-Control-Allow-Headers: Authorization, Content-Type, Accept, OpenAI-Organization, OpenAI-Project, OpenAI-Beta, X-API-Key, X-Stainless-Lang, X-Stainless-Package-Version, X-Stainless-OS, X-Stainless-Arch, X-Stainless-Runtime, X-Stainless-Runtime-Version, X-Stainless-Retry-Count, X-Stainless-Timeout",
-            "Access-Control-Allow-Methods: GET, POST, OPTIONS"
+            "Access-Control-Allow-Methods: GET, POST, OPTIONS",
+            "Access-Control-Allow-Private-Network: true",
+            "Access-Control-Max-Age: 600"
         ]
 
         for (key, value) in extraHeaders {
