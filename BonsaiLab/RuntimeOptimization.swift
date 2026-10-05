@@ -21,6 +21,94 @@ struct RuntimeFeatureFlags: Codable, Equatable, Sendable {
 
     static let baseline = RuntimeFeatureFlags()
 
+    var wireDictionary: [String: Bool] {
+        [
+            "bb.telemetry.extended": extendedTelemetry,
+            "bb.governor.metalAware": metalAwareGovernor,
+            "bb.heapPressureRelief": heapPressureRelief,
+            "bb.metalTensor.prefill": metalTensorPrefill,
+            "bb.metalFusion.experimental": metalFusionExperimental,
+            "bb.lazyEmbedding": lazyEmbedding,
+            "bb.prefixStateCache": prefixStateCache,
+            "bb.tieredKV": tieredKV,
+            "bb.tieredKV.quantizedCold": tieredKVQuantizedCold,
+            "bb.aneColdKV": aneColdKV,
+            "bb.speculative.experimental": speculativeExperimental
+        ]
+    }
+
+    static func fromWireDictionary(
+        _ values: [String: Any]
+    ) -> RuntimeFeatureFlags {
+        var flags = RuntimeFeatureFlags.baseline
+
+        func bool(_ key: String, fallback: Bool) -> Bool {
+            if let value = values[key] as? Bool {
+                return value
+            }
+            if let number = values[key] as? NSNumber {
+                return number.boolValue
+            }
+            return fallback
+        }
+
+        flags.extendedTelemetry = bool(
+            "bb.telemetry.extended",
+            fallback: true
+        )
+        flags.metalAwareGovernor = bool(
+            "bb.governor.metalAware",
+            fallback: false
+        )
+        flags.heapPressureRelief = bool(
+            "bb.heapPressureRelief",
+            fallback: false
+        )
+        flags.metalTensorPrefill = bool(
+            "bb.metalTensor.prefill",
+            fallback: false
+        )
+        flags.metalFusionExperimental = bool(
+            "bb.metalFusion.experimental",
+            fallback: false
+        )
+        flags.lazyEmbedding = bool(
+            "bb.lazyEmbedding",
+            fallback: false
+        )
+        flags.prefixStateCache = bool(
+            "bb.prefixStateCache",
+            fallback: false
+        )
+        flags.tieredKV = bool(
+            "bb.tieredKV",
+            fallback: false
+        )
+        flags.tieredKVQuantizedCold = bool(
+            "bb.tieredKV.quantizedCold",
+            fallback: false
+        )
+        flags.aneColdKV = bool(
+            "bb.aneColdKV",
+            fallback: false
+        )
+        flags.speculativeExperimental = bool(
+            "bb.speculative.experimental",
+            fallback: false
+        )
+
+        return flags
+    }
+
+    var enabledBehaviorChangingWireKeys: [String] {
+        wireDictionary
+            .filter { key, value in
+                key != "bb.telemetry.extended" && value
+            }
+            .map(\.key)
+            .sorted()
+    }
+
     var hasBehaviorChangingFeature: Bool {
         metalAwareGovernor
             || heapPressureRelief
