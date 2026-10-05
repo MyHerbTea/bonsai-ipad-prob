@@ -34,7 +34,9 @@ assert "startAPIServer()" in view
 
 # Discovery metadata must expose fields consumed by OpenAI-compatible clients.
 for marker in [
+    '"name": "Bonsai 2 27B Local"',
     '"context_length": contextWindow',
+    '"context_window": contextWindow',
     '"max_output_tokens": maxOutputTokens',
     '"input_modalities": ["text", "image"]',
     '"output_modalities": ["text"]',
@@ -124,6 +126,25 @@ assert 'request.headers["authorization"] == expected' in server
 assert 'request.headers["x-api-key"] == apiKey' in server
 assert "OpenAI-Organization" in server
 assert "OpenAI-Project" in server
+for header in [
+    "OpenAI-Beta",
+    "X-Stainless-Lang",
+    "X-Stainless-Package-Version",
+    "X-Stainless-Runtime",
+    "X-Stainless-Timeout",
+]:
+    assert header in server
+
+# Client observability must distinguish transport attempts from admitted inference.
+for marker in [
+    "requestAttemptCount",
+    "rejectedRequestCount",
+    "lastRequestPath",
+    "lastRejectionCode",
+    "recordRejection(",
+]:
+    assert marker in server
+    assert marker in view
 
 # response_format=text is accepted; structured output is explicitly rejected.
 assert 'root["response_format"]' in server
