@@ -17,6 +17,20 @@ assert '.disabled(apiServer.isRunning)' in view
 assert 'Int(apiContextProfile) ?? 512' in view
 assert 'apiRuntime.context = selectedAPIContext' in view
 
+# Changing Context/Profile while the listener is paused must reload the runtime
+# rather than silently resuming the old resident context.
+for marker in [
+    "selectedAPIContextValue",
+    "selectedAPIRuntimeProfileValue",
+    "preservedRuntimeMatchesAPISelection",
+    "应用设置并重新预热 API",
+    "API Context/Profile 已变更，正在重新预热",
+]:
+    assert marker in view
+assert "guard preservedRuntimeMatchesAPISelection else" in view
+assert "apiServer.stop()" in view
+assert "startAPIServer()" in view
+
 # Discovery metadata must expose fields consumed by OpenAI-compatible clients.
 for marker in [
     '"context_length": contextWindow',
@@ -40,6 +54,35 @@ assert '"reasoning_effort"' not in model_block.split('"supported_parameters": ['
 assert "apiServer.configureModelMetadata(" in view
 assert "contextWindow: selectedAPIContext" in view
 assert "maxOutputTokens: 256" in view
+assert '"created": 0' in server
+
+# Multi-turn OpenAI compatibility: preserve developer/system instructions,
+# compile previous user/assistant turns, and keep the latest user turn current.
+for marker in [
+    '"developer"',
+    '"Conversation history:\\n"',
+    '"User: " + message.text',
+    '"Assistant: " + message.text',
+    "normalizedMessages.lastIndex",
+    'root["max_output_tokens"]',
+]:
+    assert marker in server
+
+# tool_choice=none must be a safe compatibility mode, but actual tool calls
+# remain unsupported.
+assert 'toolChoiceName != "none"' in server
+assert 'message["tool_calls"]' in server
+assert "unsupportedTools" in server
+
+# User-facing copy config must state the exact client capability contract.
+for marker in [
+    "Chatbox",
+    "Vision: ON",
+    "Reasoning: OFF",
+    "Tool Use: OFF",
+    "Context Window:",
+]:
+    assert marker in view
 
 # Build 60 invariants remain.
 assert 'request.path == "/v1/chat/completions"' in server
