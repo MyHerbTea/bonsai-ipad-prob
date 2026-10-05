@@ -79,7 +79,7 @@ assert "startAPIServer()" not in resident_branch
 # larger product context while the inherited restart certification uses 512.
 assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
-if "RC1.25.2 API Usability" in view:
+if "RC1.25.2" in view:
     assert 'Int(apiContextProfile) ?? 512' in view
     assert 'apiContextProfile = "512"' in runner
 else:
