@@ -36,7 +36,7 @@ assert "let certificationCycles = 4" in view
 # product API contexts without restoring the rejected 256 option.
 assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
-if "RC1.25.2 API Usability" in view:
+if "RC1.25.2" in view:
     assert 'Int(apiContextProfile) ?? 512' in view
     for value in ["512", "768", "1024", "2048"]:
         assert f'Text("{value}").tag("{value}")' in view
