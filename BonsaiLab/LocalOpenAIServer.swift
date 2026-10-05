@@ -1463,20 +1463,43 @@ private struct HTTPRequest {
             headers[key] = value
         }
 
-        let contentLength = Int(
-            headers["content-length"] ?? "0"
-        ) ?? 0
-
         let bodyStart = range.upperBound
-        let available = data.count - bodyStart
+        let transferEncoding =
+            headers["transfer-encoding"]?
+                .lowercased() ?? ""
 
-        guard available >= contentLength else {
-            return nil
+        let body: Data
+        if transferEncoding
+            .split(separator: ",")
+            .map({
+                $0.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+            })
+            .contains("chunked") {
+            guard let decoded =
+                decodeChunkedBody(
+                    data,
+                    bodyStart: bodyStart
+                )
+            else {
+                return nil
+            }
+            body = decoded
+        } else {
+            let contentLength = Int(
+                headers["content-length"] ?? "0"
+            ) ?? 0
+            let available = data.count - bodyStart
+
+            guard available >= contentLength else {
+                return nil
+            }
+
+            body = data.subdata(
+                in: bodyStart..<(bodyStart + contentLength)
+            )
         }
-
-        let body = data.subdata(
-            in: bodyStart..<(bodyStart + contentLength)
-        )
 
         return HTTPRequest(
             method: method,
@@ -1484,6 +1507,103 @@ private struct HTTPRequest {
             headers: headers,
             body: body
         )
+
+    }
+
+    private static func decodeChunkedBody(
+        _ data: Data,
+        bodyStart: Int
+    ) -> Data? {
+        var cursor = bodyStart
+        var decoded = Data()
+        let crlf = Data("\r\n".utf8)
+
+        while true {
+            guard
+                let sizeLineRange =
+                    data.range(
+                        of: crlf,
+                        in: cursor..<data.count
+                    ),
+                let sizeLine =
+                    String(
+                        data:
+                            data[
+                                cursor
+                                ..<sizeLineRange.lowerBound
+                            ],
+                        encoding: .utf8
+                    )
+            else {
+                return nil
+            }
+
+            let sizeToken =
+                sizeLine
+                    .split(separator: ";", maxSplits: 1)
+                    .first
+                    .map(String.init)?
+                    .trimmingCharacters(
+                        in: .whitespacesAndNewlines
+                    ) ?? ""
+
+            guard
+                !sizeToken.isEmpty,
+                let size = Int(
+                    sizeToken,
+                    radix: 16
+                ),
+                size >= 0
+            else {
+                return nil
+            }
+
+            cursor = sizeLineRange.upperBound
+
+            if size == 0 {
+                // RFC 9112 permits optional trailer fields terminated by
+                // one empty line. Accept both "0\r\n\r\n" and trailers.
+                if data.count >= cursor + 2,
+                   data[cursor] == 13,
+                   data[cursor + 1] == 10 {
+                    return decoded
+                }
+
+                guard
+                    data.range(
+                        of: Data("\r\n\r\n".utf8),
+                        in: cursor..<data.count
+                    ) != nil
+                else {
+                    return nil
+                }
+                return decoded
+            }
+
+            guard
+                size <= 25 * 1024 * 1024,
+                decoded.count <=
+                    25 * 1024 * 1024 - size,
+                data.count >= cursor + size + 2
+            else {
+                return nil
+            }
+
+            decoded.append(
+                data.subdata(
+                    in: cursor..<(cursor + size)
+                )
+            )
+            cursor += size
+
+            guard
+                data[cursor] == 13,
+                data[cursor + 1] == 10
+            else {
+                return nil
+            }
+            cursor += 2
+        }
     }
 }
 
