@@ -89,6 +89,9 @@ final class LocalOpenAIServer: ObservableObject {
     private var governorObservationSequence = 0
     private var lastGovernorRequestBegin: RuntimeGovernorBoundaryRecord?
     private var lastGovernorRequestEnd: RuntimeGovernorBoundaryRecord?
+    private let heapPressureReliefLock = NSLock()
+    private var heapPressureReliefSequence = 0
+    private var lastHeapPressureRelief: RuntimeHeapPressureReliefRecord?
 
     func configureModelMetadata(
         contextWindow: Int,
@@ -520,6 +523,14 @@ final class LocalOpenAIServer: ObservableObject {
         }
 
         if request.method == "POST",
+           request.path == "/debug/gc-or-trim" {
+            runDebugHeapPressureRelief(
+                connection: connection
+            )
+            return
+        }
+
+        if request.method == "POST",
            request.path == "/debug/runtime/profile" {
             updateDebugRuntimeProfile(
                 request,
@@ -846,10 +857,16 @@ final class LocalOpenAIServer: ObservableObject {
 
     private func effectiveRuntimeState() -> RuntimeOptimizationState {
         var effective = RuntimeFeatureFlags.baseline
-        var fallbacks =
-            runtimeRequestedFlags
-                .enabledBehaviorChangingWireKeys
-                .map { "not_implemented:\($0)" }
+        var fallbacks: [String] = []
+
+        let implementedBehaviorKeys: Set<String> = [
+            "bb.heapPressureRelief"
+        ]
+
+        for key in runtimeRequestedFlags.enabledBehaviorChangingWireKeys
+        where !implementedBehaviorKeys.contains(key) {
+            fallbacks.append("not_implemented:\(key)")
+        }
 
         var effectiveProfile: RuntimeOptimizationProfile = .baseline
 
@@ -859,7 +876,18 @@ final class LocalOpenAIServer: ObservableObject {
             effective.metalAwareGovernor =
                 runtimeRequestedFlags.metalAwareGovernor
 
-            if effective.metalAwareGovernor {
+            if runtimeRequestedFlags.heapPressureRelief {
+                if runtimeRequestedFlags.metalAwareGovernor {
+                    effective.heapPressureRelief = true
+                } else {
+                    fallbacks.append(
+                        "bb.heapPressureRelief_requires_bb.governor.metalAware"
+                    )
+                }
+            }
+
+            if effective.metalAwareGovernor
+                || effective.heapPressureRelief {
                 effectiveProfile = .experimental
             }
         }
@@ -889,7 +917,7 @@ final class LocalOpenAIServer: ObservableObject {
                 "flags": state.effective.wireDictionary
             ],
             "fallbacks": state.fallbacks,
-            "phase": "RC1.26_PHASE2A1_REQUEST_LIFECYCLE_OBSERVER",
+            "phase": "RC1.26_PHASE2B_HEAP_PRESSURE_RELIEF",
             "behavior_changes_enabled":
                 state.effective.hasBehaviorChangingFeature
         ]
@@ -943,8 +971,6 @@ final class LocalOpenAIServer: ObservableObject {
         )
 
         governorObservationLock.lock()
-        defer { governorObservationLock.unlock() }
-
         governorObservationSequence += 1
         let record = RuntimeGovernorBoundaryRecord(
             sequence: governorObservationSequence,
@@ -957,6 +983,17 @@ final class LocalOpenAIServer: ObservableObject {
             lastGovernorRequestBegin = record
         } else {
             lastGovernorRequestEnd = record
+        }
+        governorObservationLock.unlock()
+
+        if stage != "API_REQUEST_BEGIN",
+           state.effective.heapPressureRelief,
+           assessment.grade == .constrained
+                || assessment.grade == .critical {
+            _ = performHeapPressureRelief(
+                trigger: "automatic_request_end",
+                forced: false
+            )
         }
 
         return record
@@ -995,6 +1032,153 @@ final class LocalOpenAIServer: ObservableObject {
             "thermal_state":
                 record.telemetry.thermalState
         ] as [String: Any]
+    }
+
+    private func performHeapPressureRelief(
+        trigger: String,
+        forced: Bool
+    ) -> RuntimeHeapPressureReliefRecord {
+        let state = effectiveRuntimeState()
+        let before = RuntimeTelemetrySnapshot.capture(
+            stage: "HEAP_RELIEF_BEFORE"
+        )
+        let assessment = MemoryGovernorAssessment.assess(
+            telemetry: before
+        )
+
+        let pressureEligible =
+            assessment.grade == .constrained
+            || assessment.grade == .critical
+        let eligible =
+            state.effective.heapPressureRelief
+            && (forced || pressureEligible)
+
+        let started = DispatchTime.now().uptimeNanoseconds
+        let bytesReleased: UInt64
+        let performed: Bool
+        let reason: String
+
+        if !state.effective.heapPressureRelief {
+            bytesReleased = 0
+            performed = false
+            reason = "actuator_disabled"
+        } else if !forced && !pressureEligible {
+            bytesReleased = 0
+            performed = false
+            reason = "pressure_below_threshold"
+        } else {
+            bytesReleased = UInt64(
+                BonsaiRelieveHeapPressure()
+            )
+            performed = true
+            reason = forced
+                ? "debug_forced"
+                : "pressure_triggered"
+        }
+
+        let ended = DispatchTime.now().uptimeNanoseconds
+        let after = RuntimeTelemetrySnapshot.capture(
+            stage: "HEAP_RELIEF_AFTER"
+        )
+
+        heapPressureReliefLock.lock()
+        heapPressureReliefSequence += 1
+        let record = RuntimeHeapPressureReliefRecord(
+            sequence: heapPressureReliefSequence,
+            trigger: trigger,
+            forced: forced,
+            eligible: eligible,
+            performed: performed,
+            reason: reason,
+            bytesReleased: bytesReleased,
+            durationMilliseconds:
+                Double(ended - started) / 1_000_000.0,
+            before: before,
+            after: after
+        )
+        lastHeapPressureRelief = record
+        heapPressureReliefLock.unlock()
+
+        return record
+    }
+
+    private func heapPressureReliefRecordObject(
+        _ record: RuntimeHeapPressureReliefRecord?
+    ) -> Any {
+        guard let record else {
+            return NSNull()
+        }
+
+        return [
+            "sequence": record.sequence,
+            "trigger": record.trigger,
+            "forced": record.forced,
+            "eligible": record.eligible,
+            "performed": record.performed,
+            "reason": record.reason,
+            "bytes_released":
+                Int64(record.bytesReleased),
+            "duration_ms":
+                record.durationMilliseconds,
+            "before": [
+                "available_bytes":
+                    Int64(record.before.availableBytes),
+                "phys_footprint_bytes":
+                    Int64(record.before.physFootprintBytes),
+                "metal_allocated_bytes":
+                    Int64(record.before.metalAllocatedBytes),
+                "metal_headroom_bytes":
+                    Int64(record.before.metalHeadroomBytes),
+                "thermal_state":
+                    record.before.thermalState
+            ],
+            "after": [
+                "available_bytes":
+                    Int64(record.after.availableBytes),
+                "phys_footprint_bytes":
+                    Int64(record.after.physFootprintBytes),
+                "metal_allocated_bytes":
+                    Int64(record.after.metalAllocatedBytes),
+                "metal_headroom_bytes":
+                    Int64(record.after.metalHeadroomBytes),
+                "thermal_state":
+                    record.after.thermalState
+            ]
+        ] as [String: Any]
+    }
+
+    private func runDebugHeapPressureRelief(
+        connection: NWConnection
+    ) {
+        let state = effectiveRuntimeState()
+
+        guard state.effective.heapPressureRelief else {
+            sendJSON(
+                connection,
+                status: 409,
+                object: Self.errorObject(
+                    "heap_pressure_relief_disabled",
+                    "Enable EXPERIMENTAL bb.governor.metalAware and bb.heapPressureRelief first."
+                )
+            )
+            return
+        }
+
+        let record = performHeapPressureRelief(
+            trigger: "debug_gc_or_trim",
+            forced: true
+        )
+
+        sendJSON(
+            connection,
+            status: 200,
+            object: [
+                "phase":
+                    "RC1.26_PHASE2B_HEAP_PRESSURE_RELIEF",
+                "result":
+                    heapPressureReliefRecordObject(record)
+            ]
+        )
     }
 
     private func debugGovernorObject() -> [String: Any] {
@@ -1039,9 +1223,23 @@ final class LocalOpenAIServer: ObservableObject {
                 governorRecordObject(
                     requestEnd
                 ),
-            "actuator_enabled": false,
+            "actuator_enabled":
+                state.effective.heapPressureRelief,
             "actuator_flag":
-                "bb.heapPressureRelief"
+                "bb.heapPressureRelief",
+            "automatic_trigger_grades": [
+                "constrained",
+                "critical"
+            ],
+            "last_heap_pressure_relief": {
+                heapPressureReliefLock.lock()
+                defer {
+                    heapPressureReliefLock.unlock()
+                }
+                return heapPressureReliefRecordObject(
+                    lastHeapPressureRelief
+                )
+            }()
         ]
     }
 
