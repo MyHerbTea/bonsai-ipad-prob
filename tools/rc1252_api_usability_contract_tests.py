@@ -6,6 +6,8 @@ view = (root / "BonsaiLab" / "ProductionView.swift").read_text(encoding="utf-8")
 project = (root / "project.yml").read_text(encoding="utf-8")
 workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text(encoding="utf-8")
 probe = (root / "tools" / "rc1252_context_ladder_device_probe.ps1").read_text(encoding="utf-8")
+py_sdk_probe = (root / "tools" / "rc1252_openai_python_sdk_probe.py").read_text(encoding="utf-8")
+js_sdk_probe = (root / "tools" / "rc1252_openai_js_sdk_probe.mjs").read_text(encoding="utf-8")
 
 # Build identity
 assert 'CURRENT_PROJECT_VERSION: "61"' in project
@@ -132,6 +134,7 @@ for header in [
     "X-Stainless-Package-Version",
     "X-Stainless-Runtime",
     "X-Stainless-Timeout",
+    "Access-Control-Allow-Private-Network: true",
 ]:
     assert header in server
 
@@ -181,10 +184,23 @@ assert "context_length" in probe
 assert "context_length_exceeded" in probe
 assert "tools_not_supported" in probe
 
+# Official-style Python/JS SDK probes are part of the deliverable and must also
+# keep evidence on D: by default.
+for sdk_probe in [py_sdk_probe, js_sdk_probe]:
+    assert "D:" in sdk_probe
+    assert "re_output" in sdk_probe
+    assert "models.list" in sdk_probe
+    assert "chat.completions.create" in sdk_probe
+    assert "stream" in sdk_probe
+assert "tool_choice" in py_sdk_probe
+assert "tool_choice" in js_sdk_probe
+
 # CI must execute this contract and package Build 61.
 assert "python3 tools/rc1252_api_usability_contract_tests.py" in workflow
 assert "RC1.25.2_CLIENT_COMPATIBILITY_MATRIX.md" in workflow
 assert "tools/rc1252_context_ladder_device_probe.ps1" in workflow
+assert "tools/rc1252_openai_python_sdk_probe.py" in workflow
+assert "tools/rc1252_openai_js_sdk_probe.mjs" in workflow
 assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "61"' in workflow
 
 print("RC1.25.2 Build 61 API usability contracts: PASS")
