@@ -435,7 +435,7 @@ jobs:
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
           Full/Accelerated remains the production default: ctx=512, batch=8, ubatch=8, n_seq_max=1, C2-B unchanged.
-          Build 69 inherits the device-certified Build 64 behavior and the Build 68 guarded heap-relief experiment. Phase 2C is measurement-only: it splits text TTFT into true prompt prefill and decode-to-first-token timing, exposes /debug/prefill, preserves GGML_METAL_TENSOR_DISABLE=1, and does not enable the Metal Tensor path.
+          Build 69 inherits the device-certified Build 64 behavior and the Build 68 guarded heap-relief experiment. Phase 2C-0 adds a real Metal 4 / metal_tensor compile-and-pipeline capability probe plus pinned Prism provenance. It preserves GGML_METAL_TENSOR_DISABLE=1, records backend-latch semantics, and never claims bb.metalTensor.prefill effective=true.
           Model and Vision Tower weights are NOT bundled in the IPA.
           INFO
           echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
