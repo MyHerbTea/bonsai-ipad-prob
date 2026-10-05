@@ -456,6 +456,8 @@ jobs:
             RC1.25.2_CLIENT_COMPATIBILITY_MATRIX.md
             tools/rc1252_api_usability_contract_tests.py
             tools/rc1252_context_ladder_device_probe.ps1
+            tools/rc1252_openai_python_sdk_probe.py
+            tools/rc1252_openai_js_sdk_probe.mjs
             tools/rc1232_observability_contract_tests.py
             tools/rc1233_long_run_observability_contract_tests.py
             tools/rc1233_thermal_recovery_probe.ps1
