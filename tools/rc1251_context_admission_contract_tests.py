@@ -1,0 +1,42 @@
+from pathlib import Path
+
+root = Path(__file__).resolve().parents[1]
+header = (root / "BonsaiLab" / "StagedVisionBridge.h").read_text()
+bridge = (root / "BonsaiLab" / "StagedVisionBridge.mm").read_text()
+engine = (root / "BonsaiLab" / "BonsaiEngine.swift").read_text()
+
+# Native bridge receives the actual runtime context and requested completion
+# budget so it can reject before llama_decode.
+assert "int32_t context_limit" in header
+assert "int32_t requested_max_tokens" in header
+assert "int32_t context_limit" in bridge
+assert "int32_t requested_max_tokens" in bridge
+
+admission = bridge.index("const llama_pos planned_input_positions")
+prefill_loop = bridge.index("for (size_t i = begin_index; i < packet.size(); ++i)")
+decode_call = bridge.index("decode_text_chunk(", prefill_loop)
+assert admission < prefill_loop < decode_call
+
+for marker in [
+    "planned_input_positions",
+    "required_context",
+    "requested_max_tokens",
+    "context_limit",
+    "TWOPHASE_B02_CONTEXT_BUDGET_REJECTED",
+    "result.code = 9",
+]:
+    assert marker in bridge
+
+# Rejection must happen before memory-clear/reuse/decode mutation.
+rejection = bridge.index("TWOPHASE_B02_CONTEXT_BUDGET_REJECTED")
+memory_lookup = bridge.index("llama_memory_t mem = llama_get_memory(ctx)")
+assert rejection < memory_lookup
+
+# Swift passes the exact values and translates native admission code 9 back
+# into the structured API budget error instead of a generic 500.
+assert "Int32(appliedRuntime.context)" in engine
+assert "Int32(gen.maxTokens)" in engine
+assert "if prefill.code == 9" in engine
+assert "LabError.contextBudgetExceeded(" in engine
+
+print("RC1.25.1 Build 59 native context admission contracts: PASS")
