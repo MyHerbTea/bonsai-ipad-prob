@@ -453,7 +453,9 @@ jobs:
             NEXT_STAGE_AFTER_RC1.25.0.md
             RC1.25.1_API_HARDENING.md
             RC1.25.2_OPENAI_API_USABILITY.md
+            RC1.25.2_CLIENT_COMPATIBILITY_MATRIX.md
             tools/rc1252_api_usability_contract_tests.py
+            tools/rc1252_context_ladder_device_probe.ps1
             tools/rc1232_observability_contract_tests.py
             tools/rc1233_long_run_observability_contract_tests.py
             tools/rc1233_thermal_recovery_probe.ps1
