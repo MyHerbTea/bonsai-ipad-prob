@@ -32,10 +32,10 @@ assert 'Button("运行 Restart Certification")' in view
 assert "runRestartCertification()" in view
 assert "let certificationCycles = 4" in view
 
-# Frozen runtime and rejected 256 behavior remain unchanged.
+# Frozen default and rejected 256 behavior remain unchanged. Later releases may
+# expose larger explicit context profiles, but 512 must remain the default.
 assert 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
-assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
 
 # Build 51+ retains recovery/export behavior.
 build_match = re.search(
