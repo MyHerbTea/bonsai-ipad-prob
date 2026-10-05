@@ -406,6 +406,36 @@ final class LocalOpenAIServer: ObservableObject {
                     "default_reasoning_effort": "none",
                     "context_window": advertisedContextWindow,
                     "max_output_tokens": advertisedMaxOutputTokens,
+                    "diagnostics": [
+                        "last_engine_stage":
+                            UserDefaults.standard.string(
+                                forKey: "BonsaiLabLastStage"
+                            ) ?? "none",
+                        "last_mlx_vision_stage":
+                            UserDefaults.standard.string(
+                                forKey: "BonsaiMLXVisionStage"
+                            ) ?? "none",
+                        "vision_request_stage":
+                            UserDefaults.standard.string(
+                                forKey:
+                                    "BonsaiRC1252VisionRequestStage"
+                            ) ?? "none",
+                        "context_switch_state":
+                            UserDefaults.standard.string(
+                                forKey:
+                                    "BonsaiRC1252ContextSwitchState"
+                            ) ?? "none",
+                        "last_api_image_count":
+                            UserDefaults.standard.integer(
+                                forKey:
+                                    "BonsaiRC1250LastAPIImageCount"
+                            ),
+                        "last_multi_image_layout":
+                            UserDefaults.standard.string(
+                                forKey:
+                                    "BonsaiRC1250LastMultiImageLayout"
+                            ) ?? "none"
+                    ],
                     "capabilities": [
                         "chat": true,
                         "vision": true,
