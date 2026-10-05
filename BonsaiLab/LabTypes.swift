@@ -7,6 +7,32 @@ enum ModelLoadMode: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 }
 
+enum APIContextProfile: String, CaseIterable, Identifiable, Sendable {
+    case baseline512 = "512"
+    case extended768 = "768"
+    case balanced1024 = "1024"
+    case long2048 = "2048"
+
+    var id: String { rawValue }
+
+    var contextTokens: Int {
+        Int(rawValue) ?? 512
+    }
+
+    var label: String {
+        switch self {
+        case .baseline512: return "512 · Frozen baseline"
+        case .extended768: return "768 · Explore"
+        case .balanced1024: return "1024 · Target"
+        case .long2048: return "2048 · Stretch"
+        }
+    }
+
+    static func normalized(_ rawValue: String) -> APIContextProfile {
+        APIContextProfile(rawValue: rawValue) ?? .baseline512
+    }
+}
+
 struct RuntimeConfig: Equatable, Sendable {
     var context: Int = 256
     var batch: Int = 16
