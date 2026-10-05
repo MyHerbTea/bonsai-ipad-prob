@@ -8,12 +8,14 @@ for marker in [
     'request.path == "/debug/build"',
     'request.path == "/debug/runtime"',
     'request.path == "/debug/telemetry"',
+    'request.path == "/debug/governor"',
     'request.path == "/debug/runtime/profile"',
-    '"behavior_changes_enabled": false',
-    '"profile": RuntimeOptimizationProfile.baseline.rawValue',
-    '"phase": "RC1.26_PHASE1_CONTROL_PLANE"',
+    '"behavior_changes_enabled":',
+    '"profile": state.profile.rawValue',
+    '"phase": "RC1.26_PHASE2A_MEMORY_GOVERNOR_OBSERVER"',
     '"unknown_runtime_flag"',
     "RuntimeTelemetrySnapshot.capture(",
+    "effectiveRuntimeState()",
 ]:
     assert marker in server, marker
 
