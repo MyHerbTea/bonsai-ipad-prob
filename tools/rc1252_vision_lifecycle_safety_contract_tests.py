@@ -8,9 +8,18 @@ server = (root / "BonsaiLab" / "LocalOpenAIServer.swift").read_text(encoding="ut
 project = (root / "project.yml").read_text(encoding="utf-8")
 workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text(encoding="utf-8")
 
-assert 'CURRENT_PROJECT_VERSION: "63"' in project
-assert "RC1.25.2 Build 63 Vision Lifecycle Safety" in view
-assert "RC1.25.2 Build 63 API Context Ladder" in view
+assert (
+    'CURRENT_PROJECT_VERSION: "63"' in project
+    or 'CURRENT_PROJECT_VERSION: "64"' in project
+)
+assert (
+    "RC1.25.2 Build 63 Vision Lifecycle Safety" in view
+    or "RC1.25.3 Build 64 Native Prefill Isolation" in view
+)
+assert (
+    "RC1.25.2 Build 63 API Context Ladder" in view
+    or "RC1.25.3 Build 64 API Context Ladder" in view
+)
 
 # A fresh vision encode must not begin while request-local KV from the previous
 # text/vision request is still live in the 27B context.
@@ -81,6 +90,9 @@ for marker in [
     assert marker in server
 
 assert "python3 tools/rc1252_vision_lifecycle_safety_contract_tests.py" in workflow
-assert 'CFBundleVersion raw -o - "$APP/Info.plist")" = "63"' in workflow
+assert (
+    'CFBundleVersion raw -o - "$APP/Info.plist")" = "63"' in workflow
+    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "64"' in workflow
+)
 
 print("RC1.25.2 Build 63 vision lifecycle safety contracts: PASS")
