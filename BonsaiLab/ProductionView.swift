@@ -996,7 +996,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 67 Request Lifecycle Governor Observer")
+                            Text("1.0 · RC1.26 Build 68 Heap Pressure Relief")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
