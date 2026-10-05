@@ -18,7 +18,11 @@ assert "RC1.25.0 每个请求最多支持三张图片。" in normalizer
 
 assert "let images: [OpenAIImageInput]" in server
 assert "var imageCount: Int" in server
-assert "images = parsed.images" in server
+if "RC1.25.2" in view:
+    assert "visualUser?.images ?? []" in server
+    assert "totalImages = max(" in server
+else:
+    assert "images = parsed.images" in server
 assert "if totalImages > 3" in server
 
 assert "enum OpenAIMultiImageComposer" in composer
@@ -41,6 +45,7 @@ assert "bounded_contact_sheet_before_vision_tower" in view
 assert (
     'Text("1.0 · RC1.25.0 Multi-Image OpenAI API")' in view
     or 'Text("1.0 · RC1.25.1 API Hardening")' in view
+    or 'Text("1.0 · RC1.25.2 API Usability")' in view
 )
 
 # Production runtime remains the proven Full profile by default.
