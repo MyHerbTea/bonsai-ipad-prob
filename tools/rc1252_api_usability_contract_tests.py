@@ -15,11 +15,14 @@ assert (
     'CURRENT_PROJECT_VERSION: "63"' in project
     or 'CURRENT_PROJECT_VERSION: "64"' in project
     or 'CURRENT_PROJECT_VERSION: "65"' in project
+    or 'CURRENT_PROJECT_VERSION: "66"' in project
 )
 assert (
     "RC1.25.2 Build 63 API Context Ladder" in view
     or "RC1.25.3 Build 64 API Context Ladder" in view
     or "RC1.26 Build 65 Runtime Optimization Lab" in view
+
+    or "RC1.26 Build 66 Memory Governor Observer" in view
 )
 
 # Context ladder: frozen 512 default plus explicit device-validation candidates.
@@ -228,6 +231,7 @@ assert (
     'CFBundleVersion raw -o - "$APP/Info.plist")" = "63"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "64"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "65"' in workflow
+    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "66"' in workflow
 )
 
 print("RC1.25.2 Build 63 API usability contracts: PASS")
