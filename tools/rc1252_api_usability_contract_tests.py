@@ -190,6 +190,12 @@ assert "SUMMARY-context-" in probe
 assert "context_length" in probe
 assert "context_length_exceeded" in probe
 assert "tools_not_supported" in probe
+# PowerShell variables are case-insensitive: the request-body parameter must
+# never be named BodyPath while a response bodyPath local also exists.
+assert "RequestBodyPath" in probe
+assert "responseBodyPath" in probe
+assert "param([string]$Name, [string]$Method, [string]$Url, [string]$BodyPath" not in probe
+assert "-RequestBodyPath $nonStreamPath" in probe
 
 # Official-style Python/JS SDK probes are part of the deliverable and must also
 # keep evidence on D: by default.
