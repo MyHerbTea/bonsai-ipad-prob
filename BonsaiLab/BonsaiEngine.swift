@@ -2236,6 +2236,12 @@ actor BonsaiEngine {
             effectiveMaxTokens: gen.maxTokens,
             terminationReason:
                 generated.terminationReason,
+            prefillSeconds:
+                Double(prefillEnd - prefillStart) / 1_000_000_000.0,
+            decodeToFirstTokenSeconds:
+                first >= generationStart
+                    ? Double(first - generationStart) / 1_000_000_000.0
+                    : 0,
             ttftSeconds: ttft,
             generationSeconds: generationSeconds,
             tokensPerSecond: Double(generated.count) / generationSeconds
