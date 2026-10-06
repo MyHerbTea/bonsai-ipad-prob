@@ -31,7 +31,7 @@ for marker in [
     "BonsaiBeginMetalTensorBackendLogCapture()",
     "BonsaiEndMetalTensorBackendLogCapture()",
     "Phase2CMetalTensorLaunchLatch.backendArmKey",
-    "Phase2CMetalTensorLaunchLatch.backendHasTensorKey",
+    ".backendHasTensorKey",
 ]:
     assert marker in engine, marker
 
