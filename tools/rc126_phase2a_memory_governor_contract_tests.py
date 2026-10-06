@@ -8,6 +8,7 @@ assert (
     '"build_id": "rc1.26-build67-request-lifecycle-governor-observer"' in server
     or '"build_id": "rc1.26-build68-heap-pressure-relief"' in server
     or '"build_id": "rc1.26-build69-metal-prefill-measurement"' in server
+    or '"build_id": "rc1.26-build70-metal-prefill-measurement"' in server
 )
 
 for marker in [
