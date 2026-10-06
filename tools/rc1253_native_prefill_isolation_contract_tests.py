@@ -16,6 +16,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "67"' in project
     or 'CURRENT_PROJECT_VERSION: "68"' in project
     or 'CURRENT_PROJECT_VERSION: "69"' in project
+    or 'CURRENT_PROJECT_VERSION: "70"' in project
 )
 assert (
     "RC1.25.3 Build 64 Native Prefill Isolation" in view
