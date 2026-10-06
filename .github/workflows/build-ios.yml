@@ -76,7 +76,7 @@ jobs:
           grep -q 'warm.kvReuseHit' BonsaiLab/ProductionView.swift
           grep -q 'UIPasteboard.general.string' BonsaiLab/ProductionView.swift
           grep -q 'MARKETING_VERSION: "1.0.0"' project.yml
-          grep -q 'CURRENT_PROJECT_VERSION: "69"' project.yml
+          grep -q 'CURRENT_PROJECT_VERSION: "70"' project.yml
           grep -q 'reasoningEffort' BonsaiLab/BonsaiEngine.swift
           grep -q 'payload.reasoningEffort' BonsaiLab/ProductionView.swift
           grep -q '<think>\\n\\n</think>\\n\\n' BonsaiLab/BonsaiEngine.swift
@@ -122,7 +122,7 @@ jobs:
           grep -q 'requireFullOutputBudget:' BonsaiLab/ProductionView.swift
           grep -q 'cleanupAfterRequestFailure' BonsaiLab/ProductionView.swift
           grep -q 'OpenAIMultimodalNormalizer' BonsaiLab/LocalOpenAIServer.swift
-          grep -q 'RC1.26 Build 69 Metal Prefill Measurement' BonsaiLab/ProductionView.swift
+          grep -q 'RC1.26 Build 70 Metal Prefill Measurement' BonsaiLab/ProductionView.swift
           grep -q 'Live Vision Injection' BonsaiLab/ContentView.swift
           grep -q 'Text("MLX Vision Metrics")' BonsaiLab/ContentView.swift
           grep -q 'maxPixels: Int = 65_536' BonsaiLab/BonsaiMLXVisionSidecar.swift
@@ -413,7 +413,7 @@ jobs:
           file "$FRAMEWORK"
           otool -L "$APP/BonsaiLab"
           test "$(plutil -extract CFBundleShortVersionString raw -o - "$APP/Info.plist")" = "1.0.0"
-          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "69"
+          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "70"
           nm -gU "$FRAMEWORK" > build/llama-symbols.txt
           grep -q '_mtmd_init_from_file' build/llama-symbols.txt
           grep -q '_mtmd_helper_eval_chunks' build/llama-symbols.txt
@@ -430,29 +430,29 @@ jobs:
           ditto "$APP" build/ipa/Payload/BonsaiLab.app
 
           cat > build/BUILD_INFO.txt <<'INFO'
-          Bonsai iPad Lab v1 RC1.26 Build 69 Metal Prefill Measurement
+          Bonsai iPad Lab v1 RC1.26 Build 70 Metal Prefill Measurement
           Prism: prism-b10743-adfffbe
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
           Full/Accelerated remains the production default: ctx=512, batch=8, ubatch=8, n_seq_max=1, C2-B unchanged.
-          Build 69 inherits the device-certified Build 64 behavior and the Build 68 guarded heap-relief experiment. Phase 2C-0 adds a real Metal 4 / metal_tensor compile-and-pipeline capability probe plus pinned Prism provenance. It preserves GGML_METAL_TENSOR_DISABLE=1, records backend-latch semantics, and never claims bb.metalTensor.prefill effective=true.
+          Build 70 inherits the device-certified Build 64 behavior and the Build 68 guarded heap-relief experiment. Build 69 remains the preserved first Phase 2C-0 device probe whose shader failed compilation at stage 3. Phase 2C-0 adds a real Metal 4 / metal_tensor compile-and-pipeline capability probe plus pinned Prism provenance. It preserves GGML_METAL_TENSOR_DISABLE=1, records backend-latch semantics, and never claims bb.metalTensor.prefill effective=true.
           Model and Vision Tower weights are NOT bundled in the IPA.
           INFO
           echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.26-build69-metal-prefill-measurement-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.26-build70-metal-prefill-measurement-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.26-build69-metal-prefill-measurement-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build69-metal-prefill-measurement-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.26-build70-metal-prefill-measurement-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build70-metal-prefill-measurement-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.26-Build69-Metal-Prefill-Measurement
+          name: BonsaiLab-iPad-v1-RC1.26-Build70-Metal-Prefill-Measurement
           path: |
-            build/BonsaiLab-v1-RC1.26-build69-metal-prefill-measurement-unsigned.ipa
-            build/BonsaiLab-v1-RC1.26-build69-metal-prefill-measurement-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.26-build70-metal-prefill-measurement-unsigned.ipa
+            build/BonsaiLab-v1-RC1.26-build70-metal-prefill-measurement-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             RC1.20_RELEASE_ACCEPTANCE.md
             OPENAI_API_QUICKSTART_RC1.20.md

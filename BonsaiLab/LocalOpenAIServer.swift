@@ -946,7 +946,7 @@ final class LocalOpenAIServer: ObservableObject {
             "phase":
                 "RC1.26_PHASE2C0_CAPABILITY_PROVENANCE_AUDIT",
             "implementation_id":
-                "rc126.phase2c0.metal-tensor-capability.v1",
+                "rc126.phase2c0.metal-tensor-capability.v2",
             "measurement_ready": observation != nil,
             "metal_device": device?.name ?? "unavailable",
             "metal_has_unified_memory":
@@ -1004,7 +1004,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build69-metal-prefill-measurement",
+            "build_id": "rc1.26-build70-metal-prefill-measurement",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",

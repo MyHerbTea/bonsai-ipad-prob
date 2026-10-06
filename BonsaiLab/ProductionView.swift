@@ -1016,7 +1016,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 69 Metal Prefill Measurement")
+                            Text("1.0 · RC1.26 Build 70 Metal Prefill Measurement")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

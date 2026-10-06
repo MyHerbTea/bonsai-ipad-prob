@@ -3,7 +3,7 @@ param(
     [string]$BaseUrl,
     [string]$ApiKey = $env:BONSAI_API_KEY,
     [string]$OutDir = "",
-    [string]$ExpectedBuildId = "rc1.26-build69-metal-prefill-measurement"
+    [string]$ExpectedBuildId = "rc1.26-build70-metal-prefill-measurement"
 )
 
 Set-StrictMode -Version Latest

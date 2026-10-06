@@ -35,7 +35,12 @@ for marker in [
     'ggml_backend_reg_by_name("MTL")',
     '"ggml_backend_get_features"',
     '"EMBED_LIBRARY"',
-]:
+    "auto sA = a.slice(0, 0);",
+    "auto sB = b.slice(0, 0);",
+    "mm.run(sB, sA, dst);",
+]
+
+assert "mm.run(b.slice(" not in bridge_mm:
     assert marker in bridge_mm, marker
 
 for marker in [
@@ -43,7 +48,7 @@ for marker in [
     "RuntimePrefillObservation",
     "recordPrefillObservation(result)",
     '"RC1.26_PHASE2C0_CAPABILITY_PROVENANCE_AUDIT"',
-    '"rc126.phase2c0.metal-tensor-capability.v1"',
+    '"rc126.phase2c0.metal-tensor-capability.v2"',
     '"metal_tensor_prefill_requested":',
     '"metal_tensor_prefill_effective": false',
     '"capability_only_backend_latched"',

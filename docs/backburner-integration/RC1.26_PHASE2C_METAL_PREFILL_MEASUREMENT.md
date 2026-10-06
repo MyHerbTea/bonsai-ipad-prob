@@ -37,8 +37,14 @@ The endpoint also reports `candidate_probe_eligible`, failure stage/error code, 
 
 This proves API/compiler/pipeline capability. It deliberately does not claim that a real Bonsai graph dispatched a Tensor kernel.
 
+## Build 69 device result and Build 70 correction
+
+The 2026-10-06 Build 69 device audit returned `PASS_CAPABILITY_UNAVAILABLE` on Apple M5 GPU with Metal family 4 supported, Prism Metal registry present, and `EMBED_LIBRARY=1`. The failure was isolated to stage 3 (`MTLLibraryErrorCompileFailure`): the probe passed temporary `slice(...)` values directly to `matmul2d::run` even though its operands are thread references. This was a probe-source defect, not evidence that the M5 lacks Metal Tensor capability.
+
+Build 70 preserves Build 69 evidence and corrects only the probe shader by materializing the operand slices as local lvalues before `run`. Its implementation id is `rc126.phase2c0.metal-tensor-capability.v2`. No inference behavior, frozen baseline, resident runtime, or Vision path is enabled or promoted by this correction.
+
 ## Phase 2C-1 entry gate
 
-A performance experiment is allowed only after Build 69 reports the capability checks available. The candidate must then be initialized from a fresh backend/process state, or a later native hook must directly prove the active Prism backend state. A post-init environment-variable flip is forbidden.
+A performance experiment is allowed only after the corrected capability probe (Build 70 or later) reports the capability checks available. The candidate must then be initialized from a fresh backend/process state, or a later native hook must directly prove the active Prism backend state. A post-init environment-variable flip is forbidden.
 
 Promotion still requires the handoff thresholds: token-identical controlled A/B, repeatable prefill/TTFT gain, decode regression within budget, no crash/jetsam/hang, no silent fallback, and no resident-runtime or Vision regression.
