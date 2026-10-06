@@ -55,3 +55,22 @@ A clean first-start pass should show:
 - `active_ubatch=32`
 
 If the app still terminates, reopen it, start the API again, and run the probe. `startup_previous_incomplete` will identify the last persisted stage from the terminated attempt.
+
+
+## Device closure
+
+Build 75 passed the targeted first-start device gate on 2026-10-06.
+
+- `startup_stage=READY`
+- `startup_previous_incomplete=none`
+- `startup_attempt=1`
+- `startup_last_error=none`
+- `active_batch=32`
+- `active_ubatch=32`
+- `shape_evidence_valid=true`
+- health status `ok`
+- context window `2048`
+
+Verdict: **PASS — first API cold start completed without restart.**
+
+Detailed evidence: `RC1.26_BUILD75_API_COLD_START_DEVICE_EVIDENCE.md`.
