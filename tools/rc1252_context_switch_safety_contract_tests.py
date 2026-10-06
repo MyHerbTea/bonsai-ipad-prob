@@ -85,6 +85,7 @@ assert (
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "67"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "68"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "69"' in workflow
+    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "70"' in workflow
 )
 
 print("RC1.25.2 Build 63 context switch safety contracts: PASS")
