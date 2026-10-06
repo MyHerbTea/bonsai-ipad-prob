@@ -58,8 +58,8 @@ for marker in [
     '"/health"',
     '"/debug/build"',
     '"/debug/phase2f/launch"',
-    '"startup_stage"',
-    '"startup_previous_incomplete"',
+    "startup_stage =",
+    "startup_previous_incomplete =",
     "Compress-Archive",
 ]:
     assert marker in probe, marker
