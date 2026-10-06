@@ -165,6 +165,14 @@ final class LocalOpenAIServer: ObservableObject {
         return "http://\(ip):\(port)/v1"
     }
 
+    var runtimeBatch: Int {
+        advertisedBatch
+    }
+
+    var runtimeUBatch: Int {
+        advertisedUBatch
+    }
+
     var canResumePreservedRuntime: Bool {
         handler != nil
     }
@@ -473,6 +481,26 @@ final class LocalOpenAIServer: ObservableObject {
                             UserDefaults.standard.string(
                                 forKey:
                                     "BonsaiRC1252ContextSwitchState"
+                            ) ?? "none",
+                        "api_startup_stage":
+                            UserDefaults.standard.string(
+                                forKey:
+                                    "BonsaiRC126APIStartupStage"
+                            ) ?? "none",
+                        "api_startup_previous_incomplete":
+                            UserDefaults.standard.string(
+                                forKey:
+                                    "BonsaiRC126APIPreviousIncompleteStage"
+                            ) ?? "none",
+                        "api_startup_attempt":
+                            UserDefaults.standard.integer(
+                                forKey:
+                                    "BonsaiRC126APIStartupAttempt"
+                            ),
+                        "api_startup_last_error":
+                            UserDefaults.standard.string(
+                                forKey:
+                                    "BonsaiRC126APIStartupLastError"
                             ) ?? "none",
                         "last_api_image_count":
                             UserDefaults.standard.integer(
@@ -1423,7 +1451,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build74-prefill-batch-32-vs-64",
+            "build_id": "rc1.26-build75-api-cold-start-guard",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",

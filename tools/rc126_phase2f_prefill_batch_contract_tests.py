@@ -21,7 +21,7 @@ for marker in [
 
 for marker in [
     "Phase2FPrefillBatchLaunchLatch.apply(",
-    "RC1.26 Build 74 Prefill Batch 32→64",
+    "RC1.26 Build 75 API Cold-Start Guard",
 ]:
     assert marker in view, marker
 
@@ -33,7 +33,7 @@ for marker in [
     '"active_batch": advertisedBatch',
     '"active_ubatch": advertisedUBatch',
     '"shape_evidence_valid":',
-    '"rc1.26-build74-prefill-batch-32-vs-64"',
+    '"rc1.26-build75-api-cold-start-guard"',
 ]:
     assert marker in server, marker
 
@@ -48,7 +48,7 @@ for marker in [
 ]:
     assert marker in runner, marker
 
-assert 'CURRENT_PROJECT_VERSION: "74"' in project
+assert 'CURRENT_PROJECT_VERSION: "75"' in project
 assert "RC1.26 Phase 2F prefill batch contracts" in workflow
 assert "tools/rc126_phase2f_prefill_batch_arm.ps1" in workflow
 

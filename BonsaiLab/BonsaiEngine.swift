@@ -181,6 +181,30 @@ actor BonsaiEngine {
         mark(doneStage)
     }
 
+    func prepareAPIColdStart(
+        metalTensorDisabled: Bool
+    ) throws {
+        mark("API_COLD_00_BEGIN")
+        unloadAll()
+        persistSystemDiagnostics(
+            prefix: "BonsaiAPIColdBeforeBackend"
+        )
+        mark("API_COLD_01_RUNTIME_RELEASED")
+
+        try initializeBackendIfNeeded(
+            metalTensorDisabled: metalTensorDisabled,
+            beginStage:
+                "API_COLD_02_BACKEND_INIT_BEGIN",
+            doneStage:
+                "API_COLD_03_BACKEND_INIT_DONE"
+        )
+
+        persistSystemDiagnostics(
+            prefix: "BonsaiAPIColdAfterBackend"
+        )
+        mark("API_COLD_04_BACKEND_READY")
+    }
+
     func loadModel(url: URL, runtime: RuntimeConfig) throws -> ModelMetrics {
         let config = try runtime.validated()
         mark("MODEL_00_RESET_BEGIN")

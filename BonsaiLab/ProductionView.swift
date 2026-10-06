@@ -3,6 +3,62 @@ import UniformTypeIdentifiers
 import UIKit
 import Darwin
 
+private enum RC126APIStartupLifecycle {
+    static let stateKey = "BonsaiRC126APIStartupStage"
+    static let previousIncompleteKey =
+        "BonsaiRC126APIPreviousIncompleteStage"
+    static let attemptKey = "BonsaiRC126APIStartupAttempt"
+    static let errorKey = "BonsaiRC126APIStartupLastError"
+    static let timestampKey = "BonsaiRC126APIStartupStageTime"
+    static let buildKey = "BonsaiRC126APIStartupBuild"
+
+    private static let terminalStates: Set<String> = [
+        "READY",
+        "FAILED",
+    ]
+
+    static func begin(build: String) {
+        let defaults = UserDefaults.standard
+        if let previous = defaults.string(forKey: stateKey),
+           !previous.isEmpty,
+           !terminalStates.contains(previous) {
+            defaults.set(
+                previous,
+                forKey: previousIncompleteKey
+            )
+        }
+
+        let attempt = defaults.integer(forKey: attemptKey) + 1
+        defaults.set(attempt, forKey: attemptKey)
+        defaults.set(build, forKey: buildKey)
+        defaults.removeObject(forKey: errorKey)
+        mark("BEGIN")
+    }
+
+    static func mark(_ stage: String) {
+        let defaults = UserDefaults.standard
+        defaults.set(stage, forKey: stateKey)
+        defaults.set(
+            Date().timeIntervalSince1970,
+            forKey: timestampKey
+        )
+        defaults.synchronize()
+    }
+
+    static func ready() {
+        mark("READY")
+    }
+
+    static func fail(_ error: Error) {
+        let defaults = UserDefaults.standard
+        defaults.set(
+            error.localizedDescription,
+            forKey: errorKey
+        )
+        mark("FAILED")
+    }
+}
+
 private enum RC1232PerformanceDiagnostics {
     static let defaultsKey =
         "BonsaiRC1232LastAPIRequestMetrics"
@@ -1016,7 +1072,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 74 Prefill Batch 32→64")
+                            Text("1.0 · RC1.26 Build 75 API Cold-Start Guard")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -2103,6 +2159,27 @@ struct ProductionView: View {
                         .longRunHistoryDefaultsKey
             ) ?? "无"
 
+        let apiStartupStage =
+            defaults.string(
+                forKey:
+                    RC126APIStartupLifecycle.stateKey
+            ) ?? "none"
+        let apiStartupPreviousIncomplete =
+            defaults.string(
+                forKey:
+                    RC126APIStartupLifecycle.previousIncompleteKey
+            ) ?? "none"
+        let apiStartupAttempt =
+            defaults.integer(
+                forKey:
+                    RC126APIStartupLifecycle.attemptKey
+            )
+        let apiStartupLastError =
+            defaults.string(
+                forKey:
+                    RC126APIStartupLifecycle.errorKey
+            ) ?? "none"
+
         let lastStage =
             defaults.string(
                 forKey: "BonsaiLabLastStage"
@@ -2228,6 +2305,10 @@ struct ProductionView: View {
             "last_request_path=\(apiServer.lastRequestPath.isEmpty ? "无" : apiServer.lastRequestPath)",
             "last_rejection_code=\(apiServer.lastRejectionCode.isEmpty ? "无" : apiServer.lastRejectionCode)",
             "last_error=\(apiServer.lastError.isEmpty ? "无" : apiServer.lastError)",
+            "startup_stage=\(apiStartupStage)",
+            "startup_previous_incomplete=\(apiStartupPreviousIncomplete)",
+            "startup_attempt=\(apiStartupAttempt)",
+            "startup_last_error=\(apiStartupLastError)",
             "api_key=[REDACTED]",
             "discovery_context_length=\(effectiveAPIContext)",
             "discovery_max_output_tokens=256",
@@ -2254,8 +2335,8 @@ struct ProductionView: View {
             "rc1235_api_context_requested=\(requestedAPIContext)",
             "rc1235_api_context_active=\(activeAPIContext)",
             "rc1235_api_context_profile=\(requestedAPIContextProfile)",
-            "api_batch=8",
-            "api_ubatch=8",
+            "api_batch=\(apiServer.runtimeBatch)",
+            "api_ubatch=\(apiServer.runtimeUBatch)",
             "api_runtime_profile=\(effectiveAPIRuntimeProfile)",
             "api_runtime_profile_requested=\(requestedAPIRuntimeProfile)",
             "api_flash_attention=\(apiFlashAttention)",
@@ -3182,8 +3263,9 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
+        RC126APIStartupLifecycle.begin(build: "75")
         busy = true
-        status = "正在预热 RC1.25.3 Build 64 API Context Ladder…"
+        status = "正在执行 RC1.26 Build 75 API 冷启动保护…"
         detail = """
         Build 60 的 API/视觉路径保持不变。
         RC1.25.2 新增 512/768/1024/2048 API Context Ladder；
@@ -3192,7 +3274,10 @@ struct ProductionView: View {
 
         Task {
             do {
-                await sharedEngine.unloadAll()
+                RC126APIStartupLifecycle.mark("VISION_RELEASE_BEGIN")
+                await sharedVisionSidecar
+                    .releaseResidentStateForContextSwitch()
+                RC126APIStartupLifecycle.mark("VISION_RELEASE_DONE")
 
                 var apiRuntime = selectedRuntime
                 apiRuntime.context = selectedAPIContext
@@ -3233,10 +3318,36 @@ struct ProductionView: View {
                     to: &apiRuntime
                 )
 
+                RC126APIStartupLifecycle.mark(
+                    "BACKEND_PREWARM_BEGIN"
+                )
+                try await sharedEngine.prepareAPIColdStart(
+                    metalTensorDisabled:
+                        apiRuntime.disableMetalTensorAPI
+                )
+                RC126APIStartupLifecycle.mark(
+                    "BACKEND_PREWARM_DONE"
+                )
+
+                // First install/upgrade launch can include Metal backend
+                // compilation and cache population. Give those transient
+                // resources one short scheduling boundary before mapping
+                // the 27B model and creating the llama context.
+                try await Task.sleep(
+                    nanoseconds: 300_000_000
+                )
+                RC126APIStartupLifecycle.mark(
+                    "BACKEND_SETTLE_DONE"
+                )
+
+                RC126APIStartupLifecycle.mark(
+                    "MODEL_LOAD_BEGIN"
+                )
                 _ = try await sharedEngine.loadModel(
                     url: selectedModelURL,
                     runtime: apiRuntime
                 )
+                RC126APIStartupLifecycle.mark("MODEL_READY")
 
                 UserDefaults.standard.set(
                     selectedAPIContext,
@@ -3910,10 +4021,18 @@ struct ProductionView: View {
                     )
                 }
 
+                RC126APIStartupLifecycle.mark(
+                    "LISTENER_BIND_REQUESTED"
+                )
+                try await waitForCertificationAPIReady(
+                    timeoutSeconds: 30
+                )
+                RC126APIStartupLifecycle.ready()
+
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.25.2 Build 61 API Context Ladder 已预热"
+                        "RC1.26 Build 75 API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
@@ -3929,6 +4048,7 @@ struct ProductionView: View {
                         + String(selectedAPIContext)
                 }
             } catch {
+                RC126APIStartupLifecycle.fail(error)
                 apiServer.stop()
                 await sharedEngine.unloadAll()
 

@@ -1,0 +1,71 @@
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+view = (ROOT / "BonsaiLab/ProductionView.swift").read_text(encoding="utf-8")
+engine = (ROOT / "BonsaiLab/BonsaiEngine.swift").read_text(encoding="utf-8")
+server = (ROOT / "BonsaiLab/LocalOpenAIServer.swift").read_text(encoding="utf-8")
+project = (ROOT / "project.yml").read_text(encoding="utf-8")
+workflow = (ROOT / ".github/workflows/build-ios.yml").read_text(encoding="utf-8")
+probe = (ROOT / "tools/rc126_build75_api_cold_start_probe.ps1").read_text(encoding="utf-8")
+
+for marker in [
+    "private enum RC126APIStartupLifecycle",
+    '"BonsaiRC126APIStartupStage"',
+    '"BonsaiRC126APIPreviousIncompleteStage"',
+    '"BonsaiRC126APIStartupAttempt"',
+    'RC126APIStartupLifecycle.begin(build: "75")',
+    'RC126APIStartupLifecycle.mark("VISION_RELEASE_BEGIN")',
+    'releaseResidentStateForContextSwitch()',
+    '"BACKEND_PREWARM_BEGIN"',
+    'prepareAPIColdStart(',
+    'Task.sleep(',
+    '"MODEL_LOAD_BEGIN"',
+    '"MODEL_READY"',
+    '"LISTENER_BIND_REQUESTED"',
+    'waitForCertificationAPIReady(',
+    'RC126APIStartupLifecycle.ready()',
+    'RC126APIStartupLifecycle.fail(error)',
+    'apiServer.runtimeBatch',
+    'apiServer.runtimeUBatch',
+    'RC1.26 Build 75 API Cold-Start Guard',
+]:
+    assert marker in view, marker
+
+for marker in [
+    "func prepareAPIColdStart(",
+    '"API_COLD_00_BEGIN"',
+    '"API_COLD_01_RUNTIME_RELEASED"',
+    '"API_COLD_02_BACKEND_INIT_BEGIN"',
+    '"API_COLD_03_BACKEND_INIT_DONE"',
+    '"API_COLD_04_BACKEND_READY"',
+    'persistSystemDiagnostics(',
+]:
+    assert marker in engine, marker
+
+for marker in [
+    '"rc1.26-build75-api-cold-start-guard"',
+    "var runtimeBatch: Int",
+    "var runtimeUBatch: Int",
+    '"api_startup_stage"',
+    '"api_startup_previous_incomplete"',
+    '"api_startup_attempt"',
+    '"api_startup_last_error"',
+]:
+    assert marker in server, marker
+
+for marker in [
+    '"/health"',
+    '"/debug/build"',
+    '"/debug/phase2f/launch"',
+    '"startup_stage"',
+    '"startup_previous_incomplete"',
+    "Compress-Archive",
+]:
+    assert marker in probe, marker
+
+assert 'CURRENT_PROJECT_VERSION: "75"' in project
+assert "RC1.26 Build 75 cold-start guard contracts" in workflow
+assert "tools/rc126_build75_api_cold_start_probe.ps1" in workflow
+
+print("RC1.26 Build 75 API cold-start guard contracts: PASS")

@@ -28,7 +28,7 @@ assert (
     or 'Text("1.0 · RC1.26 Build 70 Metal Prefill Measurement")' in view
     or 'Text("1.0 · RC1.26 Build 71 Fresh Backend Metal Tensor A/B")' in view
     or 'Text("1.0 · RC1.26 Build 72 Prefill Batch 8→16")' in view
-    or 'Text("1.0 · RC1.26 Build 74 Prefill Batch 32→64")' in view
+    or 'Text("1.0 · RC1.26 Build 75 API Cold-Start Guard")' in view
 )
 assert (
     'RC1.25.1 Build 60 Dual Context Admission' in view
@@ -102,7 +102,7 @@ assert (
     or "Build70-Metal-Prefill-Measurement" in workflow
     or "Build71-Fresh-Backend-Metal-Tensor-AB" in workflow
     or "Build72-Prefill-Batch-8-vs-16" in workflow
-    or "Build74-Prefill-Batch-32-vs-64" in workflow
+    or "Build75-API-Cold-Start-Guard" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")
