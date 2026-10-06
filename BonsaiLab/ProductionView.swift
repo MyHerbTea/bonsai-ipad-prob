@@ -1016,7 +1016,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 70 Metal Prefill Measurement")
+                            Text("1.0 · RC1.26 Build 71 Fresh Backend Metal Tensor A/B")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -3084,6 +3084,9 @@ struct ProductionView: View {
 
         apiRuntime.kvUnified = true
         apiRuntime.loadMode = .mmap
+        Phase2CMetalTensorLaunchLatch.apply(
+            to: &apiRuntime
+        )
 
         busy = true
         status = "正在安全切换 API Context/Profile…"
@@ -3204,6 +3207,9 @@ struct ProductionView: View {
 
                 apiRuntime.kvUnified = true
                 apiRuntime.loadMode = .mmap
+                Phase2CMetalTensorLaunchLatch.apply(
+                    to: &apiRuntime
+                )
 
                 _ = try await sharedEngine.loadModel(
                     url: selectedModelURL,

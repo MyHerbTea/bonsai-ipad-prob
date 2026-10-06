@@ -542,6 +542,25 @@ final class LocalOpenAIServer: ObservableObject {
         }
 
         if request.method == "GET",
+           request.path == "/debug/phase2c/launch" {
+            sendJSON(
+                connection,
+                status: 200,
+                object: debugPhase2CLaunchObject()
+            )
+            return
+        }
+
+        if request.method == "POST",
+           request.path == "/debug/phase2c/next-launch" {
+            updatePhase2CNextLaunchArm(
+                request,
+                connection: connection
+            )
+            return
+        }
+
+        if request.method == "GET",
            request.path == "/debug/governor" {
             sendJSON(
                 connection,
@@ -896,7 +915,9 @@ final class LocalOpenAIServer: ObservableObject {
             "GGML_METAL_TENSOR_DISABLE"
         ).map { String(cString: $0) }
         let capability = BonsaiProbeMetalTensorCapability()
-        let requested = runtimeRequestedFlags.metalTensorPrefill
+        let launchArm = Phase2CMetalTensorLaunchLatch.arm
+        let requested =
+            launchArm == .candidate
         let pipelineCompiled =
             capability.tensor_pipeline_compiled != 0
         let embeddedLibrary =
@@ -944,9 +965,9 @@ final class LocalOpenAIServer: ObservableObject {
 
         return [
             "phase":
-                "RC1.26_PHASE2C0_CAPABILITY_PROVENANCE_AUDIT",
+                "RC1.26_PHASE2C1_FRESH_BACKEND_VIABILITY",
             "implementation_id":
-                "rc126.phase2c0.metal-tensor-capability.v2",
+                "rc126.phase2c1.fresh-backend-launch-latch.v1",
             "measurement_ready": observation != nil,
             "metal_device": device?.name ?? "unavailable",
             "metal_has_unified_memory":
@@ -958,7 +979,7 @@ final class LocalOpenAIServer: ObservableObject {
             "metal_tensor_prefill_requested": requested,
             "metal_tensor_prefill_effective": false,
             "metal_tensor_prefill_policy":
-                "capability_only_backend_latched",
+                "fresh_process_launch_latched_viability",
             "fallback_reason": fallbackReason,
             "candidate_probe_eligible": candidateProbeEligible,
             "backend_latch": [
@@ -1000,11 +1021,138 @@ final class LocalOpenAIServer: ObservableObject {
         ]
     }
 
+    private func debugPhase2CLaunchObject() -> [String: Any] {
+        let defaults = UserDefaults.standard
+        let launchArm = Phase2CMetalTensorLaunchLatch.arm
+        let nextArm = Phase2CMetalTensorLaunchLatch.nextArm
+        let backendArm =
+            defaults.string(
+                forKey:
+                    Phase2CMetalTensorLaunchLatch.backendArmKey
+            ) ?? "UNLATCHED"
+        let logObserved =
+            defaults.bool(
+                forKey:
+                    Phase2CMetalTensorLaunchLatch
+                        .backendLogObservedKey
+            )
+        let hasTensorRaw =
+            defaults.integer(
+                forKey:
+                    Phase2CMetalTensorLaunchLatch
+                        .backendHasTensorKey
+            )
+        let tensorDisable = getenv(
+            "GGML_METAL_TENSOR_DISABLE"
+        ).map { String(cString: $0) }
+
+        let backendHasTensor: Any =
+            logObserved
+                ? (hasTensorRaw == 1)
+                : NSNull()
+
+        let armMatches =
+            backendArm == launchArm.rawValue
+        let tensorStateMatches =
+            logObserved
+            && (
+                (launchArm == .baseline
+                    && hasTensorRaw == 0)
+                || (launchArm == .candidate
+                    && hasTensorRaw == 1)
+            )
+        let environmentMatches =
+            launchArm == .baseline
+                ? tensorDisable == "1"
+                : tensorDisable == nil
+
+        return [
+            "phase":
+                "RC1.26_PHASE2C1_FRESH_BACKEND_VIABILITY",
+            "implementation_id":
+                "rc126.phase2c1.fresh-backend-launch-latch.v1",
+            "process_launch_id":
+                Phase2CMetalTensorLaunchLatch.processLaunchID,
+            "launch_arm": launchArm.rawValue,
+            "next_launch_arm": nextArm.rawValue,
+            "restart_required":
+                Phase2CMetalTensorLaunchLatch.restartRequired,
+            "backend_latched_arm": backendArm,
+            "backend_log_observed": logObserved,
+            "backend_has_tensor": backendHasTensor,
+            "backend_log_line":
+                defaults.string(
+                    forKey:
+                        Phase2CMetalTensorLaunchLatch
+                            .backendLogLineKey
+                ) ?? "none",
+            "backend_evidence_valid":
+                armMatches
+                && tensorStateMatches
+                && environmentMatches,
+            "environment_matches_launch_arm":
+                environmentMatches,
+            "ggml_metal_tensor_disable":
+                tensorDisable ?? "unset",
+            "runtime_toggle_safe": false,
+            "requires_process_restart_between_arms": true,
+            "evidence_source":
+                "pinned_prism_backend_init_log_has_tensor",
+            "metal_tensor_prefill_dispatch_proven":
+                false
+        ]
+    }
+
+    private func updatePhase2CNextLaunchArm(
+        _ request: HTTPRequest,
+        connection: NWConnection
+    ) {
+        do {
+            guard
+                let root = try JSONSerialization.jsonObject(
+                    with: request.body
+                ) as? [String: Any],
+                let rawArm = root["arm"] as? String,
+                let arm = Phase2CMetalTensorLaunchArm(
+                    rawValue: rawArm.uppercased()
+                )
+            else {
+                sendJSON(
+                    connection,
+                    status: 400,
+                    object: Self.errorObject(
+                        "invalid_phase2c_launch_arm",
+                        "arm must be BASELINE or CANDIDATE."
+                    )
+                )
+                return
+            }
+
+            Phase2CMetalTensorLaunchLatch
+                .scheduleNext(arm)
+
+            sendJSON(
+                connection,
+                status: 200,
+                object: debugPhase2CLaunchObject()
+            )
+        } catch {
+            sendJSON(
+                connection,
+                status: 400,
+                object: Self.errorObject(
+                    "invalid_phase2c_launch_request",
+                    "Expected JSON object with arm."
+                )
+            )
+        }
+    }
+
     private func debugBuildObject() -> [String: Any] {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build70-metal-prefill-measurement",
+            "build_id": "rc1.26-build71-fresh-backend-metal-tensor-ab",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",

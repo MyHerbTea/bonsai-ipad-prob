@@ -54,6 +54,9 @@ actor BonsaiEngine {
     private var stagedResidentModelScopedURL: URL?
     private var hasStagedResidentModelScope = false
     private var backendInitialized = false
+    // Prism's Metal device registry is process-lifetime even if
+    // llama_backend_free() is called. Never clear this latch in-process.
+    private var backendRegistryMetalTensorDisabledAtFirstInit: Bool?
     private var appliedRuntime = RuntimeConfig.safe
 
     // RC1.23.2 experimental API-only prefix reuse state.
@@ -89,25 +92,114 @@ actor BonsaiEngine {
         )
     }
 
+    private func prepareMetalTensorBackend(
+        disabled: Bool
+    ) throws {
+        if let latched =
+            backendRegistryMetalTensorDisabledAtFirstInit,
+           latched != disabled {
+            mark("PHASE2C1_METAL_TENSOR_RESTART_REQUIRED")
+            throw LabError.invalidConfig(
+                "Metal Tensor backend arm 已在本进程首次 backend init 时锁存；"
+                + "BASELINE/CANDIDATE 切换必须完整重启 App。"
+            )
+        }
+
+        if disabled {
+            setenv("GGML_METAL_TENSOR_DISABLE", "1", 1)
+        } else {
+            unsetenv("GGML_METAL_TENSOR_DISABLE")
+        }
+    }
+
+    private func initializeBackendIfNeeded(
+        metalTensorDisabled: Bool,
+        beginStage: String,
+        doneStage: String
+    ) throws {
+        try prepareMetalTensorBackend(
+            disabled: metalTensorDisabled
+        )
+
+        guard !backendInitialized else {
+            return
+        }
+
+        let firstRegistryInit =
+            backendRegistryMetalTensorDisabledAtFirstInit == nil
+
+        if firstRegistryInit {
+            BonsaiBeginMetalTensorBackendLogCapture()
+        }
+
+        mark(beginStage)
+        llama_backend_init()
+        backendInitialized = true
+
+        if firstRegistryInit {
+            backendRegistryMetalTensorDisabledAtFirstInit =
+                metalTensorDisabled
+
+            let arm =
+                metalTensorDisabled
+                    ? Phase2CMetalTensorLaunchArm.baseline
+                    : Phase2CMetalTensorLaunchArm.candidate
+            UserDefaults.standard.set(
+                arm.rawValue,
+                forKey:
+                    Phase2CMetalTensorLaunchLatch.backendArmKey
+            )
+
+            let evidence =
+                BonsaiEndMetalTensorBackendLogCapture()
+            UserDefaults.standard.set(
+                evidence.log_observed != 0,
+                forKey:
+                    Phase2CMetalTensorLaunchLatch
+                        .backendLogObservedKey
+            )
+            UserDefaults.standard.set(
+                Int(evidence.has_tensor),
+                forKey:
+                    Phase2CMetalTensorLaunchLatch
+                        .backendHasTensorKey
+            )
+            UserDefaults.standard.set(
+                evidence.log_observed != 0
+                    ? "has tensor = "
+                        + (evidence.has_tensor == 1
+                            ? "true"
+                            : "false")
+                    : "not_observed",
+                forKey:
+                    Phase2CMetalTensorLaunchLatch
+                        .backendLogLineKey
+            )
+            UserDefaults.standard.synchronize()
+        }
+
+        mark(doneStage)
+    }
+
     func loadModel(url: URL, runtime: RuntimeConfig) throws -> ModelMetrics {
         let config = try runtime.validated()
         mark("MODEL_00_RESET_BEGIN")
         unloadAll()
         mark("MODEL_00_RESET_DONE")
 
-        if config.disableMetalTensorAPI {
-            setenv("GGML_METAL_TENSOR_DISABLE", "1", 1)
-        } else {
-            unsetenv("GGML_METAL_TENSOR_DISABLE")
-        }
+        try prepareMetalTensorBackend(
+            disabled: config.disableMetalTensorAPI
+        )
         mark("MODEL_01_ENV_READY")
 
-        if !backendInitialized {
-            mark("MODEL_02_BACKEND_INIT_BEGIN")
-            llama_backend_init()
-            backendInitialized = true
-            mark("MODEL_03_BACKEND_INIT_DONE")
-        }
+        try initializeBackendIfNeeded(
+            metalTensorDisabled:
+                config.disableMetalTensorAPI,
+            beginStage:
+                "MODEL_02_BACKEND_INIT_BEGIN",
+            doneStage:
+                "MODEL_03_BACKEND_INIT_DONE"
+        )
 
         let scoped = url.startAccessingSecurityScopedResource()
         modelScopedURL = url
@@ -227,11 +319,9 @@ actor BonsaiEngine {
         BonsaiReleaseStagedResidentModel()
         stopStagedResidentModelScope()
 
-        if nextRuntime.disableMetalTensorAPI {
-            setenv("GGML_METAL_TENSOR_DISABLE", "1", 1)
-        } else {
-            unsetenv("GGML_METAL_TENSOR_DISABLE")
-        }
+        try prepareMetalTensorBackend(
+            disabled: nextRuntime.disableMetalTensorAPI
+        )
 
         UserDefaults.standard.set(
             "context_release_begin",
@@ -463,18 +553,14 @@ actor BonsaiEngine {
 
         unloadAll(releaseStagedResident: false)
 
-        if baseRuntime.disableMetalTensorAPI {
-            setenv("GGML_METAL_TENSOR_DISABLE", "1", 1)
-        } else {
-            unsetenv("GGML_METAL_TENSOR_DISABLE")
-        }
-
-        if !backendInitialized {
-            mark("BOOT_00_BACKEND_INIT_BEGIN")
-            llama_backend_init()
-            backendInitialized = true
-            mark("BOOT_00_BACKEND_INIT_DONE")
-        }
+        try initializeBackendIfNeeded(
+            metalTensorDisabled:
+                baseRuntime.disableMetalTensorAPI,
+            beginStage:
+                "BOOT_00_BACKEND_INIT_BEGIN",
+            doneStage:
+                "BOOT_00_BACKEND_INIT_DONE"
+        )
 
         let modelScope = modelURL.startAccessingSecurityScopedResource()
         modelScopedURL = modelURL
@@ -1026,10 +1112,14 @@ actor BonsaiEngine {
         // with mtmd_init_from_file on this device.
         unloadAll()
 
-        if !backendInitialized {
-            llama_backend_init()
-            backendInitialized = true
-        }
+        try initializeBackendIfNeeded(
+            metalTensorDisabled:
+                Phase2CMetalTensorLaunchLatch.arm != .candidate,
+            beginStage:
+                "TWOPHASE_A00_BACKEND_INIT_BEGIN",
+            doneStage:
+                "TWOPHASE_A00_BACKEND_INIT_DONE"
+        )
 
         let supportURL = FileManager.default.urls(
             for: .applicationSupportDirectory,
@@ -1450,18 +1540,14 @@ actor BonsaiEngine {
         // Ordinary text/vision state is still released before staged execution.
         unloadAll(releaseStagedResident: false)
 
-        if baseRuntime.disableMetalTensorAPI {
-            setenv("GGML_METAL_TENSOR_DISABLE", "1", 1)
-        } else {
-            unsetenv("GGML_METAL_TENSOR_DISABLE")
-        }
-
-        if !backendInitialized {
-            mark("STAGED_00_BACKEND_INIT_BEGIN")
-            llama_backend_init()
-            backendInitialized = true
-            mark("STAGED_00_BACKEND_INIT_DONE")
-        }
+        try initializeBackendIfNeeded(
+            metalTensorDisabled:
+                baseRuntime.disableMetalTensorAPI,
+            beginStage:
+                "STAGED_00_BACKEND_INIT_BEGIN",
+            doneStage:
+                "STAGED_00_BACKEND_INIT_DONE"
+        )
 
         if stagedResidentModelScopedURL?.path != modelURL.path {
             BonsaiReleaseStagedResidentModel()

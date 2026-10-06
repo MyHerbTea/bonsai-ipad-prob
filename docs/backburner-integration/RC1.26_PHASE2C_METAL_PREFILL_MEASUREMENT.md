@@ -43,8 +43,32 @@ The 2026-10-06 Build 69 device audit returned `PASS_CAPABILITY_UNAVAILABLE` on A
 
 Build 70 preserves Build 69 evidence and corrects only the probe shader by materializing the operand slices as local lvalues before `run`. Its implementation id is `rc126.phase2c0.metal-tensor-capability.v2`. No inference behavior, frozen baseline, resident runtime, or Vision path is enabled or promoted by this correction.
 
-## Phase 2C-1 entry gate
+## Build 70 device closure
 
-A performance experiment is allowed only after the corrected capability probe (Build 70 or later) reports the capability checks available. The candidate must then be initialized from a fresh backend/process state, or a later native hook must directly prove the active Prism backend state. A post-init environment-variable flip is forbidden.
+Build 70 device evidence captured on 2026-10-06 returned `PASS_CAPABILITY_AVAILABLE`:
+
+- Apple M5 GPU / Metal 4 supported.
+- Tensor library and Tensor pipeline both compiled.
+- Prism registry present with `EMBED_LIBRARY=1`.
+- `candidate_probe_eligible=true`.
+- `failure_stage=0`, `error_code=0`.
+- Capability probe duration was approximately 0.527 ms.
+- The process remained BASELINE with `GGML_METAL_TENSOR_DISABLE=1` and `metal_tensor_prefill_effective=false`.
+
+The authoritative device record is `RC1.26_BUILD70_PHASE2C0_DEVICE_EVIDENCE.md`.
+
+## Phase 2C-1 fresh-backend viability
+
+Phase 2C-1 uses a process-immutable launch arm:
+
+- `BASELINE`: start the process with `GGML_METAL_TENSOR_DISABLE=1`.
+- `CANDIDATE`: start the process with the variable unset.
+- Scheduling another arm only affects the next process.
+- Switching arms requires a complete app restart.
+- Any in-process attempt to change the arm after the first backend registry initialization is rejected.
+
+Build 71 also captures the pinned Prism backend initialization log and requires the real backend line `has tensor = false` for BASELINE and `has tensor = true` for CANDIDATE. This proves the active backend's Tensor API state without replacing the pinned Prism XCFramework. It still does not claim that every prefill graph dispatched a Tensor kernel.
+
+The first Phase 2C-1 device gate is a two-arm fresh-process viability smoke (one warm-up plus three token-identical measured requests per arm). Only a promising, safe result advances to the controlled ABABAB gate.
 
 Promotion still requires the handoff thresholds: token-identical controlled A/B, repeatable prefill/TTFT gain, decode regression within budget, no crash/jetsam/hang, no silent fallback, and no resident-runtime or Vision regression.

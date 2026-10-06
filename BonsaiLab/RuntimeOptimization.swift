@@ -1,5 +1,47 @@
 import Foundation
 
+enum Phase2CMetalTensorLaunchArm: String, Codable, Sendable {
+    case baseline = "BASELINE"
+    case candidate = "CANDIDATE"
+}
+
+struct Phase2CMetalTensorLaunchLatch {
+    static let nextArmKey = "BonsaiRC126Phase2CNextLaunchArm"
+    static let backendArmKey = "BonsaiRC126Phase2CBackendLatchedArm"
+    static let backendLogObservedKey = "BonsaiRC126Phase2CBackendLogObserved"
+    static let backendHasTensorKey = "BonsaiRC126Phase2CBackendHasTensor"
+    static let backendLogLineKey = "BonsaiRC126Phase2CBackendLogLine"
+
+    static let processLaunchID = UUID().uuidString
+
+    // Intentionally immutable for the lifetime of this app process. Updating
+    // nextArmKey schedules the next process only; it never mutates this value.
+    static let arm: Phase2CMetalTensorLaunchArm = {
+        let raw = UserDefaults.standard.string(forKey: nextArmKey)
+            ?? Phase2CMetalTensorLaunchArm.baseline.rawValue
+        return Phase2CMetalTensorLaunchArm(rawValue: raw) ?? .baseline
+    }()
+
+    static var nextArm: Phase2CMetalTensorLaunchArm {
+        let raw = UserDefaults.standard.string(forKey: nextArmKey)
+            ?? Phase2CMetalTensorLaunchArm.baseline.rawValue
+        return Phase2CMetalTensorLaunchArm(rawValue: raw) ?? .baseline
+    }
+
+    static var restartRequired: Bool {
+        nextArm != arm
+    }
+
+    static func scheduleNext(_ next: Phase2CMetalTensorLaunchArm) {
+        UserDefaults.standard.set(next.rawValue, forKey: nextArmKey)
+        UserDefaults.standard.synchronize()
+    }
+
+    static func apply(to runtime: inout RuntimeConfig) {
+        runtime.disableMetalTensorAPI = arm != .candidate
+    }
+}
+
 enum RuntimeOptimizationProfile: String, Codable, CaseIterable, Sendable {
     case baseline = "BASELINE"
     case experimental = "EXPERIMENTAL"

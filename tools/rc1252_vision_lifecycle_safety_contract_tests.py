@@ -17,6 +17,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "68"' in project
     or 'CURRENT_PROJECT_VERSION: "69"' in project
     or 'CURRENT_PROJECT_VERSION: "70"' in project
+    or 'CURRENT_PROJECT_VERSION: "71"' in project
 )
 assert (
     "RC1.25.2 Build 63 Vision Lifecycle Safety" in view
@@ -33,6 +34,7 @@ assert (
     or 'Text("1.0 · RC1.26 Build 68 Heap Pressure Relief")' in view
     or 'Text("1.0 · RC1.26 Build 69 Metal Prefill Measurement")' in view
     or 'Text("1.0 · RC1.26 Build 70 Metal Prefill Measurement")' in view
+    or 'Text("1.0 · RC1.26 Build 71 Fresh Backend Metal Tensor A/B")' in view
 )
 assert (
     "RC1.25.2 Build 63 API Context Ladder" in view
@@ -124,6 +126,7 @@ assert (
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "68"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "69"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "70"' in workflow
+    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "71"' in workflow
 )
 
 print("RC1.25.2 Build 63 vision lifecycle safety contracts: PASS")

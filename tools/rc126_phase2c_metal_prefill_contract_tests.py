@@ -47,13 +47,17 @@ for marker in [
     'request.path == "/debug/prefill"',
     "RuntimePrefillObservation",
     "recordPrefillObservation(result)",
-    '"RC1.26_PHASE2C0_CAPABILITY_PROVENANCE_AUDIT"',
-    '"rc126.phase2c0.metal-tensor-capability.v2"',
+    '"RC1.26_PHASE2C1_FRESH_BACKEND_VIABILITY"',
+    '"rc126.phase2c1.fresh-backend-launch-latch.v1"',
     '"metal_tensor_prefill_requested":',
     '"metal_tensor_prefill_effective": false',
-    '"capability_only_backend_latched"',
+    '"fresh_process_launch_latched_viability"',
     '"fresh_process_backend_init_required"',
     '"candidate_probe_eligible":',
+    'request.path == "/debug/phase2c/launch"',
+    'request.path == "/debug/phase2c/next-launch"',
+    '"requires_process_restart_between_arms": true',
+    '"metal_tensor_prefill_dispatch_proven":',
     '"runtime_toggle_safe": false',
     '"llama_backend_free_unloads_registry": false',
     '"prism-b10743-adfffbe"',
@@ -66,4 +70,4 @@ assert 'setenv("GGML_METAL_TENSOR_DISABLE", "1", 1)' in engine
 assert "effective.metalTensorPrefill = true" not in server
 assert "lastHeapPressureRelief = nil" in server
 
-print("RC1.26 Phase 2C-0 Metal Tensor capability/provenance contracts: PASS")
+print("RC1.26 Phase 2C Metal Tensor capability + fresh-backend contracts: PASS")

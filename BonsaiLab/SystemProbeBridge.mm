@@ -8,6 +8,9 @@
 #include <cstring>
 
 #include <llama/ggml-backend.h>
+#include <llama/llama.h>
+#include <mutex>
+#include <cstdio>
 
 BonsaiSystemProbe BonsaiReadSystemProbe(void) {
     BonsaiSystemProbe out = {};
@@ -57,6 +60,88 @@ static uint64_t bonsai_elapsed_ns(uint64_t start, uint64_t end) {
     mach_timebase_info_data_t info = {};
     mach_timebase_info(&info);
     return (end - start) * (uint64_t) info.numer / (uint64_t) info.denom;
+}
+
+namespace {
+std::mutex g_bonsai_tensor_log_mutex;
+ggml_log_callback g_bonsai_previous_log_callback = nullptr;
+void * g_bonsai_previous_log_user_data = nullptr;
+bool g_bonsai_tensor_log_capture_active = false;
+bool g_bonsai_tensor_log_observed = false;
+int32_t g_bonsai_tensor_log_has_tensor = -1;
+
+void bonsai_tensor_log_callback(
+    enum ggml_log_level level,
+    const char * text,
+    void * user_data
+) {
+    ggml_log_callback previous = nullptr;
+    void * previous_user_data = nullptr;
+
+    {
+        std::lock_guard<std::mutex> lock(g_bonsai_tensor_log_mutex);
+
+        if (g_bonsai_tensor_log_capture_active && text != nullptr) {
+            if (std::strstr(text, "has tensor") != nullptr) {
+                if (std::strstr(text, "= true") != nullptr) {
+                    g_bonsai_tensor_log_observed = true;
+                    g_bonsai_tensor_log_has_tensor = 1;
+                } else if (std::strstr(text, "= false") != nullptr) {
+                    g_bonsai_tensor_log_observed = true;
+                    g_bonsai_tensor_log_has_tensor = 0;
+                }
+            }
+        }
+
+        previous = g_bonsai_previous_log_callback;
+        previous_user_data = g_bonsai_previous_log_user_data;
+    }
+
+    if (previous != nullptr && previous != bonsai_tensor_log_callback) {
+        previous(level, text, previous_user_data);
+    } else if (text != nullptr) {
+        std::fputs(text, stderr);
+    }
+
+    (void) user_data;
+}
+}
+
+extern "C" void BonsaiBeginMetalTensorBackendLogCapture(void) {
+    std::lock_guard<std::mutex> lock(g_bonsai_tensor_log_mutex);
+
+    if (g_bonsai_tensor_log_capture_active) {
+        return;
+    }
+
+    llama_log_get(
+        &g_bonsai_previous_log_callback,
+        &g_bonsai_previous_log_user_data
+    );
+    g_bonsai_tensor_log_observed = false;
+    g_bonsai_tensor_log_has_tensor = -1;
+    g_bonsai_tensor_log_capture_active = true;
+    llama_log_set(bonsai_tensor_log_callback, nullptr);
+}
+
+extern "C" BonsaiMetalTensorBackendLogEvidence BonsaiEndMetalTensorBackendLogCapture(void) {
+    BonsaiMetalTensorBackendLogEvidence out = {};
+
+    std::lock_guard<std::mutex> lock(g_bonsai_tensor_log_mutex);
+    out.capture_started = g_bonsai_tensor_log_capture_active ? 1 : 0;
+    out.log_observed = g_bonsai_tensor_log_observed ? 1 : 0;
+    out.has_tensor = g_bonsai_tensor_log_has_tensor;
+
+    if (g_bonsai_tensor_log_capture_active) {
+        llama_log_set(
+            g_bonsai_previous_log_callback,
+            g_bonsai_previous_log_user_data
+        );
+        g_bonsai_tensor_log_capture_active = false;
+        out.logger_restored = 1;
+    }
+
+    return out;
 }
 
 extern "C" BonsaiMetalTensorCapabilityProbe BonsaiProbeMetalTensorCapability(void) {

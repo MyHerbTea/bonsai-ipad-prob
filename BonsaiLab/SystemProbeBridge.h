@@ -34,6 +34,16 @@ typedef struct {
 
 BonsaiMetalTensorCapabilityProbe BonsaiProbeMetalTensorCapability(void);
 
+typedef struct {
+    int32_t capture_started;
+    int32_t log_observed;
+    int32_t has_tensor;
+    int32_t logger_restored;
+} BonsaiMetalTensorBackendLogEvidence;
+
+void BonsaiBeginMetalTensorBackendLogCapture(void);
+BonsaiMetalTensorBackendLogEvidence BonsaiEndMetalTensorBackendLogCapture(void);
+
 #ifdef __cplusplus
 }
 #endif
