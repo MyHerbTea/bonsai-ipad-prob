@@ -25,6 +25,7 @@ assert (
 
     or 'Text("1.0 · RC1.26 Build 68 Heap Pressure Relief")' in view
     or 'Text("1.0 · RC1.26 Build 69 Metal Prefill Measurement")' in view
+    or 'Text("1.0 · RC1.26 Build 70 Metal Prefill Measurement")' in view
 )
 assert (
     'RC1.25.1 Build 60 Dual Context Admission' in view

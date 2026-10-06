@@ -34,6 +34,7 @@ assert (
 
     or "RC1.26 Build 68 Heap Pressure Relief" in view
     or "RC1.26 Build 69 Metal Prefill Measurement" in view
+    or "RC1.26 Build 70 Metal Prefill Measurement" in view
 )
 
 # Context ladder: frozen 512 default plus explicit device-validation candidates.
