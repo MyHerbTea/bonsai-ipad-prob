@@ -43,6 +43,7 @@ assert (
 assert (
     "RC1.25.2 Build 63 API Context Ladder" in view
     or "RC1.25.3 Build 64 API Context Ladder" in view
+    or "RC1.26 Build 75 API 冷启动保护" in view
 )
 
 # A fresh vision encode must not begin while request-local KV from the previous
