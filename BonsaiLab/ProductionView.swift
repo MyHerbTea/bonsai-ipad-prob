@@ -1016,7 +1016,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 71 Fresh Backend Metal Tensor A/B")
+                            Text("1.0 · RC1.26 Build 72 Prefill Batch 8→16")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -3087,6 +3087,9 @@ struct ProductionView: View {
         Phase2CMetalTensorLaunchLatch.apply(
             to: &apiRuntime
         )
+        Phase2DPrefillBatchLaunchLatch.apply(
+            to: &apiRuntime
+        )
 
         busy = true
         status = "正在安全切换 API Context/Profile…"
@@ -3125,6 +3128,10 @@ struct ProductionView: View {
                 apiServer.configureModelMetadata(
                     contextWindow: selectedAPIContext,
                     maxOutputTokens: 256
+                )
+                apiServer.configureRuntimeShape(
+                    batch: apiRuntime.batch,
+                    ubatch: apiRuntime.ubatch
                 )
 
                 try await resumeAPIListenerPreservingRuntime()
@@ -3210,6 +3217,9 @@ struct ProductionView: View {
                 Phase2CMetalTensorLaunchLatch.apply(
                     to: &apiRuntime
                 )
+                Phase2DPrefillBatchLaunchLatch.apply(
+                    to: &apiRuntime
+                )
 
                 _ = try await sharedEngine.loadModel(
                     url: selectedModelURL,
@@ -3233,6 +3243,10 @@ struct ProductionView: View {
                 apiServer.configureModelMetadata(
                     contextWindow: selectedAPIContext,
                     maxOutputTokens: 256
+                )
+                apiServer.configureRuntimeShape(
+                    batch: apiRuntime.batch,
+                    ubatch: apiRuntime.ubatch
                 )
 
                 try apiServer.start(port: 8080) {

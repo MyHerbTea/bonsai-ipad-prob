@@ -66,12 +66,15 @@ for marker in [
     '"pinned_prism_backend_init_log_has_tensor"',
     '"metal_tensor_prefill_dispatch_proven":',
     'false',
-    '"rc1.26-build71-fresh-backend-metal-tensor-ab"',
+    '"rc1.26-build72-prefill-batch-8-vs-16"',
 ]:
     assert marker in server, marker
 
 assert "Phase2CMetalTensorLaunchLatch.apply(" in view
-assert "RC1.26 Build 71 Fresh Backend Metal Tensor A/B" in view
+assert (
+    "RC1.26 Build 71 Fresh Backend Metal Tensor A/B" in view
+    or "RC1.26 Build 72 Prefill Batch 8→16" in view
+)
 
 for marker in [
     'ValidateSet("BASELINE", "CANDIDATE")',
@@ -87,7 +90,10 @@ for marker in [
 ]:
     assert marker in runner, marker
 
-assert 'CURRENT_PROJECT_VERSION: "71"' in project
+assert (
+    'CURRENT_PROJECT_VERSION: "71"' in project
+    or 'CURRENT_PROJECT_VERSION: "72"' in project
+)
 assert "RC1.26 Phase 2C-1 fresh backend contracts" in workflow
 assert "tools/rc126_phase2c1_fresh_backend_contract_tests.py" in workflow
 

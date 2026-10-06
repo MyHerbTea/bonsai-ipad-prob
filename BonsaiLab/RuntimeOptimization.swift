@@ -42,6 +42,51 @@ struct Phase2CMetalTensorLaunchLatch {
     }
 }
 
+enum Phase2DPrefillBatchArm: String, Codable, Sendable {
+    case baseline8 = "BASELINE8"
+    case candidate16 = "CANDIDATE16"
+}
+
+struct Phase2DPrefillBatchLaunchLatch {
+    static let nextArmKey = "BonsaiRC126Phase2DNextLaunchArm"
+    static let processLaunchID = UUID().uuidString
+
+    static let arm: Phase2DPrefillBatchArm = {
+        let raw = UserDefaults.standard.string(forKey: nextArmKey)
+            ?? Phase2DPrefillBatchArm.baseline8.rawValue
+        return Phase2DPrefillBatchArm(rawValue: raw) ?? .baseline8
+    }()
+
+    static var nextArm: Phase2DPrefillBatchArm {
+        let raw = UserDefaults.standard.string(forKey: nextArmKey)
+            ?? Phase2DPrefillBatchArm.baseline8.rawValue
+        return Phase2DPrefillBatchArm(rawValue: raw) ?? .baseline8
+    }
+
+    static var restartRequired: Bool {
+        nextArm != arm
+    }
+
+    static func scheduleNext(_ next: Phase2DPrefillBatchArm) {
+        UserDefaults.standard.set(next.rawValue, forKey: nextArmKey)
+        UserDefaults.standard.synchronize()
+    }
+
+    static var batch: Int {
+        arm == .candidate16 ? 16 : 8
+    }
+
+    static func apply(to runtime: inout RuntimeConfig) {
+        let value = batch
+        runtime.batch = value
+        runtime.ubatch = value
+
+        // Phase 2C is closed as SAFE_NO_GAIN. Phase 2D must isolate batch
+        // shape and never accidentally combine it with Metal Tensor.
+        runtime.disableMetalTensorAPI = true
+    }
+}
+
 enum RuntimeOptimizationProfile: String, Codable, CaseIterable, Sendable {
     case baseline = "BASELINE"
     case experimental = "EXPERIMENTAL"

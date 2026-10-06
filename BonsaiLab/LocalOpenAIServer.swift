@@ -99,6 +99,8 @@ final class LocalOpenAIServer: ObservableObject {
     let modelID = "bonsai-2-27b-local"
     private var advertisedContextWindow = 512
     private var advertisedMaxOutputTokens = 256
+    private var advertisedBatch = 8
+    private var advertisedUBatch = 8
     private var runtimeRequestedProfile: RuntimeOptimizationProfile = .baseline
     private var runtimeRequestedFlags: RuntimeFeatureFlags = .baseline
     private let governorObservationLock = NSLock()
@@ -118,6 +120,14 @@ final class LocalOpenAIServer: ObservableObject {
     ) {
         advertisedContextWindow = contextWindow
         advertisedMaxOutputTokens = maxOutputTokens
+    }
+
+    func configureRuntimeShape(
+        batch: Int,
+        ubatch: Int
+    ) {
+        advertisedBatch = batch
+        advertisedUBatch = ubatch
     }
 
     private let queue = DispatchQueue(
@@ -554,6 +564,25 @@ final class LocalOpenAIServer: ObservableObject {
         if request.method == "POST",
            request.path == "/debug/phase2c/next-launch" {
             updatePhase2CNextLaunchArm(
+                request,
+                connection: connection
+            )
+            return
+        }
+
+        if request.method == "GET",
+           request.path == "/debug/phase2d/launch" {
+            sendJSON(
+                connection,
+                status: 200,
+                object: debugPhase2DLaunchObject()
+            )
+            return
+        }
+
+        if request.method == "POST",
+           request.path == "/debug/phase2d/next-launch" {
+            updatePhase2DNextLaunchArm(
                 request,
                 connection: connection
             )
@@ -1148,11 +1177,87 @@ final class LocalOpenAIServer: ObservableObject {
         }
     }
 
+    private func debugPhase2DLaunchObject() -> [String: Any] {
+        let arm = Phase2DPrefillBatchLaunchLatch.arm
+        let nextArm = Phase2DPrefillBatchLaunchLatch.nextArm
+        let expectedBatch =
+            arm == .candidate16 ? 16 : 8
+
+        return [
+            "phase":
+                "RC1.26_PHASE2D_PREFILL_BATCH_SHAPE_VIABILITY",
+            "implementation_id":
+                "rc126.phase2d.prefill-batch-8-vs-16.v1",
+            "process_launch_id":
+                Phase2DPrefillBatchLaunchLatch.processLaunchID,
+            "launch_arm": arm.rawValue,
+            "next_launch_arm": nextArm.rawValue,
+            "restart_required":
+                Phase2DPrefillBatchLaunchLatch.restartRequired,
+            "expected_batch": expectedBatch,
+            "expected_ubatch": expectedBatch,
+            "active_batch": advertisedBatch,
+            "active_ubatch": advertisedUBatch,
+            "shape_evidence_valid":
+                advertisedBatch == expectedBatch
+                && advertisedUBatch == expectedBatch,
+            "metal_tensor_forced_baseline": true,
+            "ggml_metal_tensor_disable":
+                getenv("GGML_METAL_TENSOR_DISABLE")
+                    .map { String(cString: $0) }
+                    ?? "unset"
+        ]
+    }
+
+    private func updatePhase2DNextLaunchArm(
+        _ request: HTTPRequest,
+        connection: NWConnection
+    ) {
+        do {
+            guard
+                let root = try JSONSerialization.jsonObject(
+                    with: request.body
+                ) as? [String: Any],
+                let rawArm = root["arm"] as? String,
+                let arm = Phase2DPrefillBatchArm(
+                    rawValue: rawArm.uppercased()
+                )
+            else {
+                sendJSON(
+                    connection,
+                    status: 400,
+                    object: Self.errorObject(
+                        "invalid_phase2d_launch_arm",
+                        "arm must be BASELINE8 or CANDIDATE16."
+                    )
+                )
+                return
+            }
+
+            Phase2DPrefillBatchLaunchLatch.scheduleNext(arm)
+
+            sendJSON(
+                connection,
+                status: 200,
+                object: debugPhase2DLaunchObject()
+            )
+        } catch {
+            sendJSON(
+                connection,
+                status: 400,
+                object: Self.errorObject(
+                    "invalid_phase2d_launch_request",
+                    "Expected JSON object with arm."
+                )
+            )
+        }
+    }
+
     private func debugBuildObject() -> [String: Any] {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build71-fresh-backend-metal-tensor-ab",
+            "build_id": "rc1.26-build72-prefill-batch-8-vs-16",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",

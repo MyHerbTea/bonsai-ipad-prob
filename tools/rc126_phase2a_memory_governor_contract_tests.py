@@ -10,6 +10,7 @@ assert (
     or '"build_id": "rc1.26-build69-metal-prefill-measurement"' in server
     or '"build_id": "rc1.26-build70-metal-prefill-measurement"' in server
     or '"build_id": "rc1.26-build71-fresh-backend-metal-tensor-ab"' in server
+    or '"build_id": "rc1.26-build72-prefill-batch-8-vs-16"' in server
 )
 
 for marker in [
