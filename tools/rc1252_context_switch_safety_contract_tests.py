@@ -18,6 +18,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "70"' in project
     or 'CURRENT_PROJECT_VERSION: "71"' in project
     or 'CURRENT_PROJECT_VERSION: "72"' in project
+    or 'CURRENT_PROJECT_VERSION: "73"' in project
 )
 assert (
     "RC1.25.2 Build 63 Vision Lifecycle Safety" in view
@@ -36,6 +37,7 @@ assert (
     or 'Text("1.0 · RC1.26 Build 70 Metal Prefill Measurement")' in view
     or 'Text("1.0 · RC1.26 Build 71 Fresh Backend Metal Tensor A/B")' in view
     or 'Text("1.0 · RC1.26 Build 72 Prefill Batch 8→16")' in view
+    or 'Text("1.0 · RC1.26 Build 73 Prefill Batch 16→32")' in view
 )
 
 # The risky old path reloaded the full 27B model after a paused-listener context
@@ -92,6 +94,7 @@ assert (
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "70"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "71"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "72"' in workflow
+    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "73"' in workflow
 )
 
 print("RC1.25.2 Build 63 context switch safety contracts: PASS")

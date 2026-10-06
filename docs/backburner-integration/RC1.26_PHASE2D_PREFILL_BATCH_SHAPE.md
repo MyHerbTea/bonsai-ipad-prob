@@ -46,3 +46,24 @@ Phase 2D is a viability gate, not a production promotion.
 - <5% improvement or any crash/jetsam/context-create regression: no promotion.
 
 A successful 16/16 result may justify a later 32/32 experiment. Build 72 does not test 32/32.
+
+
+## Build 72 device closure
+
+Device A/B on 2026-10-06 produced a **STRONG PASS**.
+
+- BASELINE8 avg prefill: 85,948.521 ms.
+- CANDIDATE16 avg prefill: 28,113.818 ms.
+- Prefill improvement: **67.290%** (3.057x speedup).
+- TTFT improvement: **66.438%**.
+- Decode-to-first regression: 0.410%.
+- Decode tok/s regression: 0.808%.
+- Thermal remained nominal in both arms.
+- Metal allocation delta was identical (+256 KiB) in both arms.
+- Prompt tokens and answer hash were identical.
+
+CANDIDATE16 had higher sample variance, but even its slower included sample remained more than 62% faster than the fastest BASELINE8 sample. The improvement is therefore decisive.
+
+Detailed evidence: `RC1.26_BUILD72_PHASE2D_DEVICE_EVIDENCE.md`.
+
+Decision: proceed to Build 73 / Phase 2E (16/16 vs 32/32). Do not yet promote 16/16 to the production default until the next batch-size knee and confirmation behavior are known.

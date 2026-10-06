@@ -1016,7 +1016,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 72 Prefill Batch 8→16")
+                            Text("1.0 · RC1.26 Build 73 Prefill Batch 16→32")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -3090,6 +3090,9 @@ struct ProductionView: View {
         Phase2DPrefillBatchLaunchLatch.apply(
             to: &apiRuntime
         )
+        Phase2EPrefillBatchLaunchLatch.apply(
+            to: &apiRuntime
+        )
 
         busy = true
         status = "正在安全切换 API Context/Profile…"
@@ -3218,6 +3221,9 @@ struct ProductionView: View {
                     to: &apiRuntime
                 )
                 Phase2DPrefillBatchLaunchLatch.apply(
+                    to: &apiRuntime
+                )
+                Phase2EPrefillBatchLaunchLatch.apply(
                     to: &apiRuntime
                 )
 

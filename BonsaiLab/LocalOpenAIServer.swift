@@ -590,6 +590,25 @@ final class LocalOpenAIServer: ObservableObject {
         }
 
         if request.method == "GET",
+           request.path == "/debug/phase2e/launch" {
+            sendJSON(
+                connection,
+                status: 200,
+                object: debugPhase2ELaunchObject()
+            )
+            return
+        }
+
+        if request.method == "POST",
+           request.path == "/debug/phase2e/next-launch" {
+            updatePhase2ENextLaunchArm(
+                request,
+                connection: connection
+            )
+            return
+        }
+
+        if request.method == "GET",
            request.path == "/debug/governor" {
             sendJSON(
                 connection,
@@ -1253,11 +1272,87 @@ final class LocalOpenAIServer: ObservableObject {
         }
     }
 
+    private func debugPhase2ELaunchObject() -> [String: Any] {
+        let arm = Phase2EPrefillBatchLaunchLatch.arm
+        let nextArm = Phase2EPrefillBatchLaunchLatch.nextArm
+        let expectedBatch =
+            arm == .candidate32 ? 32 : 16
+
+        return [
+            "phase":
+                "RC1.26_PHASE2E_PREFILL_BATCH_16_VS_32_VIABILITY",
+            "implementation_id":
+                "rc126.phase2e.prefill-batch-16-vs-32.v1",
+            "process_launch_id":
+                Phase2EPrefillBatchLaunchLatch.processLaunchID,
+            "launch_arm": arm.rawValue,
+            "next_launch_arm": nextArm.rawValue,
+            "restart_required":
+                Phase2EPrefillBatchLaunchLatch.restartRequired,
+            "expected_batch": expectedBatch,
+            "expected_ubatch": expectedBatch,
+            "active_batch": advertisedBatch,
+            "active_ubatch": advertisedUBatch,
+            "shape_evidence_valid":
+                advertisedBatch == expectedBatch
+                && advertisedUBatch == expectedBatch,
+            "metal_tensor_forced_baseline": true,
+            "ggml_metal_tensor_disable":
+                getenv("GGML_METAL_TENSOR_DISABLE")
+                    .map { String(cString: $0) }
+                    ?? "unset"
+        ]
+    }
+
+    private func updatePhase2ENextLaunchArm(
+        _ request: HTTPRequest,
+        connection: NWConnection
+    ) {
+        do {
+            guard
+                let root = try JSONSerialization.jsonObject(
+                    with: request.body
+                ) as? [String: Any],
+                let rawArm = root["arm"] as? String,
+                let arm = Phase2EPrefillBatchArm(
+                    rawValue: rawArm.uppercased()
+                )
+            else {
+                sendJSON(
+                    connection,
+                    status: 400,
+                    object: Self.errorObject(
+                        "invalid_phase2e_launch_arm",
+                        "arm must be BASELINE16 or CANDIDATE32."
+                    )
+                )
+                return
+            }
+
+            Phase2EPrefillBatchLaunchLatch.scheduleNext(arm)
+
+            sendJSON(
+                connection,
+                status: 200,
+                object: debugPhase2ELaunchObject()
+            )
+        } catch {
+            sendJSON(
+                connection,
+                status: 400,
+                object: Self.errorObject(
+                    "invalid_phase2e_launch_request",
+                    "Expected JSON object with arm."
+                )
+            )
+        }
+    }
+
     private func debugBuildObject() -> [String: Any] {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build72-prefill-batch-8-vs-16",
+            "build_id": "rc1.26-build73-prefill-batch-16-vs-32",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",

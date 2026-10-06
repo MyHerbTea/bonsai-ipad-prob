@@ -87,6 +87,50 @@ struct Phase2DPrefillBatchLaunchLatch {
     }
 }
 
+enum Phase2EPrefillBatchArm: String, Codable, Sendable {
+    case baseline16 = "BASELINE16"
+    case candidate32 = "CANDIDATE32"
+}
+
+struct Phase2EPrefillBatchLaunchLatch {
+    static let nextArmKey = "BonsaiRC126Phase2ENextLaunchArm"
+    static let processLaunchID = UUID().uuidString
+
+    static let arm: Phase2EPrefillBatchArm = {
+        let raw = UserDefaults.standard.string(forKey: nextArmKey)
+            ?? Phase2EPrefillBatchArm.baseline16.rawValue
+        return Phase2EPrefillBatchArm(rawValue: raw) ?? .baseline16
+    }()
+
+    static var nextArm: Phase2EPrefillBatchArm {
+        let raw = UserDefaults.standard.string(forKey: nextArmKey)
+            ?? Phase2EPrefillBatchArm.baseline16.rawValue
+        return Phase2EPrefillBatchArm(rawValue: raw) ?? .baseline16
+    }
+
+    static var restartRequired: Bool {
+        nextArm != arm
+    }
+
+    static func scheduleNext(_ next: Phase2EPrefillBatchArm) {
+        UserDefaults.standard.set(next.rawValue, forKey: nextArmKey)
+        UserDefaults.standard.synchronize()
+    }
+
+    static var batch: Int {
+        arm == .candidate32 ? 32 : 16
+    }
+
+    static func apply(to runtime: inout RuntimeConfig) {
+        let value = batch
+        runtime.batch = value
+        runtime.ubatch = value
+
+        // Phase 2E isolates only prefill batch shape.
+        runtime.disableMetalTensorAPI = true
+    }
+}
+
 enum RuntimeOptimizationProfile: String, Codable, CaseIterable, Sendable {
     case baseline = "BASELINE"
     case experimental = "EXPERIMENTAL"
