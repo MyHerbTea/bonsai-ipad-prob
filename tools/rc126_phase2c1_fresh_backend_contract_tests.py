@@ -66,7 +66,7 @@ for marker in [
     '"pinned_prism_backend_init_log_has_tensor"',
     '"metal_tensor_prefill_dispatch_proven":',
     'false',
-    '"rc1.26-build73-prefill-batch-16-vs-32"',
+    '"rc1.26-build74-prefill-batch-32-vs-64"',
 ]:
     assert marker in server, marker
 
@@ -75,6 +75,7 @@ assert (
     "RC1.26 Build 71 Fresh Backend Metal Tensor A/B" in view
     or "RC1.26 Build 72 Prefill Batch 8→16" in view
     or "RC1.26 Build 73 Prefill Batch 16→32" in view
+    or "RC1.26 Build 74 Prefill Batch 32→64" in view
 )
 
 for marker in [
@@ -95,6 +96,7 @@ assert (
     'CURRENT_PROJECT_VERSION: "71"' in project
     or 'CURRENT_PROJECT_VERSION: "72"' in project
     or 'CURRENT_PROJECT_VERSION: "73"' in project
+    or 'CURRENT_PROJECT_VERSION: "74"' in project
 )
 assert "RC1.26 Phase 2C-1 fresh backend contracts" in workflow
 assert "tools/rc126_phase2c1_fresh_backend_contract_tests.py" in workflow

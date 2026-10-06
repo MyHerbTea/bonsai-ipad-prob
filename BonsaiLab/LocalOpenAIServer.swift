@@ -609,6 +609,18 @@ final class LocalOpenAIServer: ObservableObject {
         }
 
         if request.method == "GET",
+           request.path == "/debug/phase2f/launch" {
+            sendJSON(connection, status: 200, object: debugPhase2FLaunchObject())
+            return
+        }
+
+        if request.method == "POST",
+           request.path == "/debug/phase2f/next-launch" {
+            updatePhase2FNextLaunchArm(request, connection: connection)
+            return
+        }
+
+        if request.method == "GET",
            request.path == "/debug/governor" {
             sendJSON(
                 connection,
@@ -1348,11 +1360,70 @@ final class LocalOpenAIServer: ObservableObject {
         }
     }
 
+    private func debugPhase2FLaunchObject() -> [String: Any] {
+        let arm = Phase2FPrefillBatchLaunchLatch.arm
+        let nextArm = Phase2FPrefillBatchLaunchLatch.nextArm
+        let expectedBatch = arm == .candidate64 ? 64 : 32
+
+        return [
+            "phase": "RC1.26_PHASE2F_PREFILL_BATCH_32_VS_64_VIABILITY",
+            "implementation_id": "rc126.phase2f.prefill-batch-32-vs-64.v1",
+            "process_launch_id": Phase2FPrefillBatchLaunchLatch.processLaunchID,
+            "launch_arm": arm.rawValue,
+            "next_launch_arm": nextArm.rawValue,
+            "restart_required": Phase2FPrefillBatchLaunchLatch.restartRequired,
+            "expected_batch": expectedBatch,
+            "expected_ubatch": expectedBatch,
+            "active_batch": advertisedBatch,
+            "active_ubatch": advertisedUBatch,
+            "shape_evidence_valid":
+                advertisedBatch == expectedBatch && advertisedUBatch == expectedBatch,
+            "metal_tensor_forced_baseline": true,
+            "ggml_metal_tensor_disable":
+                getenv("GGML_METAL_TENSOR_DISABLE").map { String(cString: $0) } ?? "unset"
+        ]
+    }
+
+    private func updatePhase2FNextLaunchArm(
+        _ request: HTTPRequest,
+        connection: NWConnection
+    ) {
+        do {
+            guard
+                let root = try JSONSerialization.jsonObject(with: request.body) as? [String: Any],
+                let rawArm = root["arm"] as? String,
+                let arm = Phase2FPrefillBatchArm(rawValue: rawArm.uppercased())
+            else {
+                sendJSON(
+                    connection,
+                    status: 400,
+                    object: Self.errorObject(
+                        "invalid_phase2f_launch_arm",
+                        "arm must be BASELINE32 or CANDIDATE64."
+                    )
+                )
+                return
+            }
+
+            Phase2FPrefillBatchLaunchLatch.scheduleNext(arm)
+            sendJSON(connection, status: 200, object: debugPhase2FLaunchObject())
+        } catch {
+            sendJSON(
+                connection,
+                status: 400,
+                object: Self.errorObject(
+                    "invalid_phase2f_launch_request",
+                    "Expected JSON object with arm."
+                )
+            )
+        }
+    }
+
     private func debugBuildObject() -> [String: Any] {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build73-prefill-batch-16-vs-32",
+            "build_id": "rc1.26-build74-prefill-batch-32-vs-64",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",

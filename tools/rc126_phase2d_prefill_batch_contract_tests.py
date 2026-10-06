@@ -28,6 +28,7 @@ for marker in [
 assert (
     "RC1.26 Build 72 Prefill Batch 8→16" in view
     or "RC1.26 Build 73 Prefill Batch 16→32" in view
+    or "RC1.26 Build 74 Prefill Batch 32→64" in view
 )
 
 for marker in [
@@ -39,7 +40,7 @@ for marker in [
     '"active_ubatch": advertisedUBatch',
     '"shape_evidence_valid":',
     '"metal_tensor_forced_baseline": true',
-    '"rc1.26-build73-prefill-batch-16-vs-32"',
+    '"rc1.26-build74-prefill-batch-32-vs-64"',
 ]:
     assert marker in server, marker
 
@@ -58,6 +59,7 @@ for marker in [
 assert (
     'CURRENT_PROJECT_VERSION: "72"' in project
     or 'CURRENT_PROJECT_VERSION: "73"' in project
+    or 'CURRENT_PROJECT_VERSION: "74"' in project
 )
 assert "RC1.26 Phase 2D prefill batch contracts" in workflow
 assert "tools/rc126_phase2d_prefill_batch_arm.ps1" in workflow

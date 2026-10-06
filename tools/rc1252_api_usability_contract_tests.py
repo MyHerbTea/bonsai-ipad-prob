@@ -22,7 +22,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "70"' in project
     or 'CURRENT_PROJECT_VERSION: "71"' in project
     or 'CURRENT_PROJECT_VERSION: "72"' in project
-    or 'CURRENT_PROJECT_VERSION: "73"' in project
+    or 'CURRENT_PROJECT_VERSION: "74"' in project
 )
 assert (
     "RC1.25.2 Build 63 API Context Ladder" in view
@@ -41,7 +41,7 @@ assert (
     or "RC1.26 Build 70 Metal Prefill Measurement" in view
     or "RC1.26 Build 71 Fresh Backend Metal Tensor A/B" in view
     or "RC1.26 Build 72 Prefill Batch 8→16" in view
-    or "RC1.26 Build 73 Prefill Batch 16→32" in view
+    or "RC1.26 Build 74 Prefill Batch 32→64" in view
 )
 
 # Context ladder: frozen 512 default plus explicit device-validation candidates.
@@ -257,7 +257,7 @@ assert (
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "70"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "71"' in workflow
     or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "72"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "73"' in workflow
+    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "74"' in workflow
 )
 
 print("RC1.25.2 Build 63 API usability contracts: PASS")

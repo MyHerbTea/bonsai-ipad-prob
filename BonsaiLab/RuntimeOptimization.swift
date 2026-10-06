@@ -131,6 +131,44 @@ struct Phase2EPrefillBatchLaunchLatch {
     }
 }
 
+enum Phase2FPrefillBatchArm: String, Codable, Sendable {
+    case baseline32 = "BASELINE32"
+    case candidate64 = "CANDIDATE64"
+}
+
+struct Phase2FPrefillBatchLaunchLatch {
+    static let nextArmKey = "BonsaiRC126Phase2FNextLaunchArm"
+    static let processLaunchID = UUID().uuidString
+
+    static let arm: Phase2FPrefillBatchArm = {
+        let raw = UserDefaults.standard.string(forKey: nextArmKey)
+            ?? Phase2FPrefillBatchArm.baseline32.rawValue
+        return Phase2FPrefillBatchArm(rawValue: raw) ?? .baseline32
+    }()
+
+    static var nextArm: Phase2FPrefillBatchArm {
+        let raw = UserDefaults.standard.string(forKey: nextArmKey)
+            ?? Phase2FPrefillBatchArm.baseline32.rawValue
+        return Phase2FPrefillBatchArm(rawValue: raw) ?? .baseline32
+    }
+
+    static var restartRequired: Bool { nextArm != arm }
+
+    static func scheduleNext(_ next: Phase2FPrefillBatchArm) {
+        UserDefaults.standard.set(next.rawValue, forKey: nextArmKey)
+        UserDefaults.standard.synchronize()
+    }
+
+    static var batch: Int { arm == .candidate64 ? 64 : 32 }
+
+    static func apply(to runtime: inout RuntimeConfig) {
+        let value = batch
+        runtime.batch = value
+        runtime.ubatch = value
+        runtime.disableMetalTensorAPI = true
+    }
+}
+
 enum RuntimeOptimizationProfile: String, Codable, CaseIterable, Sendable {
     case baseline = "BASELINE"
     case experimental = "EXPERIMENTAL"

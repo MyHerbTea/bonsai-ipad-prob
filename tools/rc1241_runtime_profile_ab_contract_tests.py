@@ -26,7 +26,7 @@ assert (
     or 'Text("1.0 · RC1.26 Build 70 Metal Prefill Measurement")' in view
     or 'Text("1.0 · RC1.26 Build 71 Fresh Backend Metal Tensor A/B")' in view
     or 'Text("1.0 · RC1.26 Build 72 Prefill Batch 8→16")' in view
-    or 'Text("1.0 · RC1.26 Build 73 Prefill Batch 16→32")' in view
+    or 'Text("1.0 · RC1.26 Build 74 Prefill Batch 32→64")' in view
 )
 assert 'Text("Safe").tag("safe")' in view
 assert 'Text("Flash").tag("ab_flash_only")' in view
