@@ -38,10 +38,10 @@ for marker in [
     "auto sA = a.slice(0, 0);",
     "auto sB = b.slice(0, 0);",
     "mm.run(sB, sA, dst);",
-]
-
-assert "mm.run(b.slice(" not in bridge_mm:
+]:
     assert marker in bridge_mm, marker
+
+assert "mm.run(b.slice(" not in bridge_mm
 
 for marker in [
     'request.path == "/debug/prefill"',
