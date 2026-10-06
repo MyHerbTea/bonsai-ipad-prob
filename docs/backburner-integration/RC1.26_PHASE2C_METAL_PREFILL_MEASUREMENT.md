@@ -72,3 +72,23 @@ Build 71 also captures the pinned Prism backend initialization log and requires 
 The first Phase 2C-1 device gate is a two-arm fresh-process viability smoke (one warm-up plus three token-identical measured requests per arm). Only a promising, safe result advances to the controlled ABABAB gate.
 
 Promotion still requires the handoff thresholds: token-identical controlled A/B, repeatable prefill/TTFT gain, decode regression within budget, no crash/jetsam/hang, no silent fallback, and no resident-runtime or Vision regression.
+
+
+## Phase 2C-1 device closure — Build 71
+
+The 2026-10-06 fresh-process device A/B is complete. Build 71 proved the backend mechanism itself: BASELINE captured `has tensor = false`; CANDIDATE captured `has tensor = true`; process launch IDs differed; runtime switching remained forbidden.
+
+The controlled 1658-token workload produced:
+
+- BASELINE avg prefill: 254,616.111 ms.
+- CANDIDATE avg prefill: 263,672.050 ms (**3.557% slower**).
+- BASELINE avg TTFT: 255,195.273 ms.
+- CANDIDATE avg TTFT: 264,247.221 ms (**3.547% slower**).
+- Decode-to-first improved only 0.689%.
+- Decode throughput improved only 0.472%.
+- Metal allocated/headroom deltas were identical (+256 KiB / -256 KiB).
+- BASELINE ended thermal `nominal`; CANDIDATE ended `fair`.
+
+Decision: **PASS_MECHANISM / FAIL_PERFORMANCE_GATE / CLOSE_PHASE2C_NO_PROMOTION**.
+
+Do not proceed to ABABAB or the context ladder. Metal Tensor remains experimental and must not enter the ACCELERATED/production profile. The detailed device record is `RC1.26_BUILD71_PHASE2C1_DEVICE_EVIDENCE.md`.
