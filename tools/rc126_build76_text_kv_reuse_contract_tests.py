@@ -67,9 +67,10 @@ for marker in [
 ]:
     assert marker in view, marker
 
-assert "systemPrompt:\n                                    apiSystemPrompt" in view
-assert "systemPrompt:\n                                    apiTextSystemPrompt" in view
-assert "history:\n                                    payload.textHistory" in view
+view_flat = " ".join(view.split())
+assert "systemPrompt: apiSystemPrompt" in view_flat
+assert "systemPrompt: apiTextSystemPrompt" in view_flat
+assert "history: payload.textHistory" in view_flat
 
 assert 'CURRENT_PROJECT_VERSION: "76"' in project
 assert "RC1.26 Build 76 Text KV reuse contracts" in workflow
@@ -77,8 +78,12 @@ assert "tools/rc126_build76_text_kv_reuse_contract_tests.py" in workflow
 assert "tools/rc126_build76_text_kv_reuse_ab.ps1" in workflow
 assert "RC1.26 Build 75 cold-start guard contracts" in workflow
 assert "tools/rc126_build75_api_cold_start_contract_tests.py" in workflow
-assert "BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa" in workflow
-assert "zip -qry ../BonsaiLab-v1-RC1.26-build75-api-cold-start-guard-unsigned.ipa Payload" not in workflow
+package_start = workflow.index("- name: Package unsigned IPA")
+upload_start = workflow.index("- name: Upload artifact", package_start)
+package_block = workflow[package_start:upload_start]
+assert "zip -qry ../BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa Payload" in package_block
+assert "BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa.sha256" in package_block
+assert "build75-api-cold-start-guard" not in package_block
 assert "Phase2FPrefillBatchLaunchLatch.apply" in view
 assert 'setenv("GGML_METAL_TENSOR_DISABLE", "1", 1)' in engine
 
