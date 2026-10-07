@@ -1026,7 +1026,7 @@ struct ProductionView: View {
     private var selectedAPIContextValue: Int {
         [
             "512", "768", "1024", "2048",
-            "3072", "4096", "6144", "8192"
+            "3072", "4096", "4608", "5120", "5632"
         ]
             .contains(apiContextProfile)
             ? (Int(apiContextProfile) ?? 4096)
@@ -1075,7 +1075,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 77 M5 Extended Context Lab")
+                            Text("1.0 · RC1.26 Build 78 M5 Context Boundary Lab")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -1474,15 +1474,16 @@ struct ProductionView: View {
                             Text("1024 · legacy").tag("1024")
                             Text("2048 · baseline").tag("2048")
                             Text("3072").tag("3072")
-                            Text("4096 · recommended").tag("4096")
-                            Text("6144 · aggressive").tag("6144")
-                            Text("8192 · extreme").tag("8192")
+                            Text("4096 · verified").tag("4096")
+                            Text("4608 · probe").tag("4608")
+                            Text("5120 · probe").tag("5120")
+                            Text("5632 · edge").tag("5632")
                         }
                         .pickerStyle(.menu)
                         .disabled(apiServer.isRunning)
 
                         Text(
-                            "Build 77 Extended Context：4096 为推荐日用起点；6144/8192 为 M5 激进实验档。2048 仅保留为认证对照。切换 Context 需要先停止 API，再重新预热。"
+                            "Build 78 Context Boundary：4096 已真机确认可启动；4608/5120/5632 用于逼近 M5 12GB 的稳定上限。Build 77 的 6144/8192 已确认启动 API 会直接终止 App，因此本版从正常选择器移除。>4096 自动使用 16×16 capacity mode。"
                         )
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -1671,9 +1672,17 @@ struct ProductionView: View {
                 if apiRuntimeProfile == "flash" {
                     apiRuntimeProfile = "accelerated"
                 }
-                if ![
+                if ["6144", "8192"]
+                    .contains(apiContextProfile) {
+                    UserDefaults.standard.set(
+                        apiContextProfile,
+                        forKey:
+                            "BonsaiRC126Build78UnsafeContextMigratedFrom"
+                    )
+                    apiContextProfile = "4096"
+                } else if ![
                     "512", "768", "1024", "2048",
-                    "3072", "4096", "6144", "8192"
+                    "3072", "4096", "4608", "5120", "5632"
                 ]
                     .contains(apiContextProfile) {
                     apiContextProfile = "4096"
@@ -3273,12 +3282,12 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "77")
+        RC126APIStartupLifecycle.begin(build: "78")
         busy = true
-        status = "正在执行 RC1.26 Build 77 Extended Context + API 冷启动保护…"
+        status = "正在执行 RC1.26 Build 78 Context Boundary + API 冷启动保护…"
         detail = """
         Build 60 的 API/视觉路径保持不变。
-        Build 77 开放 512/768/1024/2048/3072/4096/6144/8192 API Context Ladder；
+        Build 78 开放 512/768/1024/2048/3072/4096/4608/5120/5632；6144/8192 因 Build 77 真机启动闪退已阻止。
         /v1/models 会公布当前 context_length、vision 与 unsupported tool/reasoning 能力。
         """
 
@@ -3327,6 +3336,36 @@ struct ProductionView: View {
                 Phase2FPrefillBatchLaunchLatch.apply(
                     to: &apiRuntime
                 )
+
+                // Build 78 capacity mode: Build 77 proved 4096 can start
+                // with the frozen 32x32 path, while 6144/8192 terminate the
+                // app during API startup. Above 4096, cap compute shape at
+                // 16x16 to reduce context-create peak pressure while probing
+                // the real M5 12 GB capacity boundary.
+                let build78CapacityMode =
+                    selectedAPIContext > 4096
+                if build78CapacityMode {
+                    apiRuntime.batch =
+                        min(apiRuntime.batch, 16)
+                    apiRuntime.ubatch =
+                        min(apiRuntime.ubatch, 16)
+                }
+                UserDefaults.standard.set(
+                    build78CapacityMode,
+                    forKey:
+                        "BonsaiRC126Build78CapacityMode"
+                )
+                UserDefaults.standard.set(
+                    apiRuntime.batch,
+                    forKey:
+                        "BonsaiRC126Build78EffectiveBatch"
+                )
+                UserDefaults.standard.set(
+                    apiRuntime.ubatch,
+                    forKey:
+                        "BonsaiRC126Build78EffectiveUBatch"
+                )
+                UserDefaults.standard.synchronize()
 
                 RC126APIStartupLifecycle.mark(
                     "BACKEND_PREWARM_BEGIN"
@@ -4059,7 +4098,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 77 Extended Context API Runtime 已就绪"
+                        "RC1.26 Build 78 Context Boundary API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
