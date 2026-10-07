@@ -23,6 +23,7 @@ assert "Phase2FPrefillBatchLaunchLatch.apply(" in view
 assert (
     "RC1.26 Build 75 API Cold-Start Guard" in view
     or "RC1.26 Build 76 M5 Extreme Text KV Lab" in view
+    or "RC1.26 Build 77 M5 Extended Context Lab" in view
 )
 
 for marker in [
@@ -55,6 +56,7 @@ for marker in [
 assert (
     'CURRENT_PROJECT_VERSION: "75"' in project
     or 'CURRENT_PROJECT_VERSION: "76"' in project
+    or 'CURRENT_PROJECT_VERSION: "77"' in project
 )
 assert "RC1.26 Phase 2F prefill batch contracts" in workflow
 assert "tools/rc126_phase2f_prefill_batch_arm.ps1" in workflow
