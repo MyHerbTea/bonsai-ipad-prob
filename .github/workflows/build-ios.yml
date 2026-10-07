@@ -388,9 +388,23 @@ jobs:
           test "$(grep -c 'CURRENT_PROJECT_VERSION: \"76\"' project.yml)" -ge 1
           grep -q '"rc1.26-build76-text-kv-reuse-lab"' BonsaiLab/LocalOpenAIServer.swift
           grep -q 'RC126APIStartupLifecycle.begin(build: \"76\")' BonsaiLab/ProductionView.swift
-          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa Payload' .github/workflows/build-ios.yml
-          grep -q 'build/BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa.sha256' .github/workflows/build-ios.yml
-          ! grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build75-api-cold-start-guard-unsigned.ipa Payload' .github/workflows/build-ios.yml
+
+          PACKAGE_BLOCK="$(
+            awk '
+              /- name: Package unsigned IPA/ { in_package = 1 }
+              /- name: Upload artifact/ {
+                if (in_package) exit
+              }
+              in_package { print }
+            ' .github/workflows/build-ios.yml
+          )"
+
+          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
+          grep -q 'BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
+          if grep -q 'build75-api-cold-start-guard' <<< "$PACKAGE_BLOCK"; then
+            echo "ERROR: Build 75 packaging leaked into Build 76 package step." >&2
+            exit 1
+          fi
           echo "Build 76 packaging identity preflight: PASS"
 
       - name: Show Apple toolchain
