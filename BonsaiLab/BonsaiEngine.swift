@@ -64,6 +64,14 @@ actor BonsaiEngine {
     private var apiVisionPrefixReuseKey: String?
     private var apiVisionPrefixPositions: Int32 = 0
 
+    // RC1.26 Build 76: exact-token Text KV reuse lab.
+    // After a successful text request, generated-tail KV is removed so the
+    // resident sequence mirrors textKVResidentTokens exactly.
+    private var textKVResidentTokens: [llama_token] = []
+    private var textKVResidentContext: OpaquePointer?
+    private let textKVReuseEnabled = true
+    private let textKVMinimumReuseTokens = 16
+
     private let stageKey = "BonsaiLabLastStage"
 
     private func mark(_ stage: String) {
@@ -90,6 +98,74 @@ actor BonsaiEngine {
             atomically: true,
             encoding: .utf8
         )
+    }
+
+    private func clearTextKVReuseState(
+        reason: String
+    ) {
+        textKVResidentTokens.removeAll(
+            keepingCapacity: false
+        )
+        textKVResidentContext = nil
+        persistTextKVReuseObservation(
+            hit: false,
+            lcpTokens: 0,
+            reusedTokens: 0,
+            suffixTokens: 0,
+            reason: reason
+        )
+    }
+
+    private func persistTextKVReuseObservation(
+        hit: Bool,
+        lcpTokens: Int,
+        reusedTokens: Int,
+        suffixTokens: Int,
+        reason: String
+    ) {
+        let defaults = UserDefaults.standard
+        defaults.set(
+            textKVReuseEnabled,
+            forKey: "BonsaiRC126TextKVReuseEnabled"
+        )
+        defaults.set(
+            hit,
+            forKey: "BonsaiRC126TextKVReuseHit"
+        )
+        defaults.set(
+            lcpTokens,
+            forKey: "BonsaiRC126TextKVReuseLCPTokens"
+        )
+        defaults.set(
+            reusedTokens,
+            forKey: "BonsaiRC126TextKVReusedTokens"
+        )
+        defaults.set(
+            suffixTokens,
+            forKey: "BonsaiRC126TextKVSuffixTokens"
+        )
+        defaults.set(
+            reason,
+            forKey: "BonsaiRC126TextKVReuseReason"
+        )
+        defaults.set(
+            Date().timeIntervalSince1970,
+            forKey: "BonsaiRC126TextKVReuseTimestamp"
+        )
+        defaults.synchronize()
+    }
+
+    private func textKVLongestCommonPrefix(
+        _ lhs: [llama_token],
+        _ rhs: [llama_token]
+    ) -> Int {
+        let limit = min(lhs.count, rhs.count)
+        var index = 0
+        while index < limit &&
+                lhs[index] == rhs[index] {
+            index += 1
+        }
+        return index
     }
 
     private func prepareMetalTensorBackend(
@@ -336,6 +412,9 @@ actor BonsaiEngine {
         // the app on-device. Keep the model/vocab/file scope resident.
         apiVisionPrefixReuseKey = nil
         apiVisionPrefixPositions = 0
+        clearTextKVReuseState(
+            reason: "context_or_profile_switch"
+        )
         unloadVision()
 
         // Any staged duplicate resident model is unrelated to the ordinary
@@ -459,6 +538,9 @@ actor BonsaiEngine {
         // free the text KV/compute graph before mtmd_init_from_file().
         // The mmap-backed model weights stay loaded.
         mark("VISION_00_CONTEXT_RELEASE_BEGIN")
+        clearTextKVReuseState(
+            reason: "vision_context_rebuild"
+        )
         if let context {
             llama_free(context)
             self.context = nil
@@ -1261,6 +1343,9 @@ actor BonsaiEngine {
         let gen = try generation.validated(
             context: appliedRuntime.context
         )
+        clearTextKVReuseState(
+            reason: "cached_vision_request"
+        )
 
         let supportURL = FileManager.default.urls(
             for: .applicationSupportDirectory,
@@ -1901,6 +1986,9 @@ actor BonsaiEngine {
         unloadVision()
 
         // Keep the model weights resident but drop the tiny text context.
+        clearTextKVReuseState(
+            reason: "vision_probe_context_release"
+        )
         if let context {
             mark("COEX_00_CONTEXT_RELEASE_BEGIN")
             llama_free(context)
@@ -2086,6 +2174,9 @@ actor BonsaiEngine {
         BonsaiClearVisionPrefixKVSnapshot()
         apiVisionPrefixReuseKey = nil
         apiVisionPrefixPositions = 0
+        clearTextKVReuseState(
+            reason: "api_vision_request"
+        )
         mark("API_VISION_00_PREFIX_SNAPSHOT_CLEARED")
 
         // A previous request may also leave working KV populated. MLX vision
@@ -2121,6 +2212,9 @@ actor BonsaiEngine {
     func cleanupAfterRequestFailure() {
         apiVisionPrefixReuseKey = nil
         apiVisionPrefixPositions = 0
+        clearTextKVReuseState(
+            reason: "request_failure"
+        )
         if let context {
             llama_memory_clear(
                 llama_get_memory(context),
@@ -2137,77 +2231,242 @@ actor BonsaiEngine {
         reasoningEffort: String? = nil,
         onDelta: (@Sendable (String) -> Void)? = nil
     ) throws -> GenerationMetrics {
-        guard let context, let vocab else { throw LabError.noModel }
-        let gen = try generation.validated(context: appliedRuntime.context)
+        guard let context, let vocab else {
+            throw LabError.noModel
+        }
+        let gen = try generation.validated(
+            context: appliedRuntime.context
+        )
 
         let prompt = makeSimpleChatPrompt(
             systemPrompt: systemPrompt,
             userPrompt: userPrompt,
             reasoningEffort: reasoningEffort
         )
-        let tokens = try tokenize(prompt, vocab: vocab)
+        let tokens = try tokenize(
+            prompt,
+            vocab: vocab
+        )
 
-        if tokens.count + gen.maxTokens >= appliedRuntime.context {
-            throw LabError.promptTooLong(tokens.count + gen.maxTokens, appliedRuntime.context)
+        if tokens.count + gen.maxTokens >=
+            appliedRuntime.context {
+            throw LabError.promptTooLong(
+                tokens.count + gen.maxTokens,
+                appliedRuntime.context
+            )
         }
 
         mark("TEXT_01_BEGIN")
+        BonsaiClearVisionPrefixKVSnapshot()
         apiVisionPrefixReuseKey = nil
         apiVisionPrefixPositions = 0
-        llama_memory_clear(llama_get_memory(context), true)
 
-        let sampler = makeSampler(vocab: vocab, config: gen)
-        defer { llama_sampler_free(sampler) }
-
-        let start = DispatchTime.now().uptimeNanoseconds
-        try evalTextTokens(tokens, context: context, batchSize: appliedRuntime.batch)
-        let prefillEnd = DispatchTime.now().uptimeNanoseconds
-        mark("TEXT_02_PROMPT_DONE")
-
-        let generationStart = prefillEnd
-        let generated = try decodeGeneratedTokens(
-            context: context,
+        let sampler = makeSampler(
             vocab: vocab,
-            sampler: sampler,
-            startPosition: Int32(tokens.count),
-            maxTokens: gen.maxTokens,
-            stagePrefix: "TEXT",
-            onDelta: onDelta
+            config: gen
         )
-        let end = DispatchTime.now().uptimeNanoseconds
-
-        guard !generated.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            mark("TEXT_90_EMPTY_OUTPUT")
-            throw LabError.emptyOutput
+        defer {
+            llama_sampler_free(sampler)
         }
 
-        let first = generated.firstTokenTime ?? end
-        let prefillSeconds =
-            Double(prefillEnd - start) / 1_000_000_000.0
-        let decodeToFirstTokenSeconds =
-            Double(first - generationStart) / 1_000_000_000.0
-        let ttft =
-            prefillSeconds + decodeToFirstTokenSeconds
-        let generationSeconds = max(
-            0.000001,
-            Double(end - generationStart) / 1_000_000_000.0
-        )
+        let start =
+            DispatchTime.now().uptimeNanoseconds
+        var reuseHit = false
+        var lcpTokens = 0
+        var reusedTokens = 0
+        var reuseReason =
+            "cold_or_incompatible"
 
-        mark("TEXT_99_PASS")
-        return GenerationMetrics(
-            text: generated.text,
-            generatedTokens: generated.count,
-            promptTokens: tokens.count,
-            effectiveMaxTokens: gen.maxTokens,
-            terminationReason:
-                generated.terminationReason,
-            prefillSeconds: prefillSeconds,
-            decodeToFirstTokenSeconds:
-                decodeToFirstTokenSeconds,
-            ttftSeconds: ttft,
-            generationSeconds: generationSeconds,
-            tokensPerSecond: Double(generated.count) / generationSeconds
-        )
+        do {
+            if textKVReuseEnabled,
+               textKVResidentContext == context,
+               !textKVResidentTokens.isEmpty,
+               !tokens.isEmpty {
+                lcpTokens =
+                    textKVLongestCommonPrefix(
+                        textKVResidentTokens,
+                        tokens
+                    )
+
+                // Decode at least the final prompt token again so current
+                // logits always belong to this request.
+                reusedTokens = min(
+                    lcpTokens,
+                    max(0, tokens.count - 1)
+                )
+
+                if reusedTokens >=
+                    textKVMinimumReuseTokens {
+                    let trimmed =
+                        llama_memory_seq_rm(
+                            llama_get_memory(context),
+                            0,
+                            Int32(reusedTokens),
+                            -1
+                        )
+
+                    if trimmed {
+                        reuseHit = true
+                        reuseReason =
+                            "exact_token_lcp_tail_trim"
+                        mark(
+                            "TEXT_KV_10_REUSE_"
+                            + "\(reusedTokens)_OF_"
+                            + "\(tokens.count)"
+                        )
+                        try evalTextTokens(
+                            tokens,
+                            context: context,
+                            batchSize:
+                                appliedRuntime.batch,
+                            tokenOffset:
+                                reusedTokens,
+                            startPosition:
+                                Int32(reusedTokens)
+                        )
+                    } else {
+                        reusedTokens = 0
+                        reuseReason =
+                            "tail_trim_unsupported"
+                    }
+                } else {
+                    reusedTokens = 0
+                    reuseReason =
+                        lcpTokens > 0
+                            ? "lcp_below_minimum"
+                            : "no_common_prefix"
+                }
+            }
+
+            if !reuseHit {
+                llama_memory_clear(
+                    llama_get_memory(context),
+                    true
+                )
+                mark("TEXT_KV_11_FULL_PREFILL")
+                try evalTextTokens(
+                    tokens,
+                    context: context,
+                    batchSize:
+                        appliedRuntime.batch
+                )
+            }
+
+            let prefillEnd =
+                DispatchTime.now().uptimeNanoseconds
+            mark("TEXT_02_PROMPT_DONE")
+
+            persistTextKVReuseObservation(
+                hit: reuseHit,
+                lcpTokens: lcpTokens,
+                reusedTokens: reusedTokens,
+                suffixTokens:
+                    tokens.count - reusedTokens,
+                reason: reuseReason
+            )
+
+            let generationStart = prefillEnd
+            let generated =
+                try decodeGeneratedTokens(
+                    context: context,
+                    vocab: vocab,
+                    sampler: sampler,
+                    startPosition:
+                        Int32(tokens.count),
+                    maxTokens: gen.maxTokens,
+                    stagePrefix: "TEXT",
+                    onDelta: onDelta
+                )
+            let end =
+                DispatchTime.now().uptimeNanoseconds
+
+            guard !generated.text
+                .trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                ).isEmpty
+            else {
+                mark("TEXT_90_EMPTY_OUTPUT")
+                throw LabError.emptyOutput
+            }
+
+            // Keep only prompt KV resident. The next request can safely
+            // compare its complete prompt token stream to this exact ledger.
+            let retainedPrompt =
+                llama_memory_seq_rm(
+                    llama_get_memory(context),
+                    0,
+                    Int32(tokens.count),
+                    -1
+                )
+
+            if retainedPrompt {
+                textKVResidentTokens = tokens
+                textKVResidentContext = context
+                mark("TEXT_KV_90_PROMPT_RETAINED")
+            } else {
+                clearTextKVReuseState(
+                    reason:
+                        "post_generation_tail_trim_failed"
+                )
+                llama_memory_clear(
+                    llama_get_memory(context),
+                    true
+                )
+                mark("TEXT_KV_91_PROMPT_RETAIN_FAIL")
+            }
+
+            let first =
+                generated.firstTokenTime ?? end
+            let prefillSeconds =
+                Double(prefillEnd - start)
+                / 1_000_000_000.0
+            let decodeToFirstTokenSeconds =
+                Double(first - generationStart)
+                / 1_000_000_000.0
+            let ttft =
+                prefillSeconds
+                + decodeToFirstTokenSeconds
+            let generationSeconds = max(
+                0.000001,
+                Double(end - generationStart)
+                    / 1_000_000_000.0
+            )
+
+            mark(
+                reuseHit
+                    ? "TEXT_99_PASS_KV_REUSE"
+                    : "TEXT_99_PASS_FULL_PREFILL"
+            )
+            return GenerationMetrics(
+                text: generated.text,
+                generatedTokens:
+                    generated.count,
+                promptTokens: tokens.count,
+                effectiveMaxTokens:
+                    gen.maxTokens,
+                terminationReason:
+                    generated.terminationReason,
+                prefillSeconds:
+                    prefillSeconds,
+                decodeToFirstTokenSeconds:
+                    decodeToFirstTokenSeconds,
+                ttftSeconds: ttft,
+                generationSeconds:
+                    generationSeconds,
+                tokensPerSecond:
+                    Double(generated.count)
+                    / generationSeconds
+            )
+        } catch {
+            clearTextKVReuseState(
+                reason: "text_request_failure"
+            )
+            llama_memory_clear(
+                llama_get_memory(context),
+                true
+            )
+            throw error
+        }
     }
 
     func generateVision(
@@ -2220,6 +2479,9 @@ actor BonsaiEngine {
             throw LabError.noVision
         }
         let gen = try generation.validated(context: appliedRuntime.context)
+        clearTextKVReuseState(
+            reason: "direct_vision_request"
+        )
 
         let imageScoped = imageURL.startAccessingSecurityScopedResource()
         defer {
@@ -2399,6 +2661,9 @@ actor BonsaiEngine {
     ) {
         apiVisionPrefixReuseKey = nil
         apiVisionPrefixPositions = 0
+        clearTextKVReuseState(
+            reason: "runtime_unload"
+        )
         unloadVision()
 
         if let context {
@@ -2657,10 +2922,18 @@ actor BonsaiEngine {
     private func evalTextTokens(
         _ tokens: [llama_token],
         context: OpaquePointer,
-        batchSize: Int
+        batchSize: Int,
+        tokenOffset: Int = 0,
+        startPosition: Int32 = 0
     ) throws {
-        var position: Int32 = 0
-        var offset = 0
+        guard tokenOffset >= 0,
+              tokenOffset < tokens.count
+        else {
+            return
+        }
+
+        var position = startPosition
+        var offset = tokenOffset
 
         while offset < tokens.count {
             let count = min(batchSize, tokens.count - offset)

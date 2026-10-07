@@ -994,6 +994,7 @@ final class LocalOpenAIServer: ObservableObject {
     }
 
     private func debugPrefillObject() -> [String: Any] {
+        let defaults = UserDefaults.standard
         prefillObservationLock.lock()
         let observation = lastPrefillObservation
         prefillObservationLock.unlock()
@@ -1051,11 +1052,43 @@ final class LocalOpenAIServer: ObservableObject {
             last = NSNull()
         }
 
+        let textKVReuse: [String: Any] = [
+            "enabled":
+                defaults.bool(
+                    forKey: "BonsaiRC126TextKVReuseEnabled"
+                ),
+            "hit":
+                defaults.bool(
+                    forKey: "BonsaiRC126TextKVReuseHit"
+                ),
+            "lcp_tokens":
+                defaults.integer(
+                    forKey: "BonsaiRC126TextKVReuseLCPTokens"
+                ),
+            "reused_tokens":
+                defaults.integer(
+                    forKey: "BonsaiRC126TextKVReusedTokens"
+                ),
+            "suffix_tokens":
+                defaults.integer(
+                    forKey: "BonsaiRC126TextKVSuffixTokens"
+                ),
+            "reason":
+                defaults.string(
+                    forKey: "BonsaiRC126TextKVReuseReason"
+                ) ?? "none",
+            "timestamp":
+                defaults.double(
+                    forKey: "BonsaiRC126TextKVReuseTimestamp"
+                )
+        ]
+
         return [
             "phase":
-                "RC1.26_PHASE2C1_FRESH_BACKEND_VIABILITY",
+                "RC1.26_PHASE2I_TEXT_KV_REUSE_LAB",
             "implementation_id":
-                "rc126.phase2c1.fresh-backend-launch-latch.v1",
+                "rc126.build76.text-kv-tail-reuse.v1",
+            "text_kv_reuse": textKVReuse,
             "measurement_ready": observation != nil,
             "metal_device": device?.name ?? "unavailable",
             "metal_has_unified_memory":
@@ -1451,7 +1484,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build75-api-cold-start-guard",
+            "build_id": "rc1.26-build76-text-kv-reuse-lab",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",

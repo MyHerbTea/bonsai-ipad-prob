@@ -1072,7 +1072,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 75 API Cold-Start Guard")
+                            Text("1.0 · RC1.26 Build 76 M5 Extreme Text KV Lab")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -3263,9 +3263,9 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "75")
+        RC126APIStartupLifecycle.begin(build: "76")
         busy = true
-        status = "正在执行 RC1.26 Build 75 API 冷启动保护…"
+        status = "正在执行 RC1.26 Build 76 Text KV Reuse + API 冷启动保护…"
         detail = """
         Build 60 的 API/视觉路径保持不变。
         RC1.25.2 新增 512/768/1024/2048 API Context Ladder；
@@ -4032,7 +4032,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 75 API Runtime 已就绪"
+                        "RC1.26 Build 76 API Runtime + Text KV Reuse 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()

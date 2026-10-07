@@ -1,4 +1,4 @@
-name: Build Bonsai iPad Lab v1 RC1.26 API Cold-Start Guard
+name: Build Bonsai iPad Lab v1 RC1.26 Build 76 Text KV Reuse Lab
 
 on:
   push:
@@ -76,7 +76,7 @@ jobs:
           grep -q 'warm.kvReuseHit' BonsaiLab/ProductionView.swift
           grep -q 'UIPasteboard.general.string' BonsaiLab/ProductionView.swift
           grep -q 'MARKETING_VERSION: "1.0.0"' project.yml
-          grep -q 'CURRENT_PROJECT_VERSION: "75"' project.yml
+          grep -q 'CURRENT_PROJECT_VERSION: "76"' project.yml
           grep -q 'reasoningEffort' BonsaiLab/BonsaiEngine.swift
           grep -q 'payload.reasoningEffort' BonsaiLab/ProductionView.swift
           grep -q '<think>\\n\\n</think>\\n\\n' BonsaiLab/BonsaiEngine.swift
@@ -122,7 +122,7 @@ jobs:
           grep -q 'requireFullOutputBudget:' BonsaiLab/ProductionView.swift
           grep -q 'cleanupAfterRequestFailure' BonsaiLab/ProductionView.swift
           grep -q 'OpenAIMultimodalNormalizer' BonsaiLab/LocalOpenAIServer.swift
-          grep -q 'RC1.26 Build 75 API Cold-Start Guard' BonsaiLab/ProductionView.swift
+          grep -q 'RC1.26 Build 76 M5 Extreme Text KV Lab' BonsaiLab/ProductionView.swift
           grep -q 'Live Vision Injection' BonsaiLab/ContentView.swift
           grep -q 'Text("MLX Vision Metrics")' BonsaiLab/ContentView.swift
           grep -q 'maxPixels: Int = 65_536' BonsaiLab/BonsaiMLXVisionSidecar.swift
@@ -369,11 +369,11 @@ jobs:
           set -euo pipefail
           python3 tools/rc126_phase2f_prefill_batch_contract_tests.py
 
-      - name: RC1.26 Build 75 cold-start guard contracts
+      - name: RC1.26 Build 76 Text KV reuse contracts
         shell: bash
         run: |
           set -euo pipefail
-          python3 tools/rc126_build75_api_cold_start_contract_tests.py
+          python3 tools/rc126_build76_text_kv_reuse_contract_tests.py
 
       - name: Show Apple toolchain
         run: |
@@ -443,10 +443,11 @@ jobs:
           file "$FRAMEWORK"
           otool -L "$APP/BonsaiLab"
           test "$(plutil -extract CFBundleShortVersionString raw -o - "$APP/Info.plist")" = "1.0.0"
-          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "75"
+          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "76"
           nm -gU "$FRAMEWORK" > build/llama-symbols.txt
           grep -q '_mtmd_init_from_file' build/llama-symbols.txt
           grep -q '_mtmd_helper_eval_chunks' build/llama-symbols.txt
+          grep -q '_llama_memory_seq_rm' build/llama-symbols.txt
           grep -q 'MLX' build.log
           echo "Prism + minimal MLX sidecar build: PASS"
 
@@ -460,12 +461,12 @@ jobs:
           ditto "$APP" build/ipa/Payload/BonsaiLab.app
 
           cat > build/BUILD_INFO.txt <<'INFO'
-          Bonsai iPad Lab v1 RC1.26 Build 75 API Cold-Start Guard
+          Bonsai iPad Lab v1 RC1.26 Build 76 M5 Extreme Text KV Reuse Lab
           Prism: prism-b10743-adfffbe
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
           Full/Accelerated remains the production default: ctx=512, batch=8, ubatch=8, n_seq_max=1, C2-B unchanged.
-          Build 75 closes the batch ladder at 32/32 and adds a staged API cold-start guard. Backend prewarm is separated from 27B mmap/context creation, startup state survives process termination, and the listener must become health-ready before the UI reports success. Metal Tensor remains forced to the frozen baseline state. Vision and OpenAI request semantics are unchanged.
+          Build 76 inherits the Build 75 cold-start guard and frozen 32/32 + Full runtime. It adds exact-token Text KV reuse: resident sequence-0 prompt KV is tail-trimmed and reused only for an exact token LCP, while any mismatch falls back to full clear/full prefill. Metal Tensor remains forced disabled and context remains 2048 for the first certification gate.
           Model and Vision Tower weights are NOT bundled in the IPA.
           INFO
           echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
@@ -474,22 +475,27 @@ jobs:
           cd build/ipa
           zip -qry ../BonsaiLab-v1-RC1.26-build75-api-cold-start-guard-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.26-build75-api-cold-start-guard-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build75-api-cold-start-guard-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.26-Build75-API-Cold-Start-Guard
+          name: BonsaiLab-iPad-v1-RC1.26-Build76-M5-Extreme-Text-KV-Lab
           path: |
-            build/BonsaiLab-v1-RC1.26-build75-api-cold-start-guard-unsigned.ipa
-            build/BonsaiLab-v1-RC1.26-build75-api-cold-start-guard-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa
+            build/BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             RC1.20_RELEASE_ACCEPTANCE.md
             tools/rc126_phase2d_prefill_batch_arm.ps1
             tools/rc126_phase2e_prefill_batch_arm.ps1
             tools/rc126_phase2f_prefill_batch_arm.ps1
+            tools/rc126_build76_text_kv_reuse_ab.ps1
+            tools/rc126_build76_text_kv_reuse_contract_tests.py
             tools/rc126_build75_api_cold_start_probe.ps1
             tools/rc126_build75_api_cold_start_contract_tests.py
+            docs/backburner-integration/RC1.26_BUILD76_TEXT_KV_REUSE_LAB.md
+            docs/backburner-integration/RC1.26_PHASE2I0_AGGRESSIVE_TEXT_KV_CONTEXT_AUDIT.md
+            docs/backburner-integration/RC1.26_BUILD76_M5_EXTREME_CONTEXT_LAB_PLAN.md
             docs/backburner-integration/RC1.26_BUILD74_PHASE2F_DEVICE_EVIDENCE.md
             docs/backburner-integration/RC1.26_BUILD75_API_COLD_START_GUARD.md
             tools/rc126_phase2f_prefill_batch_contract_tests.py
