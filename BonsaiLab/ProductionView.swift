@@ -974,7 +974,7 @@ struct ProductionView: View {
     @AppStorage("BonsaiRC1233APIRuntimeProfile")
     private var apiRuntimeProfile = "accelerated"
     @AppStorage("BonsaiRC1235APIContextProfile")
-    private var apiContextProfile = "512"
+    private var apiContextProfile = "4096"
 
     @State private var output = ""
     @State private var status = "准备就绪"
@@ -1024,10 +1024,13 @@ struct ProductionView: View {
     }
 
     private var selectedAPIContextValue: Int {
-        ["512", "768", "1024", "2048"]
+        [
+            "512", "768", "1024", "2048",
+            "3072", "4096", "6144", "8192"
+        ]
             .contains(apiContextProfile)
-            ? (Int(apiContextProfile) ?? 512)
-            : 512
+            ? (Int(apiContextProfile) ?? 4096)
+            : 4096
     }
 
     private var selectedAPIRuntimeProfileValue: String {
@@ -1072,7 +1075,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 76 M5 Extreme Text KV Lab")
+                            Text("1.0 · RC1.26 Build 77 M5 Extended Context Lab")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -1466,16 +1469,20 @@ struct ProductionView: View {
                             "API Context",
                             selection: $apiContextProfile
                         ) {
-                            Text("512").tag("512")
-                            Text("768").tag("768")
-                            Text("1024").tag("1024")
-                            Text("2048").tag("2048")
+                            Text("512 · legacy").tag("512")
+                            Text("768 · legacy").tag("768")
+                            Text("1024 · legacy").tag("1024")
+                            Text("2048 · baseline").tag("2048")
+                            Text("3072").tag("3072")
+                            Text("4096 · recommended").tag("4096")
+                            Text("6144 · aggressive").tag("6144")
+                            Text("8192 · extreme").tag("8192")
                         }
-                        .pickerStyle(.segmented)
+                        .pickerStyle(.menu)
                         .disabled(apiServer.isRunning)
 
                         Text(
-                            "RC1.25.2 Context Ladder：512 为冻结基线；768/1024/2048 为真机验证候选。切换 Context 需要先停止 API，再重新预热。"
+                            "Build 77 Extended Context：4096 为推荐日用起点；6144/8192 为 M5 激进实验档。2048 仅保留为认证对照。切换 Context 需要先停止 API，再重新预热。"
                         )
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -1664,9 +1671,12 @@ struct ProductionView: View {
                 if apiRuntimeProfile == "flash" {
                     apiRuntimeProfile = "accelerated"
                 }
-                if !["512", "768", "1024", "2048"]
+                if ![
+                    "512", "768", "1024", "2048",
+                    "3072", "4096", "6144", "8192"
+                ]
                     .contains(apiContextProfile) {
-                    apiContextProfile = "512"
+                    apiContextProfile = "4096"
                 }
                 certificationRecorder
                     .recoverInterruptedRunIfNeeded()
@@ -3263,12 +3273,12 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "76")
+        RC126APIStartupLifecycle.begin(build: "77")
         busy = true
-        status = "正在执行 RC1.26 Build 76 Text KV Reuse + API 冷启动保护…"
+        status = "正在执行 RC1.26 Build 77 Extended Context + API 冷启动保护…"
         detail = """
         Build 60 的 API/视觉路径保持不变。
-        RC1.25.2 新增 512/768/1024/2048 API Context Ladder；
+        Build 77 开放 512/768/1024/2048/3072/4096/6144/8192 API Context Ladder；
         /v1/models 会公布当前 context_length、vision 与 unsupported tool/reasoning 能力。
         """
 
@@ -4049,7 +4059,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 76 API Runtime + Text KV Reuse 已就绪"
+                        "RC1.26 Build 77 Extended Context API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
