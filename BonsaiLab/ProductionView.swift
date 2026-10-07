@@ -3473,6 +3473,21 @@ struct ProductionView: View {
                             + reasoningInstruction
                     }
 
+                    // Text-only requests use a prefix-monotonic ChatML
+                    // history. Vision keeps the frozen flattened history
+                    // representation above to avoid changing certified
+                    // multimodal behavior.
+                    let apiTextSystemPrompt: String
+                    if reasoningInstruction.isEmpty {
+                        apiTextSystemPrompt =
+                            payload.textSystemPrompt
+                    } else {
+                        apiTextSystemPrompt =
+                            payload.textSystemPrompt
+                            + "\n\n"
+                            + reasoningInstruction
+                    }
+
                     if !payload.images.isEmpty {
                         guard
                             let selectedMLXVisionWeightsURL
@@ -3942,7 +3957,9 @@ struct ProductionView: View {
                         metrics =
                             try await sharedEngine.generateText(
                                 systemPrompt:
-                                    apiSystemPrompt,
+                                    apiTextSystemPrompt,
+                                history:
+                                    payload.textHistory,
                                 userPrompt:
                                     payload.userPrompt,
                                 generation: gen,

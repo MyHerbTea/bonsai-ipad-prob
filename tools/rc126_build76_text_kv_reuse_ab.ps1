@@ -44,6 +44,18 @@ if ($build.build_id -ne "rc1.26-build76-text-kv-reuse-lab") { throw "Expected Bu
 if ([int]$health.context_window -ne 2048) { throw "Expected 2048 context; got $($health.context_window)" }
 if ([int]$shape.active_batch -ne 32 -or [int]$shape.active_ubatch -ne 32) { throw "Expected 32/32 shape." }
 
+# Precondition the resident text KV with an unrelated short prompt.
+# This makes repeated executions deterministic: case 01 must be a true
+# cold/full-prefill arm rather than accidentally reusing a prior test run.
+$resetMessages = @(
+    @{role="system";content="CACHE_RESET_NAMESPACE_76"},
+    @{role="user";content="Answer exactly RESET_OK and nothing else."}
+)
+$reset = Invoke-Case "00-cache-precondition" $resetMessages 16
+if (-not $reset.text.Contains("RESET_OK")) {
+    throw "Cache precondition failed."
+}
+
 $payload = "alpha beta gamma delta epsilon zeta eta theta " * 120
 $system = "You are a deterministic local-model certification assistant.`nThe following calibration payload must remain unchanged across requests.`nDo not quote or summarize it unless explicitly asked.`n`n$payload"
 $rows = @()
@@ -60,8 +72,10 @@ $rows += Invoke-Case "04-isolation" $messages4 16
 $rows | Export-Csv -NoTypeInformation -Encoding utf8 (Join-Path $OutDir "summary.csv")
 $cold=$rows[0]; $reuse=$rows[1]; $growing=$rows[2]; $isolation=$rows[3]
 $prefillGain = if ($cold.prefill_ms -gt 0) { (1.0 - ($reuse.prefill_ms / $cold.prefill_ms)) * 100.0 } else { 0 }
-$pass = $cold.reuse_enabled -and (-not $cold.reuse_hit) -and $reuse.reuse_hit -and $reuse.reused_tokens -ge 500 -and $prefillGain -ge 50 -and $growing.reuse_hit -and (-not $isolation.reuse_hit) -and $cold.text.Contains("STEP1_OK") -and $reuse.text.Contains("STEP2_OK") -and $growing.text.Contains("STEP3_OK") -and $isolation.text.Contains("ISOLATION_OK")
-$result=[ordered]@{phase="RC1.26_BUILD76_TEXT_KV_REUSE";build=76;cold_prefill_ms=$cold.prefill_ms;reuse_prefill_ms=$reuse.prefill_ms;prefill_reduction_percent=[math]::Round($prefillGain,3);reuse_hit=$reuse.reuse_hit;reused_tokens=$reuse.reused_tokens;suffix_tokens=$reuse.suffix_tokens;growing_history_hit=$growing.reuse_hit;isolation_hit=$isolation.reuse_hit;overall_pass=$pass}
+$minimumExpectedReuse = [math]::Max(500, $cold.prompt_tokens - 32)
+$minimumGrowingReuse = [math]::Max(500, $reuse.prompt_tokens - 32)
+$pass = $cold.reuse_enabled -and (-not $cold.reuse_hit) -and $reuse.reuse_hit -and $reuse.reused_tokens -ge $minimumExpectedReuse -and $prefillGain -ge 50 -and $growing.reuse_hit -and $growing.reused_tokens -ge $minimumGrowingReuse -and (-not $isolation.reuse_hit) -and $cold.text.Contains("STEP1_OK") -and $reuse.text.Contains("STEP2_OK") -and $growing.text.Contains("STEP3_OK") -and $isolation.text.Contains("ISOLATION_OK")
+$result=[ordered]@{phase="RC1.26_BUILD76_TEXT_KV_REUSE";build=76;prompt_format="prefix_monotonic_chatml_v1";cold_prefill_ms=$cold.prefill_ms;reuse_prefill_ms=$reuse.prefill_ms;prefill_reduction_percent=[math]::Round($prefillGain,3);reuse_hit=$reuse.reuse_hit;reused_tokens=$reuse.reused_tokens;minimum_expected_reuse=$minimumExpectedReuse;suffix_tokens=$reuse.suffix_tokens;growing_history_hit=$growing.reuse_hit;growing_reused_tokens=$growing.reused_tokens;minimum_growing_reuse=$minimumGrowingReuse;isolation_hit=$isolation.reuse_hit;overall_pass=$pass}
 Save-Json $result "result.json"
 $zip="$OutDir.zip"; if(Test-Path $zip){Remove-Item -Force $zip}; Compress-Archive -Path (Join-Path $OutDir "*") -DestinationPath $zip
-Write-Host ""; Write-Host "BUILD 76 TEXT KV REUSE COMPLETE"; Write-Host ("Cold prefill: {0:N3} ms" -f $cold.prefill_ms); Write-Host ("Reuse prefill: {0:N3} ms" -f $reuse.prefill_ms); Write-Host ("Reduction: {0:N3}%" -f $prefillGain); Write-Host ("Reused tokens: {0}" -f $reuse.reused_tokens); Write-Host ("Suffix tokens: {0}" -f $reuse.suffix_tokens); Write-Host ("Isolation hit: {0}" -f $isolation.reuse_hit); Write-Host "Overall PASS: $pass"; Write-Host "Evidence: $zip"
+Write-Host ""; Write-Host "BUILD 76 TEXT KV REUSE COMPLETE"; Write-Host ("Cold prefill: {0:N3} ms" -f $cold.prefill_ms); Write-Host ("Reuse prefill: {0:N3} ms" -f $reuse.prefill_ms); Write-Host ("Reduction: {0:N3}%" -f $prefillGain); Write-Host ("Reused tokens: {0} / required {1}" -f $reuse.reused_tokens,$minimumExpectedReuse); Write-Host ("Growing reused: {0} / required {1}" -f $growing.reused_tokens,$minimumGrowingReuse); Write-Host ("Suffix tokens: {0}" -f $reuse.suffix_tokens); Write-Host ("Isolation hit: {0}" -f $isolation.reuse_hit); Write-Host "Overall PASS: $pass"; Write-Host "Evidence: $zip"

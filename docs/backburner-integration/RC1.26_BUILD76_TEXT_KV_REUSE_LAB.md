@@ -19,6 +19,8 @@ Frozen from Build 75:
 
 Text requests no longer unconditionally clear and re-prefill the full prompt when an exact reusable prefix exists.
 
+Build 76 v2 also fixes the OpenAI text prompt shape itself. Text-only multi-turn requests now render prior user/assistant turns as real ChatML turns after a fixed system/developer prefix, so a growing conversation is prefix-monotonic. The frozen Vision route keeps the existing flattened `Conversation history:` representation to avoid changing certified multimodal behavior.
+
 After a successful text request:
 1. generation completes normally;
 2. generated-tail KV is removed from sequence 0;
@@ -46,7 +48,12 @@ Any mismatch, unsupported trim, context/profile change, Vision request, runtime 
 - `text_kv_reuse.reason`
 
 Implementation ID:
-`rc126.build76.text-kv-tail-reuse.v1`
+`rc126.build76.text-kv-tail-reuse.v2`
+
+Prompt format:
+`prefix_monotonic_chatml_v1`
+
+For backward compatibility, `/debug/prefill` retains the inherited Phase2C-1 top-level `phase` and `implementation_id`; Build 76 telemetry is exposed through dedicated `text_kv_reuse_*` fields.
 
 ## First device gate
 

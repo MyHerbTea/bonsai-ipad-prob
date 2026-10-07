@@ -6,6 +6,8 @@ import Metal
 struct OpenAIRequestPayload: Sendable {
     let model: String
     let systemPrompt: String
+    let textSystemPrompt: String
+    let textHistory: [BonsaiTextChatTurn]
     let userPrompt: String
     let images: [OpenAIImageInput]
     let imageOrdering: OpenAIImageOrdering
@@ -1085,9 +1087,13 @@ final class LocalOpenAIServer: ObservableObject {
 
         return [
             "phase":
-                "RC1.26_PHASE2I_TEXT_KV_REUSE_LAB",
+                "RC1.26_PHASE2C1_FRESH_BACKEND_VIABILITY",
             "implementation_id":
-                "rc126.build76.text-kv-tail-reuse.v1",
+                "rc126.phase2c1.fresh-backend-launch-latch.v1",
+            "text_kv_reuse_implementation_id":
+                "rc126.build76.text-kv-tail-reuse.v2",
+            "text_kv_reuse_prompt_format":
+                "prefix_monotonic_chatml_v1",
             "text_kv_reuse": textKVReuse,
             "measurement_ready": observation != nil,
             "metal_device": device?.name ?? "unavailable",
@@ -2490,6 +2496,7 @@ final class LocalOpenAIServer: ObservableObject {
 
         var instructionParts: [String] = []
         var historyParts: [String] = []
+        var textHistory: [BonsaiTextChatTurn] = []
 
         for (index, message) in
             normalizedMessages.enumerated() {
@@ -2514,6 +2521,12 @@ final class LocalOpenAIServer: ObservableObject {
                     }
 
                     historyParts.append(entry)
+                    textHistory.append(
+                        BonsaiTextChatTurn(
+                            role: "user",
+                            text: message.text
+                        )
+                    )
                 }
 
             case "assistant":
@@ -2522,6 +2535,12 @@ final class LocalOpenAIServer: ObservableObject {
                     historyParts.append(
                         "Assistant: " + message.text
                     )
+                    textHistory.append(
+                        BonsaiTextChatTurn(
+                            role: "assistant",
+                            text: message.text
+                        )
+                    )
                 }
 
             default:
@@ -2529,12 +2548,14 @@ final class LocalOpenAIServer: ObservableObject {
             }
         }
 
-        var systemPrompt =
+        let textSystemPrompt =
             instructionParts.isEmpty
                 ? "You are a helpful assistant."
                 : instructionParts.joined(
                     separator: "\n\n"
                 )
+
+        var systemPrompt = textSystemPrompt
 
         if !historyParts.isEmpty {
             systemPrompt +=
@@ -2633,6 +2654,8 @@ final class LocalOpenAIServer: ObservableObject {
         return OpenAIRequestPayload(
             model: root["model"] as? String ?? defaultModel,
             systemPrompt: systemPrompt,
+            textSystemPrompt: textSystemPrompt,
+            textHistory: textHistory,
             userPrompt: userPrompt,
             images: images,
             imageOrdering: imageOrdering,

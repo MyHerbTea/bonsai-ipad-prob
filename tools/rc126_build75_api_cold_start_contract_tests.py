@@ -14,7 +14,6 @@ for marker in [
     '"BonsaiRC126APIStartupStage"',
     '"BonsaiRC126APIPreviousIncompleteStage"',
     '"BonsaiRC126APIStartupAttempt"',
-    'RC126APIStartupLifecycle.begin(build: "75")',
     'RC126APIStartupLifecycle.mark("VISION_RELEASE_BEGIN")',
     'releaseResidentStateForContextSwitch()',
     '"BACKEND_PREWARM_BEGIN"',
@@ -28,9 +27,21 @@ for marker in [
     'RC126APIStartupLifecycle.fail(error)',
     'apiServer.runtimeBatch',
     'apiServer.runtimeUBatch',
-    'RC1.26 Build 75 API Cold-Start Guard',
 ]:
     assert marker in view, marker
+
+assert (
+    'RC126APIStartupLifecycle.begin(build: "75")' in view
+    or 'RC126APIStartupLifecycle.begin(build: "76")' in view
+)
+assert (
+    'RC1.26 Build 75 API Cold-Start Guard' in view
+    or 'RC1.26 Build 76 M5 Extreme Text KV Lab' in view
+)
+assert (
+    '"rc1.26-build75-api-cold-start-guard"' in server
+    or '"rc1.26-build76-text-kv-reuse-lab"' in server
+)
 
 for marker in [
     "func prepareAPIColdStart(",
@@ -44,7 +55,6 @@ for marker in [
     assert marker in engine, marker
 
 for marker in [
-    '"rc1.26-build75-api-cold-start-guard"',
     "var runtimeBatch: Int",
     "var runtimeUBatch: Int",
     '"api_startup_stage"',
@@ -64,7 +74,10 @@ for marker in [
 ]:
     assert marker in probe, marker
 
-assert 'CURRENT_PROJECT_VERSION: "75"' in project
+assert (
+    'CURRENT_PROJECT_VERSION: "75"' in project
+    or 'CURRENT_PROJECT_VERSION: "76"' in project
+)
 assert "RC1.26 Build 75 cold-start guard contracts" in workflow
 assert "tools/rc126_build75_api_cold_start_probe.ps1" in workflow
 

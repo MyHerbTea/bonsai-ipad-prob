@@ -369,6 +369,12 @@ jobs:
           set -euo pipefail
           python3 tools/rc126_phase2f_prefill_batch_contract_tests.py
 
+      - name: RC1.26 Build 75 cold-start guard contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/rc126_build75_api_cold_start_contract_tests.py
+
       - name: RC1.26 Build 76 Text KV reuse contracts
         shell: bash
         run: |
@@ -465,15 +471,15 @@ jobs:
           Prism: prism-b10743-adfffbe
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
-          Full/Accelerated remains the production default: ctx=512, batch=8, ubatch=8, n_seq_max=1, C2-B unchanged.
-          Build 76 inherits the Build 75 cold-start guard and frozen 32/32 + Full runtime. It adds exact-token Text KV reuse: resident sequence-0 prompt KV is tail-trimmed and reused only for an exact token LCP, while any mismatch falls back to full clear/full prefill. Metal Tensor remains forced disabled and context remains 2048 for the first certification gate.
+          Full/Accelerated remains the production profile. The UI base context selector still defaults to 512; the certified Build 76 device gate explicitly selects ctx=2048 and the frozen Phase2F launch latch supplies batch/ubatch=32/32.
+          Build 76 inherits the Build 75 cold-start guard. Text-only OpenAI chat now uses prefix-monotonic ChatML history plus exact-token resident KV tail reuse; mismatches fall back to full clear/full prefill. Vision keeps its frozen history path. Metal Tensor remains forced disabled for this gate.
           Model and Vision Tower weights are NOT bundled in the IPA.
           INFO
           echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.26-build75-api-cold-start-guard-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa Payload
           cd ../..
           shasum -a 256 build/BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa.sha256
 

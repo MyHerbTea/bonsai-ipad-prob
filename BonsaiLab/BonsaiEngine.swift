@@ -4,6 +4,11 @@ import Darwin
 import Metal
 import llama
 
+struct BonsaiTextChatTurn: Sendable, Equatable {
+    let role: String
+    let text: String
+}
+
 private final class StagedVisionStreamBox {
     private let onDelta: @Sendable (String) -> Void
     private var pending = Data()
@@ -2226,6 +2231,7 @@ actor BonsaiEngine {
 
     func generateText(
         systemPrompt: String,
+        history: [BonsaiTextChatTurn] = [],
         userPrompt: String,
         generation: GenerationConfig,
         reasoningEffort: String? = nil,
@@ -2240,6 +2246,7 @@ actor BonsaiEngine {
 
         let prompt = makeSimpleChatPrompt(
             systemPrompt: systemPrompt,
+            history: history,
             userPrompt: userPrompt,
             reasoningEffort: reasoningEffort
         )
@@ -2850,6 +2857,7 @@ actor BonsaiEngine {
 
     private func makeSimpleChatPrompt(
         systemPrompt: String,
+        history: [BonsaiTextChatTurn] = [],
         userPrompt: String,
         reasoningEffort: String? = nil
     ) -> String {
@@ -2867,22 +2875,56 @@ actor BonsaiEngine {
                 "<|im_start|>assistant\n"
                 + "<think>\n\n</think>\n\n"
         } else {
-            assistantPrefix = "<|im_start|>assistant\n"
+            assistantPrefix =
+                "<|im_start|>assistant\n"
         }
 
-        if system.isEmpty {
-            return "<|im_start|>user\n"
-                + userPrompt
+        var prompt = ""
+
+        if !system.isEmpty {
+            prompt +=
+                "<|im_start|>system\n"
+                + system
                 + "<|im_end|>\n"
-                + assistantPrefix
         }
 
-        return "<|im_start|>system\n"
-            + system
-            + "<|im_end|>\n<|im_start|>user\n"
+        // Build 76: render prior OpenAI text turns as real ChatML turns.
+        // This makes a growing conversation prefix-monotonic, allowing
+        // exact-token resident KV reuse across successive requests.
+        for turn in history {
+            // Preserve message bytes exactly. The same message was appended
+            // verbatim when it was the current user turn; trimming it here
+            // would break exact-token prefix identity on the next request.
+            let text = turn.text
+            guard !text.isEmpty else {
+                continue
+            }
+
+            switch turn.role {
+            case "user":
+                prompt +=
+                    "<|im_start|>user\n"
+                    + text
+                    + "<|im_end|>\n"
+
+            case "assistant":
+                prompt +=
+                    "<|im_start|>assistant\n"
+                    + text
+                    + "<|im_end|>\n"
+
+            default:
+                continue
+            }
+        }
+
+        prompt +=
+            "<|im_start|>user\n"
             + userPrompt
             + "<|im_end|>\n"
             + assistantPrefix
+
+        return prompt
     }
 
     private func tokenize(
