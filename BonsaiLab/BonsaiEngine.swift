@@ -2,6 +2,7 @@ import Foundation
 import CryptoKit
 import Darwin
 import Metal
+import Security
 import llama
 
 struct BonsaiTextChatTurn: Sendable, Equatable {
@@ -317,6 +318,9 @@ actor BonsaiEngine {
             ? LLAMA_LOAD_MODE_MMAP
             : LLAMA_LOAD_MODE_NONE
 
+        persistSystemDiagnostics(
+            prefix: "BonsaiBuild79BeforeModelMmap"
+        )
         mark("MODEL_05_LOAD_BEGIN")
         let loadStart = DispatchTime.now().uptimeNanoseconds
         guard let loadedModel = llama_model_load_from_file(url.path, modelParams) else {
@@ -326,6 +330,24 @@ actor BonsaiEngine {
         }
         let loadEnd = DispatchTime.now().uptimeNanoseconds
         mark("MODEL_06_LOAD_DONE")
+        persistSystemDiagnostics(
+            prefix: "BonsaiBuild79AfterModelMmap"
+        )
+
+        let trainedContext =
+            Int(llama_model_n_ctx_train(loadedModel))
+        UserDefaults.standard.set(
+            trainedContext,
+            forKey: "BonsaiBuild79ModelTrainContext"
+        )
+        if trainedContext > 0 &&
+            config.context > trainedContext {
+            llama_model_free(loadedModel)
+            stopModelScope()
+            throw LabError.invalidConfig(
+                "请求 Context \(config.context) 超过模型训练上限 \(trainedContext)。"
+            )
+        }
 
         var contextParams = llama_context_default_params()
         contextParams.n_ctx = UInt32(config.context)
@@ -343,11 +365,46 @@ actor BonsaiEngine {
             ? LLAMA_FLASH_ATTN_TYPE_ENABLED
             : LLAMA_FLASH_ATTN_TYPE_DISABLED
 
+        // Build 79: reduce the only n_ctx-linear state first instead of
+        // accepting 4096 as the device ceiling.
+        let build79KVCacheType: String
+        if config.context >= 16_384 {
+            contextParams.type_k = GGML_TYPE_Q4_0
+            contextParams.type_v = GGML_TYPE_Q4_0
+            contextParams.flash_attn_type =
+                LLAMA_FLASH_ATTN_TYPE_ENABLED
+            build79KVCacheType = "Q4_0"
+        } else if config.context > 4096 {
+            contextParams.type_k = GGML_TYPE_Q8_0
+            contextParams.type_v = GGML_TYPE_Q8_0
+            contextParams.flash_attn_type =
+                LLAMA_FLASH_ATTN_TYPE_ENABLED
+            build79KVCacheType = "Q8_0"
+        } else {
+            build79KVCacheType = "F16"
+        }
+        UserDefaults.standard.set(
+            build79KVCacheType,
+            forKey: "BonsaiBuild79KVCacheType"
+        )
+        UserDefaults.standard.set(
+            config.context,
+            forKey: "BonsaiBuild79RequestedContext"
+        )
+        UserDefaults.standard.set(
+            config.gpuLayers,
+            forKey: "BonsaiBuild79EffectiveGPULayers"
+        )
+        UserDefaults.standard.synchronize()
+
         let cpuCount = ProcessInfo.processInfo.processorCount
         let threads = max(1, min(6, cpuCount - 2))
         contextParams.n_threads = Int32(threads)
         contextParams.n_threads_batch = Int32(threads)
 
+        persistSystemDiagnostics(
+            prefix: "BonsaiBuild79BeforeContextCreate"
+        )
         mark("MODEL_07_CONTEXT_CREATE_BEGIN")
         guard let loadedContext = llama_init_from_model(loadedModel, contextParams) else {
             mark("MODEL_07_CONTEXT_CREATE_NULL")
@@ -356,6 +413,9 @@ actor BonsaiEngine {
             throw LabError.contextCreateFailed
         }
         mark("MODEL_08_CONTEXT_CREATE_DONE")
+        persistSystemDiagnostics(
+            prefix: "BonsaiBuild79AfterContextCreate"
+        )
 
         model = loadedModel
         context = loadedContext
@@ -2713,6 +2773,18 @@ actor BonsaiEngine {
             ? LLAMA_FLASH_ATTN_TYPE_ENABLED
             : LLAMA_FLASH_ATTN_TYPE_DISABLED
 
+        if validated.context >= 16_384 {
+            params.type_k = GGML_TYPE_Q4_0
+            params.type_v = GGML_TYPE_Q4_0
+            params.flash_attn_type =
+                LLAMA_FLASH_ATTN_TYPE_ENABLED
+        } else if validated.context > 4096 {
+            params.type_k = GGML_TYPE_Q8_0
+            params.type_v = GGML_TYPE_Q8_0
+            params.flash_attn_type =
+                LLAMA_FLASH_ATTN_TYPE_ENABLED
+        }
+
         let cpuCount = ProcessInfo.processInfo.processorCount
         let threads = max(1, min(6, cpuCount - 2))
         params.n_threads = Int32(threads)
@@ -2738,55 +2810,35 @@ actor BonsaiEngine {
             residentMiB: Int(probe.resident_bytes / 1_048_576),
             virtualMiB: Int(probe.virtual_bytes / 1_048_576),
             physFootprintMiB: Int(probe.phys_footprint_bytes / 1_048_576),
-            extendedVA: provisioningEntitlementFlag(
+            extendedVA: effectiveEntitlementFlag(
                 "com.apple.developer.kernel.extended-virtual-addressing"
             ),
-            increasedMemoryLimit: provisioningEntitlementFlag(
+            increasedMemoryLimit: effectiveEntitlementFlag(
                 "com.apple.developer.kernel.increased-memory-limit"
             )
         )
     }
 
-    private func provisioningEntitlementFlag(
+    private func effectiveEntitlementFlag(
         _ key: String
     ) -> Int32 {
-        guard
-            let url = Bundle.main.url(
-                forResource: "embedded",
-                withExtension: "mobileprovision"
-            ),
-            let data = try? Data(contentsOf: url),
-            let plistStart = data.range(
-                of: Data("<plist".utf8)
-            )?.lowerBound,
-            let plistEndRange = data.range(
-                of: Data("</plist>".utf8),
-                options: [],
-                in: plistStart..<data.endIndex
+        guard let task =
+            SecTaskCreateFromSelf(kCFAllocatorDefault)
+        else {
+            return -1
+        }
+
+        guard let raw =
+            SecTaskCopyValueForEntitlement(
+                task,
+                key as CFString,
+                nil
             )
         else {
-            return -1
+            return 0
         }
 
-        let plistEnd = plistEndRange.upperBound
-        let plistData = data.subdata(in: plistStart..<plistEnd)
-
-        guard
-            let object = try? PropertyListSerialization.propertyList(
-                from: plistData,
-                options: [],
-                format: nil
-            ),
-            let root = object as? [String: Any],
-            let entitlements = root["Entitlements"] as? [String: Any]
-        else {
-            return -1
-        }
-
-        if let value = entitlements[key] as? Bool {
-            return value ? 1 : 0
-        }
-        if let value = entitlements[key] as? NSNumber {
+        if let value = raw as? NSNumber {
             return value.boolValue ? 1 : 0
         }
         return 0
@@ -2803,6 +2855,15 @@ actor BonsaiEngine {
         defaults.set(
             Int(d.increasedMemoryLimit),
             forKey: prefix + "IncreasedMemory"
+        )
+        let metal = metalSnapshotMiB()
+        defaults.set(
+            metal.allocated,
+            forKey: prefix + "MetalAllocatedMiB"
+        )
+        defaults.set(
+            metal.recommended,
+            forKey: prefix + "MetalRecommendedMiB"
         )
         defaults.synchronize()
     }

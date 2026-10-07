@@ -1025,8 +1025,9 @@ struct ProductionView: View {
 
     private var selectedAPIContextValue: Int {
         [
-            "512", "768", "1024", "2048",
-            "3072", "4096", "4608", "5120", "5632"
+            "512", "1024", "2048", "4096",
+            "6144", "8192", "16384",
+            "32768", "65536"
         ]
             .contains(apiContextProfile)
             ? (Int(apiContextProfile) ?? 4096)
@@ -1075,7 +1076,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 78 M5 Context Boundary Lab")
+                            Text("1.0 · RC1.26 Build 79 Storage-Memory Long Context Lab")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -1470,20 +1471,20 @@ struct ProductionView: View {
                             selection: $apiContextProfile
                         ) {
                             Text("512 · legacy").tag("512")
-                            Text("768 · legacy").tag("768")
                             Text("1024 · legacy").tag("1024")
                             Text("2048 · baseline").tag("2048")
-                            Text("3072").tag("3072")
-                            Text("4096 · verified").tag("4096")
-                            Text("4608 · probe").tag("4608")
-                            Text("5120 · probe").tag("5120")
-                            Text("5632 · edge").tag("5632")
+                            Text("4096 · verified F16").tag("4096")
+                            Text("6144 · Q8 KV").tag("6144")
+                            Text("8192 · Q8 KV").tag("8192")
+                            Text("16K · Q4 KV").tag("16384")
+                            Text("32K · Q4 + mmap").tag("32768")
+                            Text("64K · Q4 + storage").tag("65536")
                         }
                         .pickerStyle(.menu)
                         .disabled(apiServer.isRunning)
 
                         Text(
-                            "Build 78 Context Boundary：4096 已真机确认可启动；4608/5120/5632 用于逼近 M5 12GB 的稳定上限。Build 77 的 6144/8192 已确认启动 API 会直接终止 App，因此本版从正常选择器移除。>4096 自动使用 16×16 capacity mode。"
+                            "Build 79 Long Context：4096 只是回归基线。6144/8192 使用 Q8 KV；16K/32K/64K 使用 Q4 KV。32K/64K 逐步减少 Metal 常驻层，让更多 GGUF 权重保持 file-backed mmap，由 SSD 作为可回收页的后备来源。"
                         )
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -1672,17 +1673,10 @@ struct ProductionView: View {
                 if apiRuntimeProfile == "flash" {
                     apiRuntimeProfile = "accelerated"
                 }
-                if ["6144", "8192"]
-                    .contains(apiContextProfile) {
-                    UserDefaults.standard.set(
-                        apiContextProfile,
-                        forKey:
-                            "BonsaiRC126Build78UnsafeContextMigratedFrom"
-                    )
-                    apiContextProfile = "4096"
-                } else if ![
-                    "512", "768", "1024", "2048",
-                    "3072", "4096", "4608", "5120", "5632"
+                if ![
+                    "512", "1024", "2048", "4096",
+                    "6144", "8192", "16384",
+                    "32768", "65536"
                 ]
                     .contains(apiContextProfile) {
                     apiContextProfile = "4096"
@@ -3282,12 +3276,12 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "78")
+        RC126APIStartupLifecycle.begin(build: "79")
         busy = true
-        status = "正在执行 RC1.26 Build 78 Context Boundary + API 冷启动保护…"
+        status = "正在执行 RC1.26 Build 79 Storage-Memory Long Context + API 冷启动保护…"
         detail = """
         Build 60 的 API/视觉路径保持不变。
-        Build 78 开放 512/768/1024/2048/3072/4096/4608/5120/5632；6144/8192 因 Build 77 真机启动闪退已阻止。
+        Build 79 开放到 65536；6144/8192 使用 Q8 KV，16K/32K/64K 使用 Q4 KV，并保持 GGUF mmap。
         /v1/models 会公布当前 context_length、vision 与 unsupported tool/reasoning 能力。
         """
 
@@ -3337,33 +3331,62 @@ struct ProductionView: View {
                     to: &apiRuntime
                 )
 
-                // Build 78 capacity mode: Build 77 proved 4096 can start
-                // with the frozen 32x32 path, while 6144/8192 terminate the
-                // app during API startup. Above 4096, cap compute shape at
-                // 16x16 to reduce context-create peak pressure while probing
-                // the real M5 12 GB capacity boundary.
-                let build78CapacityMode =
+                // Build 79 storage-memory co-design. Preserve the
+                // verified 4096 path; above it, trade throughput for
+                // Metal working-set and address-space headroom while the
+                // non-offloaded weights remain file-backed through mmap.
+                let build79LongContext =
                     selectedAPIContext > 4096
-                if build78CapacityMode {
+                if build79LongContext {
+                    apiRuntime.flashAttention = true
+                }
+
+                switch selectedAPIContext {
+                case 65_536...:
+                    apiRuntime.batch =
+                        min(apiRuntime.batch, 4)
+                    apiRuntime.ubatch =
+                        min(apiRuntime.ubatch, 4)
+                    apiRuntime.gpuLayers =
+                        min(apiRuntime.gpuLayers, 24)
+                case 32_768...:
+                    apiRuntime.batch =
+                        min(apiRuntime.batch, 8)
+                    apiRuntime.ubatch =
+                        min(apiRuntime.ubatch, 8)
+                    apiRuntime.gpuLayers =
+                        min(apiRuntime.gpuLayers, 40)
+                case 16_384...:
                     apiRuntime.batch =
                         min(apiRuntime.batch, 16)
                     apiRuntime.ubatch =
                         min(apiRuntime.ubatch, 16)
+                    apiRuntime.gpuLayers =
+                        min(apiRuntime.gpuLayers, 56)
+                case 4097...:
+                    apiRuntime.batch =
+                        min(apiRuntime.batch, 16)
+                    apiRuntime.ubatch =
+                        min(apiRuntime.ubatch, 16)
+                default:
+                    break
                 }
+
                 UserDefaults.standard.set(
-                    build78CapacityMode,
-                    forKey:
-                        "BonsaiRC126Build78CapacityMode"
+                    build79LongContext,
+                    forKey: "BonsaiBuild79LongContextMode"
                 )
                 UserDefaults.standard.set(
                     apiRuntime.batch,
-                    forKey:
-                        "BonsaiRC126Build78EffectiveBatch"
+                    forKey: "BonsaiBuild79EffectiveBatch"
                 )
                 UserDefaults.standard.set(
                     apiRuntime.ubatch,
-                    forKey:
-                        "BonsaiRC126Build78EffectiveUBatch"
+                    forKey: "BonsaiBuild79EffectiveUBatch"
+                )
+                UserDefaults.standard.set(
+                    apiRuntime.gpuLayers,
+                    forKey: "BonsaiBuild79EffectiveGPULayers"
                 )
                 UserDefaults.standard.synchronize()
 
@@ -4098,7 +4121,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 78 Context Boundary API Runtime 已就绪"
+                        "RC1.26 Build 79 Long Context API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()

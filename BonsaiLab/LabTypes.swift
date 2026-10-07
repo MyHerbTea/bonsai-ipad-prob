@@ -48,8 +48,8 @@ struct RuntimeConfig: Equatable, Sendable {
     )
 
     func validated() throws -> RuntimeConfig {
-        guard context >= 256 && context <= 8192 else {
-            throw LabError.invalidConfig("Context 必须在 256...8192。")
+        guard context >= 256 && context <= 65_536 else {
+            throw LabError.invalidConfig("Context 必须在 256...65536。")
         }
         guard batch >= 1 && batch <= min(context, 512) else {
             throw LabError.invalidConfig("Batch 必须在 1...min(Context, 512)。")

@@ -1101,6 +1101,47 @@ final class LocalOpenAIServer: ObservableObject {
                 device?.hasUnifiedMemory ?? false,
             "metal_recommended_working_set_bytes":
                 Int64(device?.recommendedMaxWorkingSetSize ?? 0),
+            "build79_requested_context":
+                defaults.integer(
+                    forKey: "BonsaiBuild79RequestedContext"
+                ),
+            "build79_model_train_context":
+                defaults.integer(
+                    forKey: "BonsaiBuild79ModelTrainContext"
+                ),
+            "build79_kv_cache_type":
+                defaults.string(
+                    forKey: "BonsaiBuild79KVCacheType"
+                ) ?? "unknown",
+            "build79_effective_gpu_layers":
+                defaults.integer(
+                    forKey: "BonsaiBuild79EffectiveGPULayers"
+                ),
+            "build79_effective_extended_va":
+                defaults.integer(
+                    forKey:
+                        "BonsaiBuild79AfterContextCreateExtendedVA"
+                ),
+            "build79_effective_increased_memory_limit":
+                defaults.integer(
+                    forKey:
+                        "BonsaiBuild79AfterContextCreateIncreasedMemory"
+                ),
+            "build79_available_mib_after_context":
+                defaults.integer(
+                    forKey:
+                        "BonsaiBuild79AfterContextCreateAvailableMiB"
+                ),
+            "build79_phys_mib_after_context":
+                defaults.integer(
+                    forKey:
+                        "BonsaiBuild79AfterContextCreatePhysMiB"
+                ),
+            "build79_metal_allocated_mib_after_context":
+                defaults.integer(
+                    forKey:
+                        "BonsaiBuild79AfterContextCreateMetalAllocatedMiB"
+                ),
             "ggml_metal_tensor_disable":
                 tensorDisable ?? "unset",
             "metal_tensor_prefill_requested": requested,
@@ -1490,7 +1531,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build78-context-boundary-lab",
+            "build_id": "rc1.26-build79-storage-memory-long-context-lab",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",

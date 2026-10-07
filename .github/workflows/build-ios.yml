@@ -1,4 +1,4 @@
-name: Build Bonsai iPad Lab v1 RC1.26 Build 78 Context Boundary Lab
+name: Build Bonsai iPad Lab v1 RC1.26 Build 79 Storage-Memory Long Context Lab
 
 on:
   push:
@@ -375,19 +375,19 @@ jobs:
           set -euo pipefail
           python3 tools/rc126_build75_api_cold_start_contract_tests.py
 
-      - name: RC1.26 Build 78 context boundary contracts
+      - name: RC1.26 Build 79 storage-memory long-context contracts
         shell: bash
         run: |
           set -euo pipefail
-          python3 tools/rc126_build78_context_boundary_contract_tests.py
+          python3 tools/rc126_build79_storage_memory_contract_tests.py
 
-      - name: RC1.26 Build 78 packaging identity preflight
+      - name: RC1.26 Build 79 packaging identity preflight
         shell: bash
         run: |
           set -euo pipefail
-          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"78\"' project.yml)" -ge 1
-          grep -q '"rc1.26-build78-context-boundary-lab"' BonsaiLab/LocalOpenAIServer.swift
-          grep -q 'RC126APIStartupLifecycle.begin(build: \"78\")' BonsaiLab/ProductionView.swift
+          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"79\"' project.yml)" -ge 1
+          grep -q '"rc1.26-build79-storage-memory-long-context-lab"' BonsaiLab/LocalOpenAIServer.swift
+          grep -q 'RC126APIStartupLifecycle.begin(build: \"79\")' BonsaiLab/ProductionView.swift
 
           PACKAGE_BLOCK="$(
             sed -n \
@@ -395,13 +395,22 @@ jobs:
               .github/workflows/build-ios.yml
           )"
 
-          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build78-context-boundary-lab-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
-          grep -q 'BonsaiLab-v1-RC1.26-build78-context-boundary-lab-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
+          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build79-storage-memory-long-context-lab-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
+          grep -q 'BonsaiLab-v1-RC1.26-build79-storage-memory-long-context-lab-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
           if grep -q 'build75-api-cold-start-guard' <<< "$PACKAGE_BLOCK"; then
-            echo "ERROR: Build 77 packaging leaked into Build 78 package step." >&2
+            echo "ERROR: Build 78 packaging leaked into Build 79 package step." >&2
             exit 1
           fi
-          echo "Build 78 packaging identity preflight: PASS"
+          echo "Build 79 packaging identity preflight: PASS"
+
+      - name: Validate Build 79 entitlements source
+        shell: bash
+        run: |
+          set -euo pipefail
+          plutil -lint BonsaiLab/BonsaiLab.entitlements
+          grep -q 'com.apple.developer.kernel.extended-virtual-addressing' BonsaiLab/BonsaiLab.entitlements
+          grep -q 'com.apple.developer.kernel.increased-memory-limit' BonsaiLab/BonsaiLab.entitlements
+          grep -q 'CODE_SIGN_ENTITLEMENTS: "BonsaiLab/BonsaiLab.entitlements"' project.yml
 
       - name: Show Apple toolchain
         run: |
@@ -471,7 +480,7 @@ jobs:
           file "$FRAMEWORK"
           otool -L "$APP/BonsaiLab"
           test "$(plutil -extract CFBundleShortVersionString raw -o - "$APP/Info.plist")" = "1.0.0"
-          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "78"
+          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "79"
           nm -gU "$FRAMEWORK" > build/llama-symbols.txt
           grep -q '_mtmd_init_from_file' build/llama-symbols.txt
           grep -q '_mtmd_helper_eval_chunks' build/llama-symbols.txt
@@ -489,29 +498,29 @@ jobs:
           ditto "$APP" build/ipa/Payload/BonsaiLab.app
 
           cat > build/BUILD_INFO.txt <<'INFO'
-          Bonsai iPad Lab v1 RC1.26 Build 78 M5 Context Boundary Lab
+          Bonsai iPad Lab v1 RC1.26 Build 79 Storage-Memory Long Context Lab
           Prism: prism-b10743-adfffbe
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
-          Full/Accelerated remains the production profile. Build 78 exposes ctx=512/768/1024/2048/3072/4096/4608/5120/5632. 4096 is device-verified; contexts above 4096 cap batch/ubatch at 16/16 to reduce startup pressure.
-          Build 78 inherits the Build 75 cold-start guard and existing text/Vision paths. Build 77 device evidence showed 6144/8192 terminate the app at startup, so Build 78 blocks those tiers and probes 4608/5120/5632 with capacity-mode 16/16. Metal Tensor remains forced disabled.
+          Build 79 raises the app ceiling to 65536. 6144/8192 use Q8 KV; 16K/32K/64K use Q4 KV. Large-context tiers reduce batch and progressively reduce Metal-resident layers while retaining file-backed GGUF mmap.
+          Build 79 inherits the Build 75 cold-start guard and existing text/Vision paths. It requests Increased Memory Limit + Extended Virtual Addressing, checks effective entitlements at runtime, and records mmap/context/Metal memory snapshots. Metal Tensor remains forced disabled.
           Model and Vision Tower weights are NOT bundled in the IPA.
           INFO
           echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.26-build78-context-boundary-lab-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.26-build79-storage-memory-long-context-lab-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.26-build78-context-boundary-lab-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build78-context-boundary-lab-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.26-build79-storage-memory-long-context-lab-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build79-storage-memory-long-context-lab-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.26-Build78-M5-Context-Boundary-Lab
+          name: BonsaiLab-iPad-v1-RC1.26-Build79-Storage-Memory-Long-Context-Lab
           path: |
-            build/BonsaiLab-v1-RC1.26-build78-context-boundary-lab-unsigned.ipa
-            build/BonsaiLab-v1-RC1.26-build78-context-boundary-lab-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.26-build79-storage-memory-long-context-lab-unsigned.ipa
+            build/BonsaiLab-v1-RC1.26-build79-storage-memory-long-context-lab-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             RC1.20_RELEASE_ACCEPTANCE.md
             tools/rc126_phase2d_prefill_batch_arm.ps1
@@ -519,8 +528,9 @@ jobs:
             tools/rc126_phase2f_prefill_batch_arm.ps1
             tools/rc126_build76_text_kv_reuse_ab.ps1
             tools/rc126_build76_text_kv_reuse_contract_tests.py
-            tools/rc126_build78_context_boundary_contract_tests.py
-            docs/backburner-integration/RC1.26_BUILD78_CONTEXT_BOUNDARY_LAB.md
+            tools/rc126_build79_storage_memory_contract_tests.py
+            docs/backburner-integration/RC1.26_BUILD79_STORAGE_MEMORY_LONG_CONTEXT.md
+            BonsaiLab/BonsaiLab.entitlements
             tools/rc126_build75_api_cold_start_probe.ps1
             tools/rc126_build75_api_cold_start_contract_tests.py
             docs/backburner-integration/RC1.26_BUILD76_TEXT_KV_REUSE_LAB.md
