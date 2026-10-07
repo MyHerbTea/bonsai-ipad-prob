@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 root = Path(__file__).resolve().parents[1]
 engine = (root / "BonsaiLab" / "BonsaiEngine.swift").read_text(encoding="utf-8")
@@ -9,38 +10,15 @@ server = (root / "BonsaiLab" / "LocalOpenAIServer.swift").read_text(encoding="ut
 project = (root / "project.yml").read_text(encoding="utf-8")
 workflow = (root / ".github" / "workflows" / "build-ios.yml").read_text(encoding="utf-8")
 
-assert (
-    'CURRENT_PROJECT_VERSION: "64"' in project
-    or 'CURRENT_PROJECT_VERSION: "65"' in project
-    or 'CURRENT_PROJECT_VERSION: "66"' in project
-    or 'CURRENT_PROJECT_VERSION: "67"' in project
-    or 'CURRENT_PROJECT_VERSION: "68"' in project
-    or 'CURRENT_PROJECT_VERSION: "69"' in project
-    or 'CURRENT_PROJECT_VERSION: "70"' in project
-    or 'CURRENT_PROJECT_VERSION: "71"' in project
-    or 'CURRENT_PROJECT_VERSION: "72"' in project
-    or 'CURRENT_PROJECT_VERSION: "75"' in project
-    or 'CURRENT_PROJECT_VERSION: "76"' in project
+project_build_match = re.search(
+    r'CURRENT_PROJECT_VERSION:\s*"(?P<build>\d+)"',
+    project,
 )
-assert (
-    "RC1.25.3 Build 64 Native Prefill Isolation" in view
-    or 'Text("1.0 · RC1.26 Build 65 Runtime Optimization Lab")' in view
-
-    or 'Text("1.0 · RC1.26 Build 66 Memory Governor Observer")' in view
-
-
-    or 'Text("1.0 · RC1.26 Build 67 Request Lifecycle Governor Observer")' in view
-
-
-
-    or 'Text("1.0 · RC1.26 Build 68 Heap Pressure Relief")' in view
-    or 'Text("1.0 · RC1.26 Build 69 Metal Prefill Measurement")' in view
-    or 'Text("1.0 · RC1.26 Build 70 Metal Prefill Measurement")' in view
-    or 'Text("1.0 · RC1.26 Build 71 Fresh Backend Metal Tensor A/B")' in view
-    or 'Text("1.0 · RC1.26 Build 72 Prefill Batch 8→16")' in view
-    or 'Text("1.0 · RC1.26 Build 75 API Cold-Start Guard")' in view
-    or 'Text("1.0 · RC1.26 Build 76 M5 Extreme Text KV Lab")' in view
-)
+assert project_build_match is not None
+project_build = int(project_build_match.group("build"))
+assert project_build >= 64
+assert "RC1.26" in view
+assert f"Build {project_build}" in view
 
 assert "void BonsaiClearVisionPrefixKVSnapshot(void);" in bridge_h
 assert "void BonsaiClearVisionPrefixKVSnapshot(void)" in bridge_mm
@@ -86,16 +64,7 @@ for marker in [
 
 assert "python3 tools/rc1253_native_prefill_isolation_contract_tests.py" in workflow
 assert (
-    'CFBundleVersion raw -o - "$APP/Info.plist")" = "64"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "65"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "66"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "67"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "68"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "69"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "70"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "71"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "72"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "75"' in workflow
+    f'CFBundleVersion raw -o - "$APP/Info.plist")" = "{project_build}"'
+    in workflow
 )
-
 print("RC1.25.3 Build 64 native prefill isolation contracts: PASS")
