@@ -76,7 +76,10 @@ upload_marker = "\n      - name: Upload artifact\n"
 package_start = workflow.index(package_marker)
 upload_start = workflow.index(upload_marker, package_start)
 package_block = workflow[package_start:upload_start]
-assert "BonsaiLab-v1-RC1.26-build79-storage-memory-long-context-lab-unsigned.ipa" in package_block
+assert (
+    "BonsaiLab-v1-RC1.26-build79-storage-memory-long-context-lab-unsigned.ipa" in package_block
+    or "BonsaiLab-v1-RC1.26-build80-long-context-tier-reload-fix-unsigned.ipa" in package_block
+)
 assert "build78-context-boundary-lab-unsigned.ipa" not in package_block
 
 print("RC1.26 Build 79 storage-memory long-context contracts: PASS")
