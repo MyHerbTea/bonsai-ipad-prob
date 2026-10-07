@@ -109,6 +109,7 @@ assert (
     or "Build72-Prefill-Batch-8-vs-16" in workflow
     or "Build75-API-Cold-Start-Guard" in workflow
     or "Build76-M5-Extreme-Text-KV-Lab" in workflow
+    or "Build77-M5-Extended-Context-Lab" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")
