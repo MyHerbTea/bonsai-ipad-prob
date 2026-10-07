@@ -35,18 +35,21 @@ assert (
     or 'RC126APIStartupLifecycle.begin(build: "76")' in view
     or 'RC126APIStartupLifecycle.begin(build: "77")' in view
     or 'RC126APIStartupLifecycle.begin(build: "78")' in view
+    or 'RC126APIStartupLifecycle.begin(build: "79")' in view
 )
 assert (
     'RC1.26 Build 75 API Cold-Start Guard' in view
     or 'RC1.26 Build 76 M5 Extreme Text KV Lab' in view
     or 'RC1.26 Build 77 M5 Extended Context Lab' in view
     or 'RC1.26 Build 78 M5 Context Boundary Lab' in view
+    or 'RC1.26 Build 79 Storage-Memory Long Context Lab' in view
 )
 assert (
     '"rc1.26-build75-api-cold-start-guard"' in server
     or '"rc1.26-build76-text-kv-reuse-lab"' in server
     or '"rc1.26-build77-extended-context-lab"' in server
     or '"rc1.26-build78-context-boundary-lab"' in server
+    or '"rc1.26-build79-storage-memory-long-context-lab"' in server
 )
 
 for marker in [
@@ -85,6 +88,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "76"' in project
     or 'CURRENT_PROJECT_VERSION: "77"' in project
     or 'CURRENT_PROJECT_VERSION: "78"' in project
+    or 'CURRENT_PROJECT_VERSION: "79"' in project
 )
 assert "RC1.26 Build 75 cold-start guard contracts" in workflow
 assert "tools/rc126_build75_api_cold_start_probe.ps1" in workflow
