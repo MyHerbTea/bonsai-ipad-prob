@@ -29,6 +29,7 @@ assert (
     or 'Text("1.0 · RC1.26 Build 75 API Cold-Start Guard")' in view
     or 'Text("1.0 · RC1.26 Build 76 M5 Extreme Text KV Lab")' in view
     or 'Text("1.0 · RC1.26 Build 77 M5 Extended Context Lab")' in view
+    or 'Text("1.0 · RC1.26 Build 78 M5 Context Boundary Lab")' in view
 )
 assert 'Text("Safe").tag("safe")' in view
 assert 'Text("Flash").tag("ab_flash_only")' in view
