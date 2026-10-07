@@ -17,6 +17,7 @@ assert (
     or '"build_id": "rc1.26-build78-context-boundary-lab"' in server
     or '"build_id": "rc1.26-build79-storage-memory-long-context-lab"' in server
     or '"build_id": "rc1.26-build80-long-context-tier-reload-fix"' in server
+    or '"build_id": "rc1.26-build81-32k-memory-squeeze"' in server
 )
 
 for marker in [

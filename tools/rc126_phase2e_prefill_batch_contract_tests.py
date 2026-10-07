@@ -32,6 +32,7 @@ assert (
     or "RC1.26 Build 78 M5 Context Boundary Lab" in view
     or "RC1.26 Build 79 Storage-Memory Long Context Lab" in view
     or "RC1.26 Build 80 Long-Context Tier Reload Fix" in view
+    or "RC1.26 Build 81 32K Memory Squeeze" in view
 )
 
 for marker in [
@@ -52,6 +53,7 @@ assert (
     or '"rc1.26-build78-context-boundary-lab"' in server
     or '"rc1.26-build79-storage-memory-long-context-lab"' in server
     or '"rc1.26-build80-long-context-tier-reload-fix"' in server
+    or '"rc1.26-build81-32k-memory-squeeze"' in server
 )
 
 for marker in [
@@ -73,6 +75,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "78"' in project
     or 'CURRENT_PROJECT_VERSION: "79"' in project
     or 'CURRENT_PROJECT_VERSION: "80"' in project
+    or 'CURRENT_PROJECT_VERSION: "81"' in project
 )
 assert "RC1.26 Phase 2E prefill batch contracts" in workflow
 assert "tools/rc126_phase2e_prefill_batch_arm.ps1" in workflow

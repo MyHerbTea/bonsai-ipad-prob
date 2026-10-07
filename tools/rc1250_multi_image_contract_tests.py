@@ -67,6 +67,7 @@ assert (
     or 'Text("1.0 · RC1.26 Build 78 M5 Context Boundary Lab")' in view
     or 'Text("1.0 · RC1.26 Build 79 Storage-Memory Long Context Lab")' in view
     or 'Text("1.0 · RC1.26 Build 80 Long-Context Tier Reload Fix")' in view
+    or 'Text("1.0 · RC1.26 Build 81 32K Memory Squeeze")' in view
 )
 
 # Production runtime remains the proven Full profile by default.
