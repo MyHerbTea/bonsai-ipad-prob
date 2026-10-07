@@ -22,6 +22,7 @@ for marker in [
 for marker in [
     "Phase2FPrefillBatchLaunchLatch.apply(",
     "RC1.26 Build 75 API Cold-Start Guard",
+    "RC1.26 Build 76 M5 Extreme Text KV Lab",
 ]:
     assert marker in view, marker
 

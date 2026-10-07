@@ -42,6 +42,7 @@ assert (
     or "RC1.26 Build 71 Fresh Backend Metal Tensor A/B" in view
     or "RC1.26 Build 72 Prefill Batch 8→16" in view
     or "RC1.26 Build 75 API Cold-Start Guard" in view
+    or "RC1.26 Build 76 M5 Extreme Text KV Lab" in view
 )
 
 # Context ladder: frozen 512 default plus explicit device-validation candidates.

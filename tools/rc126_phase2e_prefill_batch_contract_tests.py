@@ -27,6 +27,7 @@ for marker in [
 assert (
     "RC1.26 Build 73 Prefill Batch 16→32" in view
     or "RC1.26 Build 75 API Cold-Start Guard" in view
+    or "RC1.26 Build 76 M5 Extreme Text KV Lab" in view
 )
 
 for marker in [
