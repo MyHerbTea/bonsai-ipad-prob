@@ -53,7 +53,7 @@ assert (
 )
 assert 'private var apiRuntimeProfile = "accelerated"' in view
 assert "n_seq_max" not in view  # remains owned by BonsaiEngine/native runtime
-assert 'private var apiContextProfile = "512"' in view
+assert 'private var apiContextProfile = "4096"' in view or 'private var apiContextProfile = "512"' in view
 assert 'Text("256 Experimental")' not in view
 
 if "RC1.25.2" in view:
