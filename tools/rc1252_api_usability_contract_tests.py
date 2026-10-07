@@ -22,21 +22,10 @@ assert project_build_match is not None
 project_build = int(project_build_match.group("build"))
 assert project_build >= 63
 
-    or "RC1.26 Build 66 Memory Governor Observer" in view
-
-
-    or "RC1.26 Build 67 Request Lifecycle Governor Observer" in view
-
-
-
-    or "RC1.26 Build 68 Heap Pressure Relief" in view
-    or "RC1.26 Build 69 Metal Prefill Measurement" in view
-    or "RC1.26 Build 70 Metal Prefill Measurement" in view
-    or "RC1.26 Build 71 Fresh Backend Metal Tensor A/B" in view
-    or "RC1.26 Build 72 Prefill Batch 8→16" in view
-    or "RC1.26 Build 75 API Cold-Start Guard" in view
-    or "RC1.26 Build 76 M5 Extreme Text KV Lab" in view
-)
+# The product UI must advertise the same numeric build without maintaining a
+# brittle allow-list of every later RC1.26 experiment name.
+assert "RC1.26" in view
+assert f"Build {project_build}" in view
 
 # Context ladder: frozen 512 default plus explicit device-validation candidates.
 for value in ["512", "768", "1024", "2048"]:
