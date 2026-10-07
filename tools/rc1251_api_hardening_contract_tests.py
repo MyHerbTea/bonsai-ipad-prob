@@ -30,6 +30,7 @@ assert (
     or 'Text("1.0 · RC1.26 Build 72 Prefill Batch 8→16")' in view
     or 'Text("1.0 · RC1.26 Build 75 API Cold-Start Guard")' in view
     or 'Text("1.0 · RC1.26 Build 76 M5 Extreme Text KV Lab")' in view
+    or 'Text("1.0 · RC1.26 Build 77 M5 Extended Context Lab")' in view
 )
 assert (
     'RC1.25.1 Build 60 Dual Context Admission' in view
@@ -37,6 +38,7 @@ assert (
     or 'RC1.25.3 Build 64 API Context Ladder' in view
     or 'RC1.26 Build 75 API 冷启动保护' in view
     or 'RC1.26 Build 76 M5 Extreme Text KV Lab' in view
+    or 'RC1.26 Build 77 M5 Extended Context Lab' in view
 )
 
 # Multi-image success telemetry must preserve the already computed request route.
@@ -74,7 +76,7 @@ assert '"Content-Type: text/event-stream; charset=utf-8"' in server
 # selectable context only; Full/Accelerated and batch/uBatch remain unchanged.
 assert 'private var apiRuntimeProfile = "accelerated"' in view
 if "RC1.25.2" in view:
-    assert 'Int(apiContextProfile) ?? 512' in view
+    assert ('Int(apiContextProfile) ?? 512' in view or 'Int(apiContextProfile) ?? 4096' in view)
     assert '"512", "768", "1024", "2048"' in view
 else:
     assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
