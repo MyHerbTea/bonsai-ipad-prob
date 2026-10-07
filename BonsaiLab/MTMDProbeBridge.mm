@@ -3,6 +3,9 @@
 #include <llama/llama.h>
 #include <llama/mtmd.h>
 
+#include <CoreFoundation/CoreFoundation.h>
+#include <dlfcn.h>
+
 #include <cstdio>
 #include <unistd.h>
 
@@ -72,4 +75,75 @@ BonsaiMTMDOnlyProbeResult BonsaiProbeMTMD(
     out.ok = 1;
     persist_progress(progress_path, 102);
     return out;
+}
+
+int32_t BonsaiEffectiveEntitlementFlag(const char * key) {
+    if (key == nullptr || key[0] == '\0') {
+        return -1;
+    }
+
+    using SecTaskCreateFromSelfFn = CFTypeRef (*)(CFAllocatorRef);
+    using SecTaskCopyValueForEntitlementFn =
+        CFTypeRef (*)(CFTypeRef, CFStringRef, CFErrorRef *);
+
+    auto create_task = reinterpret_cast<SecTaskCreateFromSelfFn>(
+        dlsym(RTLD_DEFAULT, "SecTaskCreateFromSelf")
+    );
+    auto copy_entitlement =
+        reinterpret_cast<SecTaskCopyValueForEntitlementFn>(
+            dlsym(RTLD_DEFAULT, "SecTaskCopyValueForEntitlement")
+        );
+
+    if (create_task == nullptr || copy_entitlement == nullptr) {
+        return -1;
+    }
+
+    CFTypeRef task = create_task(kCFAllocatorDefault);
+    if (task == nullptr) {
+        return -1;
+    }
+
+    CFStringRef entitlement = CFStringCreateWithCString(
+        kCFAllocatorDefault,
+        key,
+        kCFStringEncodingUTF8
+    );
+    if (entitlement == nullptr) {
+        CFRelease(task);
+        return -1;
+    }
+
+    CFErrorRef error = nullptr;
+    CFTypeRef value = copy_entitlement(task, entitlement, &error);
+
+    int32_t result = 0;
+    if (value != nullptr) {
+        const CFTypeID type_id = CFGetTypeID(value);
+        if (type_id == CFBooleanGetTypeID()) {
+            result = CFBooleanGetValue(
+                static_cast<CFBooleanRef>(value)
+            ) ? 1 : 0;
+        } else if (type_id == CFNumberGetTypeID()) {
+            int32_t number = 0;
+            if (CFNumberGetValue(
+                    static_cast<CFNumberRef>(value),
+                    kCFNumberSInt32Type,
+                    &number
+                )) {
+                result = number != 0 ? 1 : 0;
+            } else {
+                result = -1;
+            }
+        } else {
+            result = -1;
+        }
+        CFRelease(value);
+    }
+
+    if (error != nullptr) {
+        CFRelease(error);
+    }
+    CFRelease(entitlement);
+    CFRelease(task);
+    return result;
 }

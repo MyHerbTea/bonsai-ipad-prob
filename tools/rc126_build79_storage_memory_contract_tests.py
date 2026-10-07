@@ -2,6 +2,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 engine = (ROOT / "BonsaiLab/BonsaiEngine.swift").read_text(encoding="utf-8")
+bridge_h = (ROOT / "BonsaiLab/MTMDProbeBridge.h").read_text(encoding="utf-8")
+bridge_mm = (ROOT / "BonsaiLab/MTMDProbeBridge.mm").read_text(encoding="utf-8")
 view = (ROOT / "BonsaiLab/ProductionView.swift").read_text(encoding="utf-8")
 server = (ROOT / "BonsaiLab/LocalOpenAIServer.swift").read_text(encoding="utf-8")
 types = (ROOT / "BonsaiLab/LabTypes.swift").read_text(encoding="utf-8")
@@ -33,13 +35,16 @@ for marker in [
     "BonsaiBuild79BeforeContextCreate",
     "BonsaiBuild79AfterContextCreate",
     "llama_model_n_ctx_train",
-    "SecTaskCopyValueForEntitlement",
+    "BonsaiEffectiveEntitlementFlag",
     "MetalAllocatedMiB",
     "MetalRecommendedMiB",
 ]:
     assert marker in engine, marker
 
-assert "import Security" in engine
+assert "import Security" not in engine
+assert "BonsaiEffectiveEntitlementFlag" in bridge_h
+assert 'dlsym(RTLD_DEFAULT, "SecTaskCreateFromSelf")' in bridge_mm
+assert 'dlsym(RTLD_DEFAULT, "SecTaskCopyValueForEntitlement")' in bridge_mm
 assert 'CURRENT_PROJECT_VERSION: "79"' in project
 assert 'CODE_SIGN_ENTITLEMENTS: "BonsaiLab/BonsaiLab.entitlements"' in project
 assert "Security.framework" in project

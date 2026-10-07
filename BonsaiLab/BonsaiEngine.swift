@@ -2,7 +2,6 @@ import Foundation
 import CryptoKit
 import Darwin
 import Metal
-import Security
 import llama
 
 struct BonsaiTextChatTurn: Sendable, Equatable {
@@ -2822,26 +2821,9 @@ actor BonsaiEngine {
     private func effectiveEntitlementFlag(
         _ key: String
     ) -> Int32 {
-        guard let task =
-            SecTaskCreateFromSelf(kCFAllocatorDefault)
-        else {
-            return -1
+        key.withCString {
+            BonsaiEffectiveEntitlementFlag($0)
         }
-
-        guard let raw =
-            SecTaskCopyValueForEntitlement(
-                task,
-                key as CFString,
-                nil
-            )
-        else {
-            return 0
-        }
-
-        if let value = raw as? NSNumber {
-            return value.boolValue ? 1 : 0
-        }
-        return 0
     }
 
     private func persistSystemDiagnostics(prefix: String) {

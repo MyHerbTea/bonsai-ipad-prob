@@ -22,6 +22,11 @@ BonsaiMTMDOnlyProbeResult BonsaiProbeMTMD(
     const char * progress_path
 );
 
+// Returns 1=true, 0=false/not granted, -1=runtime probe unavailable.
+// Uses runtime symbol lookup so the iOS Swift SDK does not need to expose
+// SecTaskCreateFromSelf / SecTaskCopyValueForEntitlement declarations.
+int32_t BonsaiEffectiveEntitlementFlag(const char * key);
+
 #ifdef __cplusplus
 }
 #endif
