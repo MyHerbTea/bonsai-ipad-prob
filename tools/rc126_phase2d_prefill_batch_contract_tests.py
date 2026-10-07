@@ -41,9 +41,13 @@ for marker in [
     '"active_ubatch": advertisedUBatch',
     '"shape_evidence_valid":',
     '"metal_tensor_forced_baseline": true',
-    '"rc1.26-build75-api-cold-start-guard"',
 ]:
     assert marker in server, marker
+
+assert (
+    '"rc1.26-build75-api-cold-start-guard"' in server
+    or '"rc1.26-build76-text-kv-reuse-lab"' in server
+)
 
 for marker in [
     'ValidateSet("BASELINE8", "CANDIDATE16")',
@@ -61,6 +65,7 @@ assert (
     'CURRENT_PROJECT_VERSION: "72"' in project
     or 'CURRENT_PROJECT_VERSION: "73"' in project
     or 'CURRENT_PROJECT_VERSION: "75"' in project
+    or 'CURRENT_PROJECT_VERSION: "76"' in project
 )
 assert "RC1.26 Phase 2D prefill batch contracts" in workflow
 assert "tools/rc126_phase2d_prefill_batch_arm.ps1" in workflow

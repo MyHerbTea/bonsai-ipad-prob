@@ -66,9 +66,13 @@ for marker in [
     '"pinned_prism_backend_init_log_has_tensor"',
     '"metal_tensor_prefill_dispatch_proven":',
     'false',
-    '"rc1.26-build75-api-cold-start-guard"',
 ]:
     assert marker in server, marker
+
+assert (
+    '"rc1.26-build75-api-cold-start-guard"' in server
+    or '"rc1.26-build76-text-kv-reuse-lab"' in server
+)
 
 assert "Phase2CMetalTensorLaunchLatch.apply(" in view
 assert (
@@ -98,6 +102,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "72"' in project
     or 'CURRENT_PROJECT_VERSION: "73"' in project
     or 'CURRENT_PROJECT_VERSION: "75"' in project
+    or 'CURRENT_PROJECT_VERSION: "76"' in project
 )
 assert "RC1.26 Phase 2C-1 fresh backend contracts" in workflow
 assert "tools/rc126_phase2c1_fresh_backend_contract_tests.py" in workflow

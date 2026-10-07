@@ -36,6 +36,7 @@ assert (
     or 'RC1.25.2 Build 63 API Context Ladder' in view
     or 'RC1.25.3 Build 64 API Context Ladder' in view
     or 'RC1.26 Build 75 API 冷启动保护' in view
+    or 'RC1.26 Build 76 M5 Extreme Text KV Lab' in view
 )
 
 # Multi-image success telemetry must preserve the already computed request route.
@@ -105,6 +106,7 @@ assert (
     or "Build71-Fresh-Backend-Metal-Tensor-AB" in workflow
     or "Build72-Prefill-Batch-8-vs-16" in workflow
     or "Build75-API-Cold-Start-Guard" in workflow
+    or "Build76-M5-Extreme-Text-KV-Lab" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")

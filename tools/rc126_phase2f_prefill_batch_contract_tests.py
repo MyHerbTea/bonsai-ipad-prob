@@ -19,12 +19,11 @@ for marker in [
 ]:
     assert marker in runtime, marker
 
-for marker in [
-    "Phase2FPrefillBatchLaunchLatch.apply(",
-    "RC1.26 Build 75 API Cold-Start Guard",
-    "RC1.26 Build 76 M5 Extreme Text KV Lab",
-]:
-    assert marker in view, marker
+assert "Phase2FPrefillBatchLaunchLatch.apply(" in view
+assert (
+    "RC1.26 Build 75 API Cold-Start Guard" in view
+    or "RC1.26 Build 76 M5 Extreme Text KV Lab" in view
+)
 
 for marker in [
     'request.path == "/debug/phase2f/launch"',
@@ -34,9 +33,13 @@ for marker in [
     '"active_batch": advertisedBatch',
     '"active_ubatch": advertisedUBatch',
     '"shape_evidence_valid":',
-    '"rc1.26-build75-api-cold-start-guard"',
 ]:
     assert marker in server, marker
+
+assert (
+    '"rc1.26-build75-api-cold-start-guard"' in server
+    or '"rc1.26-build76-text-kv-reuse-lab"' in server
+)
 
 for marker in [
     'ValidateSet("BASELINE32", "CANDIDATE64")',
@@ -49,7 +52,10 @@ for marker in [
 ]:
     assert marker in runner, marker
 
-assert 'CURRENT_PROJECT_VERSION: "75"' in project
+assert (
+    'CURRENT_PROJECT_VERSION: "75"' in project
+    or 'CURRENT_PROJECT_VERSION: "76"' in project
+)
 assert "RC1.26 Phase 2F prefill batch contracts" in workflow
 assert "tools/rc126_phase2f_prefill_batch_arm.ps1" in workflow
 
