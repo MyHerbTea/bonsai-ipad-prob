@@ -78,8 +78,10 @@ assert "tools/rc126_build76_text_kv_reuse_contract_tests.py" in workflow
 assert "tools/rc126_build76_text_kv_reuse_ab.ps1" in workflow
 assert "RC1.26 Build 75 cold-start guard contracts" in workflow
 assert "tools/rc126_build75_api_cold_start_contract_tests.py" in workflow
-package_start = workflow.index("- name: Package unsigned IPA")
-upload_start = workflow.index("- name: Upload artifact", package_start)
+package_marker = "\n      - name: Package unsigned IPA\n"
+upload_marker = "\n      - name: Upload artifact\n"
+package_start = workflow.index(package_marker)
+upload_start = workflow.index(upload_marker, package_start)
 package_block = workflow[package_start:upload_start]
 assert "zip -qry ../BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa Payload" in package_block
 assert "BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa.sha256" in package_block
