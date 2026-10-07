@@ -1025,9 +1025,9 @@ struct ProductionView: View {
 
     private var selectedAPIContextValue: Int {
         [
-            "512", "1024", "2048", "4096",
-            "6144", "8192", "16384",
-            "32768", "65536"
+            "512", "768", "1024", "2048",
+            "3072", "4096", "6144", "8192",
+            "16384", "32768", "65536"
         ]
             .contains(apiContextProfile)
             ? (Int(apiContextProfile) ?? 4096)
@@ -1471,8 +1471,10 @@ struct ProductionView: View {
                             selection: $apiContextProfile
                         ) {
                             Text("512 · legacy").tag("512")
+                            Text("768 · legacy").tag("768")
                             Text("1024 · legacy").tag("1024")
                             Text("2048 · baseline").tag("2048")
+                            Text("3072 · transition").tag("3072")
                             Text("4096 · verified F16").tag("4096")
                             Text("6144 · Q8 KV").tag("6144")
                             Text("8192 · Q8 KV").tag("8192")
@@ -1674,9 +1676,9 @@ struct ProductionView: View {
                     apiRuntimeProfile = "accelerated"
                 }
                 if ![
-                    "512", "1024", "2048", "4096",
-                    "6144", "8192", "16384",
-                    "32768", "65536"
+                    "512", "768", "1024", "2048",
+                    "3072", "4096", "6144", "8192",
+                    "16384", "32768", "65536"
                 ]
                     .contains(apiContextProfile) {
                     apiContextProfile = "4096"
