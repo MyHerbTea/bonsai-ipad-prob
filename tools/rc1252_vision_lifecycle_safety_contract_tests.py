@@ -25,6 +25,7 @@ assert (
     or "RC1.26 Build 75 API 冷启动保护" in view
     or "RC1.26 Build 76 M5 Extreme Text KV Lab" in view
     or "RC1.26 Build 77 M5 Extended Context Lab" in view
+    or "RC1.26 Build 78 M5 Context Boundary Lab" in view
 )
 
 # A fresh vision encode must not begin while request-local KV from the previous
