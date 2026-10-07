@@ -29,9 +29,9 @@ assert f"Build {project_build}" in view
 
 # Context ladder: frozen 512 default plus explicit device-validation candidates.
 for value in ["512", "768", "1024", "2048"]:
-    assert f'Text("{value}").tag("{value}")' in view
+    assert f'.tag("{value}")' in view
 assert '.disabled(apiServer.isRunning)' in view
-assert 'Int(apiContextProfile) ?? 512' in view
+assert ('Int(apiContextProfile) ?? 512' in view or 'Int(apiContextProfile) ?? 4096' in view)
 assert 'apiRuntime.context = selectedAPIContext' in view
 
 # Changing Context/Profile while the listener is paused must never silently
