@@ -32,6 +32,7 @@ assert (
     or "RC1.26 Build 76 M5 Extreme Text KV Lab" in view
     or "RC1.26 Build 77 M5 Extended Context Lab" in view
     or "RC1.26 Build 78 M5 Context Boundary Lab" in view
+    or "RC1.26 Build 79 Storage-Memory Long Context Lab" in view
 )
 
 for marker in [
@@ -51,6 +52,7 @@ assert (
     or '"rc1.26-build76-text-kv-reuse-lab"' in server
     or '"rc1.26-build77-extended-context-lab"' in server
     or '"rc1.26-build78-context-boundary-lab"' in server
+    or '"rc1.26-build79-storage-memory-long-context-lab"' in server
 )
 
 for marker in [
@@ -72,6 +74,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "76"' in project
     or 'CURRENT_PROJECT_VERSION: "77"' in project
     or 'CURRENT_PROJECT_VERSION: "78"' in project
+    or 'CURRENT_PROJECT_VERSION: "79"' in project
 )
 assert "RC1.26 Phase 2D prefill batch contracts" in workflow
 assert "tools/rc126_phase2d_prefill_batch_arm.ps1" in workflow
