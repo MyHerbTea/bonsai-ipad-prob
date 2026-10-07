@@ -390,13 +390,9 @@ jobs:
           grep -q 'RC126APIStartupLifecycle.begin(build: \"76\")' BonsaiLab/ProductionView.swift
 
           PACKAGE_BLOCK="$(
-            awk '
-              /- name: Package unsigned IPA/ { in_package = 1 }
-              /- name: Upload artifact/ {
-                if (in_package) exit
-              }
-              in_package { print }
-            ' .github/workflows/build-ios.yml
+            sed -n \
+              '/^      - name: Package unsigned IPA$/,/^      - name: Upload artifact$/p' \
+              .github/workflows/build-ios.yml
           )"
 
           grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build76-text-kv-reuse-lab-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
