@@ -57,12 +57,20 @@ assert 'private var apiContextProfile = "4096"' in view or 'private var apiConte
 assert 'Text("256 Experimental")' not in view
 
 if "RC1.25.2" in view:
-    # RC1.25.2 intentionally evolves only the API context selector. 512 remains
-    # the default/fallback while 768/1024/2048 are explicit validation candidates.
+    # Later RC1.26 builds may extend the selector and decorate labels while
+    # preserving the same underlying String tags.
     for value in ["512", "768", "1024", "2048"]:
-        assert f'Text("{value}").tag("{value}")' in view
-    assert 'Int(apiContextProfile) ?? 512' in view
-    assert '"512", "768", "1024", "2048"' in view
+        assert f'.tag("{value}")' in view
+    assert (
+        'Int(apiContextProfile) ?? 512' in view
+        or 'Int(apiContextProfile) ?? 4096' in view
+    )
+    if "Build 77 M5 Extended Context Lab" in view:
+        for value in ["3072", "4096", "6144", "8192"]:
+            assert f'.tag("{value}")' in view
+        assert '"3072", "4096", "6144", "8192"' in view
+    else:
+        assert '"512", "768", "1024", "2048"' in view
 else:
     assert '"实验：API Context"' not in view
     assert re.search(
