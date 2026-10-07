@@ -1206,6 +1206,28 @@ final class LocalOpenAIServer: ObservableObject {
                 defaults.bool(
                     forKey: "BonsaiBuild81ContextCreateCompleted"
                 ),
+            "build82_unified_metal_profile":
+                defaults.string(forKey: "BonsaiBuild82UnifiedMetalProfile") ?? "unknown",
+            "build82_effective_batch":
+                defaults.integer(forKey: "BonsaiBuild82EffectiveBatch"),
+            "build82_effective_ubatch":
+                defaults.integer(forKey: "BonsaiBuild82EffectiveUBatch"),
+            "build82_effective_gpu_layers":
+                defaults.integer(forKey: "BonsaiBuild82EffectiveGPULayers"),
+            "build82_flash_attention":
+                defaults.bool(forKey: "BonsaiBuild82FlashAttention"),
+            "build82_offload_kqv":
+                defaults.bool(forKey: "BonsaiBuild82OffloadKQV"),
+            "build82_op_offload":
+                defaults.bool(forKey: "BonsaiBuild82OpOffload"),
+            "build82_engine_model_gpu_layers":
+                defaults.integer(forKey: "BonsaiBuild82EngineModelGPULayers"),
+            "build82_model_load_completed":
+                defaults.bool(forKey: "BonsaiBuild82ModelLoadCompleted"),
+            "build82_engine_context_batch":
+                defaults.integer(forKey: "BonsaiBuild82EngineContextBatch"),
+            "build82_engine_context_ubatch":
+                defaults.integer(forKey: "BonsaiBuild82EngineContextUBatch"),
             "ggml_metal_tensor_disable":
                 tensorDisable ?? "unset",
             "metal_tensor_prefill_requested": requested,
@@ -1595,7 +1617,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build81-32k-memory-squeeze",
+            "build_id": "rc1.26-build82-unified-metal-32k-lab",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",

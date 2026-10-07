@@ -20,7 +20,7 @@ for value in ["4096", "6144", "8192", "16384", "32768", "65536"]:
 assert "Q8 KV" in view
 assert "Q4 KV" in view
 assert "min(apiRuntime.gpuLayers, 56)" in view
-assert ("min(apiRuntime.gpuLayers, 40)" in view or "ctx32k-q4-gpu24-b4-cpu-kqv-op" in view)
+assert ("min(apiRuntime.gpuLayers, 40)" in view or "ctx32k-q4-gpu24-b4-cpu-kqv-op" in view or "ctx32k-q4-unified-metal-gpu99-b4" in view)
 assert "min(apiRuntime.gpuLayers, 24)" in view
 assert "min(apiRuntime.batch, 4)" in view
 assert "apiRuntime.flashAttention = true" in view
@@ -49,6 +49,7 @@ assert (
     'CURRENT_PROJECT_VERSION: "79"' in project
     or 'CURRENT_PROJECT_VERSION: "80"' in project
     or 'CURRENT_PROJECT_VERSION: "81"' in project
+    or 'CURRENT_PROJECT_VERSION: "82"' in project
 )
 assert 'CODE_SIGN_ENTITLEMENTS: "BonsaiLab/BonsaiLab.entitlements"' in project
 assert "Security.framework" in project
@@ -58,6 +59,7 @@ assert (
     '"build_id": "rc1.26-build79-storage-memory-long-context-lab"' in server
     or '"build_id": "rc1.26-build80-long-context-tier-reload-fix"' in server
     or '"build_id": "rc1.26-build81-32k-memory-squeeze"' in server
+    or '"build_id": "rc1.26-build82-unified-metal-32k-lab"' in server
 )
 assert "build79_kv_cache_type" in server
 assert "build79_effective_extended_va" in server
@@ -66,11 +68,13 @@ assert (
     'RC126APIStartupLifecycle.begin(build: "79")' in view
     or 'RC126APIStartupLifecycle.begin(build: "80")' in view
     or 'RC126APIStartupLifecycle.begin(build: "81")' in view
+    or 'RC126APIStartupLifecycle.begin(build: "82")' in view
 )
 assert (
     "RC1.26 Build 79 Storage-Memory Long Context Lab" in view
     or "RC1.26 Build 80 Long-Context Tier Reload Fix" in view
     or "RC1.26 Build 81 32K Memory Squeeze" in view
+    or "RC1.26 Build 82 Unified-Metal 32K Lab" in view
 )
 assert "RC1.26 Build 79 storage-memory long-context contracts" in workflow
 assert "tools/rc126_build79_storage_memory_contract_tests.py" in workflow
@@ -84,6 +88,7 @@ assert (
     "BonsaiLab-v1-RC1.26-build79-storage-memory-long-context-lab-unsigned.ipa" in package_block
     or "BonsaiLab-v1-RC1.26-build80-long-context-tier-reload-fix-unsigned.ipa" in package_block
     or "BonsaiLab-v1-RC1.26-build81-32k-memory-squeeze-unsigned.ipa" in package_block
+    or "BonsaiLab-v1-RC1.26-build82-unified-metal-32k-lab-unsigned.ipa" in package_block
 )
 assert "build78-context-boundary-lab-unsigned.ipa" not in package_block
 

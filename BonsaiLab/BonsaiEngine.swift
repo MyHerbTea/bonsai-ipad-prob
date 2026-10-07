@@ -313,6 +313,9 @@ actor BonsaiEngine {
 
         var modelParams = llama_model_default_params()
         modelParams.n_gpu_layers = Int32(config.gpuLayers)
+        UserDefaults.standard.set(config.gpuLayers, forKey: "BonsaiBuild82EngineModelGPULayers")
+        UserDefaults.standard.set(false, forKey: "BonsaiBuild82ModelLoadCompleted")
+        UserDefaults.standard.synchronize()
         modelParams.load_mode = config.loadMode == .mmap
             ? LLAMA_LOAD_MODE_MMAP
             : LLAMA_LOAD_MODE_NONE
@@ -328,6 +331,8 @@ actor BonsaiEngine {
             throw LabError.modelLoadFailed
         }
         let loadEnd = DispatchTime.now().uptimeNanoseconds
+        UserDefaults.standard.set(true, forKey: "BonsaiBuild82ModelLoadCompleted")
+        UserDefaults.standard.synchronize()
         mark("MODEL_06_LOAD_DONE")
         persistSystemDiagnostics(
             prefix: "BonsaiBuild79AfterModelMmap"
@@ -352,6 +357,13 @@ actor BonsaiEngine {
         contextParams.n_ctx = UInt32(config.context)
         contextParams.n_batch = UInt32(config.batch)
         contextParams.n_ubatch = UInt32(config.ubatch)
+        UserDefaults.standard.set(config.batch, forKey: "BonsaiBuild82EngineContextBatch")
+        UserDefaults.standard.set(config.ubatch, forKey: "BonsaiBuild82EngineContextUBatch")
+        UserDefaults.standard.set(config.flashAttention, forKey: "BonsaiBuild82EngineFlashAttention")
+        UserDefaults.standard.set(config.offloadKQV, forKey: "BonsaiBuild82EngineOffloadKQV")
+        UserDefaults.standard.set(config.opOffload, forKey: "BonsaiBuild82EngineOpOffload")
+        UserDefaults.standard.set(config.kvUnified, forKey: "BonsaiBuild82EngineKVUnified")
+        UserDefaults.standard.synchronize()
         // C2-B deliberately preserves the validated single-sequence context.
         contextParams.n_seq_max = 1
         contextParams.n_outputs_max = 1

@@ -1076,7 +1076,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 81 32K Memory Squeeze")
+                            Text("1.0 · RC1.26 Build 82 Unified-Metal 32K Lab")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -2359,6 +2359,32 @@ struct ProductionView: View {
             "api_op_offload=\(apiOpOffload)",
             "api_kv_unified=true",
             "api_load_mode=mmap",
+            "",
+            "[BUILD 82 EFFECTIVE LONG CONTEXT]",
+            "profile=" + (defaults.string(forKey: "BonsaiBuild82UnifiedMetalProfile") ?? "unknown"),
+            "policy_source=" + (defaults.string(forKey: "BonsaiBuild80PolicySource") ?? "unknown"),
+            "target_context=" + String(defaults.integer(forKey: "BonsaiBuild80TargetContext")),
+            "effective_batch=" + String(defaults.integer(forKey: "BonsaiBuild82EffectiveBatch")),
+            "effective_ubatch=" + String(defaults.integer(forKey: "BonsaiBuild82EffectiveUBatch")),
+            "effective_gpu_layers=" + String(defaults.integer(forKey: "BonsaiBuild82EffectiveGPULayers")),
+            "effective_flash_attention=" + String(defaults.bool(forKey: "BonsaiBuild82FlashAttention")),
+            "effective_offload_kqv=" + String(defaults.bool(forKey: "BonsaiBuild82OffloadKQV")),
+            "effective_op_offload=" + String(defaults.bool(forKey: "BonsaiBuild82OpOffload")),
+            "effective_kv_unified=" + String(defaults.bool(forKey: "BonsaiBuild82KVUnified")),
+            "engine_model_gpu_layers=" + String(defaults.integer(forKey: "BonsaiBuild82EngineModelGPULayers")),
+            "engine_model_load_completed=" + String(defaults.bool(forKey: "BonsaiBuild82ModelLoadCompleted")),
+            "engine_context_batch=" + String(defaults.integer(forKey: "BonsaiBuild82EngineContextBatch")),
+            "engine_context_ubatch=" + String(defaults.integer(forKey: "BonsaiBuild82EngineContextUBatch")),
+            "engine_context_threads=" + String(defaults.integer(forKey: "BonsaiBuild81EffectiveThreads")),
+            "context_create_attempt=" + String(defaults.integer(forKey: "BonsaiBuild81ContextCreateAttempt")),
+            "context_create_completed=" + String(defaults.bool(forKey: "BonsaiBuild81ContextCreateCompleted")),
+            "before_model_available_mib=" + String(defaults.integer(forKey: "BonsaiBuild79BeforeModelMmapAvailableMiB")),
+            "after_model_available_mib=" + String(defaults.integer(forKey: "BonsaiBuild79AfterModelMmapAvailableMiB")),
+            "before_context_available_mib=" + String(defaults.integer(forKey: "BonsaiBuild79BeforeContextCreateAvailableMiB")),
+            "before_context_phys_mib=" + String(defaults.integer(forKey: "BonsaiBuild79BeforeContextCreatePhysMiB")),
+            "before_context_metal_mib=" + String(defaults.integer(forKey: "BonsaiBuild79BeforeContextCreateMetalAllocatedMiB")),
+            "metal_recommended_mib=" + String(defaults.integer(forKey: "BonsaiBuild79BeforeContextCreateMetalRecommendedMiB")),
+            "",
             "rc1252_context_switch_state="
                 + (
                     defaults.string(
@@ -3145,7 +3171,7 @@ struct ProductionView: View {
         }
     }
 
-    private func applyBuild81LongContextPolicy(
+    private func applyBuild82LongContextPolicy(
         to apiRuntime: inout RuntimeConfig,
         context: Int,
         source: String
@@ -3159,18 +3185,23 @@ struct ProductionView: View {
         case 65_536...:
             apiRuntime.batch = min(apiRuntime.batch, 2)
             apiRuntime.ubatch = min(apiRuntime.ubatch, 2)
-            apiRuntime.gpuLayers =
-                min(apiRuntime.gpuLayers, 8)
-            apiRuntime.offloadKQV = false
-            apiRuntime.opOffload = false
+            apiRuntime.gpuLayers = 99
+            apiRuntime.offloadKQV = true
+            apiRuntime.opOffload = true
         case 32_768...:
+            // Build 81 proved that shrinking to 24 GPU layers still dies
+            // at llama_init_from_model(). On Apple unified memory the
+            // 8K/99-layer and 16K/56-layer Metal footprints were nearly
+            // identical, so partial offload is not buying discrete-GPU-like
+            // memory savings. Prefer one Metal backend and avoid CPU/Metal
+            // scheduler splits for the 32K experiment.
             apiRuntime.batch = min(apiRuntime.batch, 4)
             apiRuntime.ubatch = min(apiRuntime.ubatch, 4)
-            apiRuntime.gpuLayers =
-                min(apiRuntime.gpuLayers, 24)
-            apiRuntime.offloadKQV = false
-            apiRuntime.opOffload = false
+            apiRuntime.gpuLayers = 99
+            apiRuntime.offloadKQV = true
+            apiRuntime.opOffload = true
         case 16_384...:
+            // Frozen Build 79 real-device PASS.
             apiRuntime.batch = min(apiRuntime.batch, 16)
             apiRuntime.ubatch = min(apiRuntime.ubatch, 16)
             apiRuntime.gpuLayers =
@@ -3212,22 +3243,24 @@ struct ProductionView: View {
             forKey: "BonsaiBuild80TargetGPULayers"
         )
 
-        let build81Profile: String
+        let build82Profile: String
         if context >= 65_536 {
-            build81Profile = "ctx64k-q4-gpu8-b2-cpu-kqv-op"
+            build82Profile = "ctx64k-q4-unified-metal-gpu99-b2"
         } else if context >= 32_768 {
-            build81Profile = "ctx32k-q4-gpu24-b4-cpu-kqv-op"
+            build82Profile = "ctx32k-q4-unified-metal-gpu99-b4"
         } else if context >= 16_384 {
-            build81Profile = "ctx16k-build79-validated"
+            build82Profile = "ctx16k-build79-validated"
         } else {
-            build81Profile = "build79-compatible"
+            build82Profile = "build79-compatible"
         }
-        defaults.set(build81Profile, forKey: "BonsaiBuild81SqueezeProfile")
-        defaults.set(apiRuntime.batch, forKey: "BonsaiBuild81EffectiveBatch")
-        defaults.set(apiRuntime.ubatch, forKey: "BonsaiBuild81EffectiveUBatch")
-        defaults.set(apiRuntime.gpuLayers, forKey: "BonsaiBuild81EffectiveGPULayers")
-        defaults.set(apiRuntime.offloadKQV, forKey: "BonsaiBuild81OffloadKQV")
-        defaults.set(apiRuntime.opOffload, forKey: "BonsaiBuild81OpOffload")
+        defaults.set(build82Profile, forKey: "BonsaiBuild82UnifiedMetalProfile")
+        defaults.set(apiRuntime.batch, forKey: "BonsaiBuild82EffectiveBatch")
+        defaults.set(apiRuntime.ubatch, forKey: "BonsaiBuild82EffectiveUBatch")
+        defaults.set(apiRuntime.gpuLayers, forKey: "BonsaiBuild82EffectiveGPULayers")
+        defaults.set(apiRuntime.flashAttention, forKey: "BonsaiBuild82FlashAttention")
+        defaults.set(apiRuntime.offloadKQV, forKey: "BonsaiBuild82OffloadKQV")
+        defaults.set(apiRuntime.opOffload, forKey: "BonsaiBuild82OpOffload")
+        defaults.set(apiRuntime.kvUnified, forKey: "BonsaiBuild82KVUnified")
         defaults.synchronize()
     }
 
@@ -3288,7 +3321,7 @@ struct ProductionView: View {
         Phase2FPrefillBatchLaunchLatch.apply(
             to: &apiRuntime
         )
-        applyBuild81LongContextPolicy(
+        applyBuild82LongContextPolicy(
             to: &apiRuntime,
             context: selectedAPIContext,
             source: "context_switch"
@@ -3445,12 +3478,12 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "81")
+        RC126APIStartupLifecycle.begin(build: "82")
         busy = true
-        status = "正在执行 RC1.26 Build 81 32K Memory Squeeze + API 冷启动保护…"
+        status = "正在执行 RC1.26 Build 82 Unified-Metal 32K Lab + API 冷启动保护…"
         detail = """
         Build 60 的 API/视觉路径保持不变。
-        Build 81 保留已验证 16K 路径；32K/64K 进入容量优先 squeeze：Q4 KV、mmap、低 GPU residency、CPU KQV/Op 与更小 batch。
+        Build 82 保留已验证 16K 路径；32K/64K 改为统一 Metal 后端：Q4 KV、mmap、全层 Metal、KQV/Op offload 与小 batch，避免 partial-offload graph split。
         /v1/models 会公布当前 context_length、vision 与 unsupported tool/reasoning 能力。
         """
 
@@ -3500,7 +3533,7 @@ struct ProductionView: View {
                     to: &apiRuntime
                 )
 
-                applyBuild81LongContextPolicy(
+                applyBuild82LongContextPolicy(
                     to: &apiRuntime,
                     context: selectedAPIContext,
                     source: "fresh_start"
@@ -4237,7 +4270,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 81 Long Context API Runtime 已就绪"
+                        "RC1.26 Build 82 Long Context API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
