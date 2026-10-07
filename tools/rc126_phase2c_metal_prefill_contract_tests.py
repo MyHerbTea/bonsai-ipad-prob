@@ -10,14 +10,15 @@ bridge_mm = (ROOT / "BonsaiLab/SystemProbeBridge.mm").read_text(encoding="utf-8"
 for marker in ["let prefillSeconds: Double", "let decodeToFirstTokenSeconds: Double"]:
     assert marker in types, marker
 
+engine_flat = " ".join(engine.split())
 for marker in [
     "let prefillEnd = DispatchTime.now().uptimeNanoseconds",
     "let prefillSeconds =",
     "let decodeToFirstTokenSeconds =",
     "prefillSeconds: prefillSeconds",
-    "decodeToFirstTokenSeconds:",
+    "decodeToFirstTokenSeconds: decodeToFirstTokenSeconds",
 ]:
-    assert marker in engine, marker
+    assert marker in engine_flat, marker
 
 for marker in [
     "BonsaiMetalTensorCapabilityProbe",
