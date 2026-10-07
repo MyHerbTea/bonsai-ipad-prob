@@ -73,7 +73,7 @@ function Invoke-ChatCase([string]$Name, [object[]]$Messages, [int]$MaxTokens, [s
         footprint_delta=[int64]$after.phys_footprint_bytes-[int64]$before.phys_footprint_bytes
         metal_delta=[int64]$after.metal_allocated_bytes-[int64]$before.metal_allocated_bytes
     }
-    Write-Host ("0{0}: prompt={1} completion={2} prefill={3:N1}ms TTFT={4:N1}ms decode={5:N3}tok/s PASS={6}" -f $row.name,$row.prompt_tokens,$row.completion_tokens,$row.prefill_ms,$row.ttft_ms,$row.tokens_per_second,$row.passed)
+    Write-Host ("{0}: prompt={1} completion={2} prefill={3:N1}ms TTFT={4:N1}ms decode={5:N3}tok/s PASS={6}" -f $row.name,$row.prompt_tokens,$row.completion_tokens,$row.prefill_ms,$row.ttft_ms,$row.tokens_per_second,$row.passed)
     return $row
 }
 
@@ -87,15 +87,15 @@ if ([int]$health.context_window -ne 2048) { throw "Expected context_window=2048,
 if ([int]$shape.active_batch -ne 32 -or [int]$shape.active_ubatch -ne 32) { throw "Expected 32/32 runtime shape." }
 
 $rows = @()
-$rows += Invoke-ChatCase "01-short" @(${role="user";content="Answer exactly SHORT_OK and nothing else."}) 16 "SHORT_OK"
+$rows += Invoke-ChatCase "01-short" @(@{role="user";content="Answer exactly SHORT_OK and nothing else."}) 16 "SHORT_OK"
 
 $seq = "Continue the following integer sequence in order, separated by single spaces. Output numbers only. Continue until the generation limit forcibly stops you.`n\n1 2 3 4 5 6 7 8 9 10"
-$rows += Invoke-ChatCase "02-sustained-128" @(${role="user";content=$seq}) 128
+$rows += Invoke-ChatCase "02-sustained-128" @(@{role="user";content=$seq}) 128
 
-$rows += Invoke-ChatCase "03-context-medium" @(${role="user";content=(RepeatedPrompt 64 "MEDIUM_OK")}) 16 "MEDIUM_OK"
-$rows += Invoke-ChatCase "04-context-1k" @(${role="user";content=(RepeatedPrompt 115 "CTX1K_OK")}) 32 "CTX1K_OK"
-$rows += Invoke-ChatCase "05-context-1p5k" @(${role="user";content=(RepeatedPrompt 179 "CTX15K_OK")}) 48 "CTX15K_OK"
-$rows += Invoke-ChatCase "06-context-near-limit" @(${role="user";content=(RepeatedPrompt 205 "NEAR_LIMIT_OK")}) 64 "NEAR_LIMIT_OK"
+$rows += Invoke-ChatCase "03-context-medium" @(@{role="user";content=(RepeatedPrompt 64 "MEDIUM_OK")}) 16 "MEDIUM_OK"
+$rows += Invoke-ChatCase "04-context-1k" @(@{role="user";content=(RepeatedPrompt 115 "CTX1K_OK")}) 32 "CTX1K_OK"
+$rows += Invoke-ChatCase "05-context-1p5k" @(@{role="user";content=(RepeatedPrompt 179 "CTX15K_OK")}) 48 "CTX15K_OK"
+$rows += Invoke-ChatCase "06-context-near-limit" @(@{role="user";content=(RepeatedPrompt 205 "NEAR_LIMIT_OK")}) 64 "NEAR_LIMIT_OK"
 
 $multi = @(
     @{role="system";content="Follow the conversation and answer the final question exactly."},
@@ -110,7 +110,7 @@ $rows += Invoke-ChatCase "07-multi-turn-history" $multi 32 "ORCHID-75-PRACTICAL"
 Write-Host ""
 Write-Host "Running 08-streaming-sse ..."
 $streamObj = @{
-    model="bonsai-2-27b-local"; messages=@(${role="user";content="Count from 1 to 20 using spaces only."})
+    model="bonsai-2-27b-local"; messages=@(@{role="user";content="Count from 1 to 20 using spaces only."})
     max_tokens=64; temperature=0; top_p=1; seed=424242; stream=$true
     stream_options=@{include_usage=$true}
 }
@@ -125,7 +125,7 @@ Write-Host "08-streaming-sse PASS=$streamPass"
 Write-Host ""
 Write-Host "Running 09-context-overflow-negative ..."
 $overflowObj = @{
-    model="bonsai-2-27b-local"; messages=@(${role="user";content=(RepeatedPrompt 320 "SHOULD_NOT_RUN")})
+    model="bonsai-2-27b-local"; messages=@(@{role="user";content=(RepeatedPrompt 320 "SHOULD_NOT_RUN")})
     max_tokens=128; temperature=0; top_p=1; seed=424242; stream=$false
 }
 $overflowBody = $overflowObj | ConvertTo-Json -Depth 20
@@ -153,7 +153,8 @@ Save-Json ([ordered]@{
     failed_names=@($failed | ForEach-Object {$_.name}); overall_pass=($failed.Count -eq 0)
 }) "result.json"
 
-$zip="$OutDir.zip": if(Test-Path $zip){Remove-Item -Force $zip}
+$zip="$OutDir.zip"
+if (Test-Path $zip) { Remove-Item -Force $zip }
 Compress-Archive -Path (Join-Path $OutDir "*") -DestinationPath $zip
 Write-Host ""
 Write-Host "PHASE 2H0 PRACTICAL 2048 COMPLETE"
