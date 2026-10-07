@@ -36,6 +36,7 @@ assert (
     or 'Text("1.0 · RC1.26 Build 71 Fresh Backend Metal Tensor A/B")' in view
     or 'Text("1.0 · RC1.26 Build 72 Prefill Batch 8→16")' in view
     or 'Text("1.0 · RC1.26 Build 75 API Cold-Start Guard")' in view
+    or 'Text("1.0 · RC1.26 Build 76 M5 Extreme Text KV Lab")' in view
 )
 assert "[RC1.24.0 SUSTAINED DECODE PROFILING]" in view
 assert "[RC1.23.3 LONG-RUN REQUEST HISTORY]" in view
