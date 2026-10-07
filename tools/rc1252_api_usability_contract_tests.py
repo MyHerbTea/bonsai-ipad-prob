@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 root = Path(__file__).resolve().parents[1]
 server = (root / "BonsaiLab" / "LocalOpenAIServer.swift").read_text(encoding="utf-8")
@@ -10,25 +11,16 @@ probe = (root / "tools" / "rc1252_context_ladder_device_probe.ps1").read_text(en
 py_sdk_probe = (root / "tools" / "rc1252_openai_python_sdk_probe.py").read_text(encoding="utf-8")
 js_sdk_probe = (root / "tools" / "rc1252_openai_js_sdk_probe.mjs").read_text(encoding="utf-8")
 
-# Build identity
-assert (
-    'CURRENT_PROJECT_VERSION: "63"' in project
-    or 'CURRENT_PROJECT_VERSION: "64"' in project
-    or 'CURRENT_PROJECT_VERSION: "65"' in project
-    or 'CURRENT_PROJECT_VERSION: "66"' in project
-    or 'CURRENT_PROJECT_VERSION: "67"' in project
-    or 'CURRENT_PROJECT_VERSION: "68"' in project
-    or 'CURRENT_PROJECT_VERSION: "69"' in project
-    or 'CURRENT_PROJECT_VERSION: "70"' in project
-    or 'CURRENT_PROJECT_VERSION: "71"' in project
-    or 'CURRENT_PROJECT_VERSION: "72"' in project
-    or 'CURRENT_PROJECT_VERSION: "75"' in project
-    or 'CURRENT_PROJECT_VERSION: "76"' in project
+# Build identity: this inherited RC1.25.2 contract must remain valid for
+# later builds while still proving that the project has not regressed below
+# the first API-usability build.
+project_build_match = re.search(
+    r'CURRENT_PROJECT_VERSION:\s*"(?P<build>\d+)"',
+    project,
 )
-assert (
-    "RC1.25.2 Build 63 API Context Ladder" in view
-    or "RC1.25.3 Build 64 API Context Ladder" in view
-    or "RC1.26 Build 65 Runtime Optimization Lab" in view
+assert project_build_match is not None
+project_build = int(project_build_match.group("build"))
+assert project_build >= 63
 
     or "RC1.26 Build 66 Memory Governor Observer" in view
 
@@ -249,17 +241,8 @@ assert "tools/rc1252_context_ladder_device_probe.ps1" in workflow
 assert "tools/rc1252_openai_python_sdk_probe.py" in workflow
 assert "tools/rc1252_openai_js_sdk_probe.mjs" in workflow
 assert (
-    'CFBundleVersion raw -o - "$APP/Info.plist")" = "63"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "64"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "65"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "66"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "67"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "68"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "69"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "70"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "71"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "72"' in workflow
-    or 'CFBundleVersion raw -o - "$APP/Info.plist")" = "75"' in workflow
+    f'CFBundleVersion raw -o - "$APP/Info.plist")" = "{project_build}"'
+    in workflow
 )
 
 print("RC1.25.2 Build 63 API usability contracts: PASS")
