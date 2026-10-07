@@ -19,6 +19,7 @@ on:
       - lab-v1-rc1-26-backburner-runtime
       - lab-v1-rc1-26-build82-unified-metal
       - lab-v1-rc1-26-build82-unified-metal-v2
+      - lab-v1-rc1-26-build82-unified-metal-v3
   workflow_dispatch:
 
 concurrency:

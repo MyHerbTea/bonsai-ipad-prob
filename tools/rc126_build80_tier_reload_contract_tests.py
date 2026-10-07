@@ -19,8 +19,15 @@ assert 'source: "context_switch"' in view
 
 # Intended Build79 memory policy must remain unchanged.
 assert "min(apiRuntime.gpuLayers, 56)" in view
-assert ("min(apiRuntime.gpuLayers, 40)" in view or "ctx32k-q4-gpu24-b4-cpu-kqv-op" in view)
-assert "min(apiRuntime.gpuLayers, 24)" in view
+assert (
+    "min(apiRuntime.gpuLayers, 40)" in view
+    or "ctx32k-q4-gpu24-b4-cpu-kqv-op" in view
+    or "ctx32k-q4-unified-metal-gpu99-b4" in view
+)
+assert (
+    "min(apiRuntime.gpuLayers, 24)" in view
+    or "ctx64k-q4-unified-metal-gpu99-b2" in view
+)
 assert (
     "min(apiRuntime.batch, 8)" in view
     or "ctx32k-q4-gpu24-b4-cpu-kqv-op" in view
