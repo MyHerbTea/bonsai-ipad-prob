@@ -20,6 +20,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "71"' in project
     or 'CURRENT_PROJECT_VERSION: "72"' in project
     or 'CURRENT_PROJECT_VERSION: "75"' in project
+    or 'CURRENT_PROJECT_VERSION: "76"' in project
 )
 assert (
     "RC1.25.2 Build 63 Vision Lifecycle Safety" in view
@@ -45,6 +46,7 @@ assert (
     "RC1.25.2 Build 63 API Context Ladder" in view
     or "RC1.25.3 Build 64 API Context Ladder" in view
     or "RC1.26 Build 75 API 冷启动保护" in view
+    or "RC1.26 Build 76 M5 Extreme Text KV Lab" in view
 )
 
 # A fresh vision encode must not begin while request-local KV from the previous

@@ -23,6 +23,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "71"' in project
     or 'CURRENT_PROJECT_VERSION: "72"' in project
     or 'CURRENT_PROJECT_VERSION: "75"' in project
+    or 'CURRENT_PROJECT_VERSION: "76"' in project
 )
 assert (
     "RC1.25.2 Build 63 API Context Ladder" in view
