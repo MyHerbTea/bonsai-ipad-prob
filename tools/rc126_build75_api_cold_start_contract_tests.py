@@ -33,6 +33,7 @@ for marker in [
 assert (
     'RC126APIStartupLifecycle.begin(build: "75")' in view
     or 'RC126APIStartupLifecycle.begin(build: "76")' in view
+    or 'RC126APIStartupLifecycle.begin(build: "77")' in view
 )
 assert (
     'RC1.26 Build 75 API Cold-Start Guard' in view
