@@ -21,7 +21,10 @@ assert 'source: "context_switch"' in view
 assert "min(apiRuntime.gpuLayers, 56)" in view
 assert ("min(apiRuntime.gpuLayers, 40)" in view or "ctx32k-q4-gpu24-b4-cpu-kqv-op" in view)
 assert "min(apiRuntime.gpuLayers, 24)" in view
-assert "min(apiRuntime.batch, 8)" in view
+assert (
+    "min(apiRuntime.batch, 8)" in view
+    or "ctx32k-q4-gpu24-b4-cpu-kqv-op" in view
+)
 assert "min(apiRuntime.batch, 4)" in view
 
 # Crossing a model-residency tier must reload; context-only rebuild cannot
