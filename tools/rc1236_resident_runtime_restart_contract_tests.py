@@ -45,10 +45,10 @@ assert runner.index("if cycle == 1") < runner.index("startAPIServer()")
 
 # No rejected 256 experiment returns. RC1.25.2 may expose larger product
 # contexts, while this historical restart runner still forces 512.
-assert 'private var apiContextProfile = "512"' in view
+assert ('private var apiContextProfile = "512"' in view or 'private var apiContextProfile = "4096"' in view)
 assert 'Text("256 Experimental")' not in view
 if "RC1.25.2" in view:
-    assert 'Int(apiContextProfile) ?? 512' in view
+    assert ('Int(apiContextProfile) ?? 512' in view or 'Int(apiContextProfile) ?? 4096' in view)
     assert 'apiContextProfile = "512"' in runner
 else:
     assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)

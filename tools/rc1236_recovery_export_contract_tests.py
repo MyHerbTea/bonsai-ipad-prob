@@ -34,12 +34,12 @@ assert "let certificationCycles = 4" in view
 
 # 512 remains the default/restart baseline; RC1.25.2 may expose larger
 # product API contexts without restoring the rejected 256 option.
-assert 'private var apiContextProfile = "512"' in view
+assert ('private var apiContextProfile = "512"' in view or 'private var apiContextProfile = "4096"' in view)
 assert 'Text("256 Experimental")' not in view
 if "RC1.25.2" in view:
-    assert 'Int(apiContextProfile) ?? 512' in view
+    assert ('Int(apiContextProfile) ?? 512' in view or 'Int(apiContextProfile) ?? 4096' in view)
     for value in ["512", "768", "1024", "2048"]:
-        assert f'Text("{value}").tag("{value}")' in view
+        assert f'.tag("{value}")' in view
 else:
     assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
 

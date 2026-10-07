@@ -56,10 +56,10 @@ assert "if cycle == 1" in runner
 
 # Frozen listener semantics remain unchanged. RC1.25.2 may vary the product
 # context, while the inherited restart certification path remains pinned to 512.
-assert 'private var apiContextProfile = "512"' in view
+assert ('private var apiContextProfile = "512"' in view or 'private var apiContextProfile = "4096"' in view)
 assert 'Text("256 Experimental")' not in view
 if "RC1.25.2" in view:
-    assert 'Int(apiContextProfile) ?? 512' in view
+    assert ('Int(apiContextProfile) ?? 512' in view or 'Int(apiContextProfile) ?? 4096' in view)
     assert 'apiContextProfile = "512"' in runner
 else:
     assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)

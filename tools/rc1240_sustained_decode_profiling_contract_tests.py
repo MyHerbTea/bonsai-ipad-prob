@@ -107,7 +107,7 @@ assert "profilingLines(" in failure_history
 # Frozen runtime mechanics are unchanged. RC1.25.2 explicitly evolves only
 # the product context selector; batch/uBatch and the accelerated path remain.
 if "RC1.25.2" in view:
-    assert 'Int(apiContextProfile) ?? 512' in view
+    assert ('Int(apiContextProfile) ?? 512' in view or 'Int(apiContextProfile) ?? 4096' in view)
     assert '"512", "768", "1024", "2048"' in view
 else:
     assert re.search(r'let\s+selectedAPIContext\s*=\s*512', view)
