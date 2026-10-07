@@ -40,6 +40,7 @@ for marker in [
 assert (
     '"rc1.26-build75-api-cold-start-guard"' in server
     or '"rc1.26-build76-text-kv-reuse-lab"' in server
+    or '"rc1.26-build77-extended-context-lab"' in server
 )
 
 for marker in [
