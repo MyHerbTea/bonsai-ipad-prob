@@ -42,6 +42,7 @@ assert (
     or 'Text("1.0 · RC1.26 Build 79 Storage-Memory Long Context Lab")' in view
     or 'Text("1.0 · RC1.26 Build 80 Long-Context Tier Reload Fix")' in view
     or 'Text("1.0 · RC1.26 Build 81 32K Memory Squeeze")' in view
+    or 'Text("1.0 · RC1.26 Build 82 Unified-Metal 32K Lab")' in view
 )
 assert "[RC1.24.0 SUSTAINED DECODE PROFILING]" in view
 assert "[RC1.23.3 LONG-RUN REQUEST HISTORY]" in view

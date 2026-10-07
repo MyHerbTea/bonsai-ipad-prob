@@ -18,6 +18,7 @@ on:
       - lab-v1-rc1-25-3-build64-native-prefill-isolation
       - lab-v1-rc1-26-backburner-runtime
       - lab-v1-rc1-26-build82-unified-metal
+      - lab-v1-rc1-26-build82-unified-metal-v2
   workflow_dispatch:
 
 concurrency:
