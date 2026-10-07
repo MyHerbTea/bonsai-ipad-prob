@@ -1076,7 +1076,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 80 Long-Context Tier Reload Fix")
+                            Text("1.0 · RC1.26 Build 81 32K Memory Squeeze")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -3145,7 +3145,7 @@ struct ProductionView: View {
         }
     }
 
-    private func applyBuild80LongContextPolicy(
+    private func applyBuild81LongContextPolicy(
         to apiRuntime: inout RuntimeConfig,
         context: Int,
         source: String
@@ -3157,15 +3157,19 @@ struct ProductionView: View {
 
         switch context {
         case 65_536...:
+            apiRuntime.batch = min(apiRuntime.batch, 2)
+            apiRuntime.ubatch = min(apiRuntime.ubatch, 2)
+            apiRuntime.gpuLayers =
+                min(apiRuntime.gpuLayers, 8)
+            apiRuntime.offloadKQV = false
+            apiRuntime.opOffload = false
+        case 32_768...:
             apiRuntime.batch = min(apiRuntime.batch, 4)
             apiRuntime.ubatch = min(apiRuntime.ubatch, 4)
             apiRuntime.gpuLayers =
                 min(apiRuntime.gpuLayers, 24)
-        case 32_768...:
-            apiRuntime.batch = min(apiRuntime.batch, 8)
-            apiRuntime.ubatch = min(apiRuntime.ubatch, 8)
-            apiRuntime.gpuLayers =
-                min(apiRuntime.gpuLayers, 40)
+            apiRuntime.offloadKQV = false
+            apiRuntime.opOffload = false
         case 16_384...:
             apiRuntime.batch = min(apiRuntime.batch, 16)
             apiRuntime.ubatch = min(apiRuntime.ubatch, 16)
@@ -3207,6 +3211,23 @@ struct ProductionView: View {
             apiRuntime.gpuLayers,
             forKey: "BonsaiBuild80TargetGPULayers"
         )
+
+        let build81Profile: String
+        if context >= 65_536 {
+            build81Profile = "ctx64k-q4-gpu8-b2-cpu-kqv-op"
+        } else if context >= 32_768 {
+            build81Profile = "ctx32k-q4-gpu24-b4-cpu-kqv-op"
+        } else if context >= 16_384 {
+            build81Profile = "ctx16k-build79-validated"
+        } else {
+            build81Profile = "build79-compatible"
+        }
+        defaults.set(build81Profile, forKey: "BonsaiBuild81SqueezeProfile")
+        defaults.set(apiRuntime.batch, forKey: "BonsaiBuild81EffectiveBatch")
+        defaults.set(apiRuntime.ubatch, forKey: "BonsaiBuild81EffectiveUBatch")
+        defaults.set(apiRuntime.gpuLayers, forKey: "BonsaiBuild81EffectiveGPULayers")
+        defaults.set(apiRuntime.offloadKQV, forKey: "BonsaiBuild81OffloadKQV")
+        defaults.set(apiRuntime.opOffload, forKey: "BonsaiBuild81OpOffload")
         defaults.synchronize()
     }
 
@@ -3267,7 +3288,7 @@ struct ProductionView: View {
         Phase2FPrefillBatchLaunchLatch.apply(
             to: &apiRuntime
         )
-        applyBuild80LongContextPolicy(
+        applyBuild81LongContextPolicy(
             to: &apiRuntime,
             context: selectedAPIContext,
             source: "context_switch"
@@ -3424,12 +3445,12 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "80")
+        RC126APIStartupLifecycle.begin(build: "81")
         busy = true
-        status = "正在执行 RC1.26 Build 80 Long-Context Tier Reload Fix + API 冷启动保护…"
+        status = "正在执行 RC1.26 Build 81 32K Memory Squeeze + API 冷启动保护…"
         detail = """
         Build 60 的 API/视觉路径保持不变。
-        Build 80 保留 Build 79 的 KV/mmap 策略；跨 GPU residency 档位时强制先释放旧模型，再按目标 GPU layers 重新 mmap/load。
+        Build 81 保留已验证 16K 路径；32K/64K 进入容量优先 squeeze：Q4 KV、mmap、低 GPU residency、CPU KQV/Op 与更小 batch。
         /v1/models 会公布当前 context_length、vision 与 unsupported tool/reasoning 能力。
         """
 
@@ -3479,7 +3500,7 @@ struct ProductionView: View {
                     to: &apiRuntime
                 )
 
-                applyBuild80LongContextPolicy(
+                applyBuild81LongContextPolicy(
                     to: &apiRuntime,
                     context: selectedAPIContext,
                     source: "fresh_start"
@@ -4216,7 +4237,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 80 Long Context API Runtime 已就绪"
+                        "RC1.26 Build 81 Long Context API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()

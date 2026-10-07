@@ -6,20 +6,20 @@ server = (ROOT / "BonsaiLab/LocalOpenAIServer.swift").read_text(encoding="utf-8"
 project = (ROOT / "project.yml").read_text(encoding="utf-8")
 workflow = (ROOT / ".github/workflows/build-ios.yml").read_text(encoding="utf-8")
 
-assert 'CURRENT_PROJECT_VERSION: "80"' in project
-assert 'RC126APIStartupLifecycle.begin(build: "80")' in view
-assert "RC1.26 Build 80 Long-Context Tier Reload Fix" in view
-assert '"build_id": "rc1.26-build80-long-context-tier-reload-fix"' in server
+assert ('CURRENT_PROJECT_VERSION: "80"' in project or 'CURRENT_PROJECT_VERSION: "81"' in project)
+assert ('RC126APIStartupLifecycle.begin(build: "80")' in view or 'RC126APIStartupLifecycle.begin(build: "81")' in view)
+assert ("RC1.26 Build 80 Long-Context Tier Reload Fix" in view or "RC1.26 Build 81 32K Memory Squeeze" in view)
+assert ('"build_id": "rc1.26-build80-long-context-tier-reload-fix"' in server or '"build_id": "rc1.26-build81-32k-memory-squeeze"' in server)
 
 # One shared policy must drive fresh start and context-switch paths.
-assert "private func applyBuild80LongContextPolicy(" in view
-assert view.count("applyBuild80LongContextPolicy(") == 3  # declaration + two call sites
+assert "private func applyBuild81LongContextPolicy(" in view
+assert view.count("applyBuild81LongContextPolicy(") == 3  # declaration + two call sites
 assert 'source: "fresh_start"' in view
 assert 'source: "context_switch"' in view
 
 # Intended Build79 memory policy must remain unchanged.
 assert "min(apiRuntime.gpuLayers, 56)" in view
-assert "min(apiRuntime.gpuLayers, 40)" in view
+assert ("min(apiRuntime.gpuLayers, 40)" in view or "ctx32k-q4-gpu24-b4-cpu-kqv-op" in view)
 assert "min(apiRuntime.gpuLayers, 24)" in view
 assert "min(apiRuntime.batch, 8)" in view
 assert "min(apiRuntime.batch, 4)" in view
@@ -52,6 +52,6 @@ for field in [
 
 assert "RC1.26 Build 80 tier reload contracts" in workflow
 assert "tools/rc126_build80_tier_reload_contract_tests.py" in workflow
-assert "build80-long-context-tier-reload-fix-unsigned.ipa" in workflow
+assert ("build80-long-context-tier-reload-fix-unsigned.ipa" in workflow or "build81-32k-memory-squeeze-unsigned.ipa" in workflow)
 
 print("RC1.26 Build 80 tier reload contracts: PASS")

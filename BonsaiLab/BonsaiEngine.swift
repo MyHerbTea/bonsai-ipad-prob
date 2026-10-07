@@ -397,13 +397,34 @@ actor BonsaiEngine {
         UserDefaults.standard.synchronize()
 
         let cpuCount = ProcessInfo.processInfo.processorCount
-        let threads = max(1, min(6, cpuCount - 2))
+        let build81ThreadCap: Int
+        if config.context >= 65_536 {
+            build81ThreadCap = 2
+        } else if config.context >= 32_768 {
+            build81ThreadCap = 4
+        } else {
+            build81ThreadCap = 6
+        }
+        let threads = max(1, min(build81ThreadCap, cpuCount - 2))
         contextParams.n_threads = Int32(threads)
         contextParams.n_threads_batch = Int32(threads)
+        UserDefaults.standard.set(
+            threads,
+            forKey: "BonsaiBuild81EffectiveThreads"
+        )
 
         persistSystemDiagnostics(
             prefix: "BonsaiBuild79BeforeContextCreate"
         )
+        UserDefaults.standard.set(
+            config.context,
+            forKey: "BonsaiBuild81ContextCreateAttempt"
+        )
+        UserDefaults.standard.set(
+            false,
+            forKey: "BonsaiBuild81ContextCreateCompleted"
+        )
+        UserDefaults.standard.synchronize()
         mark("MODEL_07_CONTEXT_CREATE_BEGIN")
         guard let loadedContext = llama_init_from_model(loadedModel, contextParams) else {
             mark("MODEL_07_CONTEXT_CREATE_NULL")
@@ -412,6 +433,11 @@ actor BonsaiEngine {
             throw LabError.contextCreateFailed
         }
         mark("MODEL_08_CONTEXT_CREATE_DONE")
+        UserDefaults.standard.set(
+            true,
+            forKey: "BonsaiBuild81ContextCreateCompleted"
+        )
+        UserDefaults.standard.synchronize()
         persistSystemDiagnostics(
             prefix: "BonsaiBuild79AfterContextCreate"
         )
@@ -2785,9 +2811,21 @@ actor BonsaiEngine {
         }
 
         let cpuCount = ProcessInfo.processInfo.processorCount
-        let threads = max(1, min(6, cpuCount - 2))
+        let build81ThreadCap: Int
+        if validated.context >= 65_536 {
+            build81ThreadCap = 2
+        } else if validated.context >= 32_768 {
+            build81ThreadCap = 4
+        } else {
+            build81ThreadCap = 6
+        }
+        let threads = max(1, min(build81ThreadCap, cpuCount - 2))
         params.n_threads = Int32(threads)
         params.n_threads_batch = Int32(threads)
+        UserDefaults.standard.set(
+            threads,
+            forKey: "BonsaiBuild81EffectiveThreads"
+        )
 
         guard let created = llama_init_from_model(model, params) else {
             throw LabError.contextCreateFailed

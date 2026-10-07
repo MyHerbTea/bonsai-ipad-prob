@@ -1170,6 +1170,42 @@ final class LocalOpenAIServer: ObservableObject {
                 defaults.string(
                     forKey: "BonsaiBuild80ReloadStage"
                 ) ?? "none",
+            "build81_squeeze_profile":
+                defaults.string(
+                    forKey: "BonsaiBuild81SqueezeProfile"
+                ) ?? "unknown",
+            "build81_effective_batch":
+                defaults.integer(
+                    forKey: "BonsaiBuild81EffectiveBatch"
+                ),
+            "build81_effective_ubatch":
+                defaults.integer(
+                    forKey: "BonsaiBuild81EffectiveUBatch"
+                ),
+            "build81_effective_gpu_layers":
+                defaults.integer(
+                    forKey: "BonsaiBuild81EffectiveGPULayers"
+                ),
+            "build81_offload_kqv":
+                defaults.bool(
+                    forKey: "BonsaiBuild81OffloadKQV"
+                ),
+            "build81_op_offload":
+                defaults.bool(
+                    forKey: "BonsaiBuild81OpOffload"
+                ),
+            "build81_effective_threads":
+                defaults.integer(
+                    forKey: "BonsaiBuild81EffectiveThreads"
+                ),
+            "build81_context_create_attempt":
+                defaults.integer(
+                    forKey: "BonsaiBuild81ContextCreateAttempt"
+                ),
+            "build81_context_create_completed":
+                defaults.bool(
+                    forKey: "BonsaiBuild81ContextCreateCompleted"
+                ),
             "ggml_metal_tensor_disable":
                 tensorDisable ?? "unset",
             "metal_tensor_prefill_requested": requested,
@@ -1559,7 +1595,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build80-long-context-tier-reload-fix",
+            "build_id": "rc1.26-build81-32k-memory-squeeze",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",
