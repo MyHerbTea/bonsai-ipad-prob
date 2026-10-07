@@ -1142,6 +1142,34 @@ final class LocalOpenAIServer: ObservableObject {
                     forKey:
                         "BonsaiBuild79AfterContextCreateMetalAllocatedMiB"
                 ),
+            "build80_policy_source":
+                defaults.string(
+                    forKey: "BonsaiBuild80PolicySource"
+                ) ?? "unknown",
+            "build80_target_context":
+                defaults.integer(
+                    forKey: "BonsaiBuild80TargetContext"
+                ),
+            "build80_previous_gpu_layers":
+                defaults.integer(
+                    forKey: "BonsaiBuild80PreviousGPULayers"
+                ),
+            "build80_target_gpu_layers":
+                defaults.integer(
+                    forKey: "BonsaiBuild80TargetGPULayers"
+                ),
+            "build80_model_reload_required":
+                defaults.bool(
+                    forKey: "BonsaiBuild80ModelReloadRequired"
+                ),
+            "build80_model_reload_performed":
+                defaults.bool(
+                    forKey: "BonsaiBuild80ModelReloadPerformed"
+                ),
+            "build80_reload_stage":
+                defaults.string(
+                    forKey: "BonsaiBuild80ReloadStage"
+                ) ?? "none",
             "ggml_metal_tensor_disable":
                 tensorDisable ?? "unset",
             "metal_tensor_prefill_requested": requested,
@@ -1531,7 +1559,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build79-storage-memory-long-context-lab",
+            "build_id": "rc1.26-build80-long-context-tier-reload-fix",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",

@@ -33,6 +33,7 @@ assert (
     or 'Text("1.0 · RC1.26 Build 77 M5 Extended Context Lab")' in view
     or 'Text("1.0 · RC1.26 Build 78 M5 Context Boundary Lab")' in view
     or 'Text("1.0 · RC1.26 Build 79 Storage-Memory Long Context Lab")' in view
+    or 'Text("1.0 · RC1.26 Build 80 Long-Context Tier Reload Fix")' in view
 )
 assert (
     'RC1.25.1 Build 60 Dual Context Admission' in view
@@ -43,6 +44,7 @@ assert (
     or 'RC1.26 Build 77 M5 Extended Context Lab' in view
     or 'RC1.26 Build 78 M5 Context Boundary Lab' in view
     or 'RC1.26 Build 79 Storage-Memory Long Context Lab' in view
+    or 'RC1.26 Build 80 Long-Context Tier Reload Fix' in view
 )
 
 # Multi-image success telemetry must preserve the already computed request route.
@@ -116,6 +118,7 @@ assert (
     or "Build77-M5-Extended-Context-Lab" in workflow
     or "Build78-M5-Context-Boundary-Lab" in workflow
     or "Build79-Storage-Memory-Long-Context-Lab" in workflow
+    or "Build80-Long-Context-Tier-Reload-Fix" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")

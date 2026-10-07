@@ -45,17 +45,29 @@ assert "import Security" not in engine
 assert "BonsaiEffectiveEntitlementFlag" in bridge_h
 assert 'dlsym(RTLD_DEFAULT, "SecTaskCreateFromSelf")' in bridge_mm
 assert 'dlsym(RTLD_DEFAULT, "SecTaskCopyValueForEntitlement")' in bridge_mm
-assert 'CURRENT_PROJECT_VERSION: "79"' in project
+assert (
+    'CURRENT_PROJECT_VERSION: "79"' in project
+    or 'CURRENT_PROJECT_VERSION: "80"' in project
+)
 assert 'CODE_SIGN_ENTITLEMENTS: "BonsaiLab/BonsaiLab.entitlements"' in project
 assert "Security.framework" in project
 assert "com.apple.developer.kernel.extended-virtual-addressing" in ent
 assert "com.apple.developer.kernel.increased-memory-limit" in ent
-assert '"build_id": "rc1.26-build79-storage-memory-long-context-lab"' in server
+assert (
+    '"build_id": "rc1.26-build79-storage-memory-long-context-lab"' in server
+    or '"build_id": "rc1.26-build80-long-context-tier-reload-fix"' in server
+)
 assert "build79_kv_cache_type" in server
 assert "build79_effective_extended_va" in server
 assert "build79_effective_increased_memory_limit" in server
-assert 'RC126APIStartupLifecycle.begin(build: "79")' in view
-assert "RC1.26 Build 79 Storage-Memory Long Context Lab" in view
+assert (
+    'RC126APIStartupLifecycle.begin(build: "79")' in view
+    or 'RC126APIStartupLifecycle.begin(build: "80")' in view
+)
+assert (
+    "RC1.26 Build 79 Storage-Memory Long Context Lab" in view
+    or "RC1.26 Build 80 Long-Context Tier Reload Fix" in view
+)
 assert "RC1.26 Build 79 storage-memory long-context contracts" in workflow
 assert "tools/rc126_build79_storage_memory_contract_tests.py" in workflow
 

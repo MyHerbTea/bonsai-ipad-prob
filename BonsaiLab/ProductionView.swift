@@ -1076,7 +1076,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 79 Storage-Memory Long Context Lab")
+                            Text("1.0 · RC1.26 Build 80 Long-Context Tier Reload Fix")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -3145,7 +3145,77 @@ struct ProductionView: View {
         }
     }
 
+    private func applyBuild80LongContextPolicy(
+        to apiRuntime: inout RuntimeConfig,
+        context: Int,
+        source: String
+    ) {
+        let longContext = context > 4096
+        if longContext {
+            apiRuntime.flashAttention = true
+        }
+
+        switch context {
+        case 65_536...:
+            apiRuntime.batch = min(apiRuntime.batch, 4)
+            apiRuntime.ubatch = min(apiRuntime.ubatch, 4)
+            apiRuntime.gpuLayers =
+                min(apiRuntime.gpuLayers, 24)
+        case 32_768...:
+            apiRuntime.batch = min(apiRuntime.batch, 8)
+            apiRuntime.ubatch = min(apiRuntime.ubatch, 8)
+            apiRuntime.gpuLayers =
+                min(apiRuntime.gpuLayers, 40)
+        case 16_384...:
+            apiRuntime.batch = min(apiRuntime.batch, 16)
+            apiRuntime.ubatch = min(apiRuntime.ubatch, 16)
+            apiRuntime.gpuLayers =
+                min(apiRuntime.gpuLayers, 56)
+        case 4097...:
+            apiRuntime.batch = min(apiRuntime.batch, 16)
+            apiRuntime.ubatch = min(apiRuntime.ubatch, 16)
+        default:
+            break
+        }
+
+        let defaults = UserDefaults.standard
+        defaults.set(
+            longContext,
+            forKey: "BonsaiBuild79LongContextMode"
+        )
+        defaults.set(
+            apiRuntime.batch,
+            forKey: "BonsaiBuild79EffectiveBatch"
+        )
+        defaults.set(
+            apiRuntime.ubatch,
+            forKey: "BonsaiBuild79EffectiveUBatch"
+        )
+        defaults.set(
+            apiRuntime.gpuLayers,
+            forKey: "BonsaiBuild79EffectiveGPULayers"
+        )
+        defaults.set(
+            source,
+            forKey: "BonsaiBuild80PolicySource"
+        )
+        defaults.set(
+            context,
+            forKey: "BonsaiBuild80TargetContext"
+        )
+        defaults.set(
+            apiRuntime.gpuLayers,
+            forKey: "BonsaiBuild80TargetGPULayers"
+        )
+        defaults.synchronize()
+    }
+
     private func reconfigureAPIRuntimePreservingModel() {
+        guard let selectedModelURL = modelURL else {
+            status = "请先选择主模型"
+            return
+        }
+
         let selectedRuntime = runtime
         let selectedAPIRuntimeProfile =
             selectedAPIRuntimeProfileValue
@@ -3153,6 +3223,11 @@ struct ProductionView: View {
             selectedAPIContextValue
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
+
+        let previouslyLoadedGPULayers =
+            UserDefaults.standard.integer(
+                forKey: "BonsaiBuild79EffectiveGPULayers"
+            )
 
         var apiRuntime = selectedRuntime
         apiRuntime.context = selectedAPIContext
@@ -3192,12 +3267,38 @@ struct ProductionView: View {
         Phase2FPrefillBatchLaunchLatch.apply(
             to: &apiRuntime
         )
+        applyBuild80LongContextPolicy(
+            to: &apiRuntime,
+            context: selectedAPIContext,
+            source: "context_switch"
+        )
+
+        let requiresModelReload =
+            previouslyLoadedGPULayers > 0
+            && previouslyLoadedGPULayers
+                != apiRuntime.gpuLayers
+
+        UserDefaults.standard.set(
+            previouslyLoadedGPULayers,
+            forKey: "BonsaiBuild80PreviousGPULayers"
+        )
+        UserDefaults.standard.set(
+            requiresModelReload,
+            forKey: "BonsaiBuild80ModelReloadRequired"
+        )
+        UserDefaults.standard.set(
+            false,
+            forKey: "BonsaiBuild80ModelReloadPerformed"
+        )
+        UserDefaults.standard.synchronize()
 
         busy = true
-        status = "正在安全切换 API Context/Profile…"
-        detail =
-            "保留 27B mmap 模型，只释放并重建 llama context；"
-            + "同时释放 MLX Vision 常驻状态，避免整模型卸载/重载造成峰值。"
+        status = requiresModelReload
+            ? "正在按目标 GPU residency 重载 27B mmap 模型…"
+            : "正在安全切换 API Context/Profile…"
+        detail = requiresModelReload
+            ? "Build 80 检测到 GPU layers 跨档位；先释放旧 context/model，等待回收，再按目标 GPU layers 重新 mmap/load。"
+            : "GPU residency 档位未变化；保留 27B mmap 模型，只释放并重建 llama context。"
 
         Task { @MainActor in
             do {
@@ -3207,10 +3308,53 @@ struct ProductionView: View {
                 let before =
                     await sharedEngine.apiAdmissionSnapshot()
 
-                try await sharedEngine
-                    .reconfigureTextContextKeepingModel(
+                if requiresModelReload {
+                    UserDefaults.standard.set(
+                        "release_begin",
+                        forKey: "BonsaiBuild80ReloadStage"
+                    )
+                    UserDefaults.standard.synchronize()
+
+                    await sharedEngine.unloadAll()
+
+                    UserDefaults.standard.set(
+                        "released",
+                        forKey: "BonsaiBuild80ReloadStage"
+                    )
+                    UserDefaults.standard.synchronize()
+
+                    // Give iPadOS/Metal one scheduling window to retire the
+                    // previous model buffers and reclaim clean mmap pages.
+                    try await Task.sleep(
+                        nanoseconds: 600_000_000
+                    )
+
+                    UserDefaults.standard.set(
+                        "reload_begin",
+                        forKey: "BonsaiBuild80ReloadStage"
+                    )
+                    UserDefaults.standard.synchronize()
+
+                    _ = try await sharedEngine.loadModel(
+                        url: selectedModelURL,
                         runtime: apiRuntime
                     )
+
+                    UserDefaults.standard.set(
+                        "reload_done",
+                        forKey: "BonsaiBuild80ReloadStage"
+                    )
+                    UserDefaults.standard.set(
+                        true,
+                        forKey: "BonsaiBuild80ModelReloadPerformed"
+                    )
+                    UserDefaults.standard.synchronize()
+                } else {
+                    try await sharedEngine
+                        .reconfigureTextContextKeepingModel(
+                            runtime: apiRuntime
+                        )
+                }
 
                 let after =
                     await sharedEngine.apiAdmissionSnapshot()
@@ -3246,7 +3390,9 @@ struct ProductionView: View {
                     "OpenAI API 已切换到 Context "
                     + "\(selectedAPIContext)"
                 detail =
-                    "27B model 未重载。\n"
+                    (requiresModelReload
+                        ? "27B model 已按目标 GPU layers 重载。\n"
+                        : "27B model 未重载。\n")
                     + "[BEFORE]\n"
                     + before
                     + "\n[AFTER]\n"
@@ -3278,12 +3424,12 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "79")
+        RC126APIStartupLifecycle.begin(build: "80")
         busy = true
-        status = "正在执行 RC1.26 Build 79 Storage-Memory Long Context + API 冷启动保护…"
+        status = "正在执行 RC1.26 Build 80 Long-Context Tier Reload Fix + API 冷启动保护…"
         detail = """
         Build 60 的 API/视觉路径保持不变。
-        Build 79 开放到 65536；6144/8192 使用 Q8 KV，16K/32K/64K 使用 Q4 KV，并保持 GGUF mmap。
+        Build 80 保留 Build 79 的 KV/mmap 策略；跨 GPU residency 档位时强制先释放旧模型，再按目标 GPU layers 重新 mmap/load。
         /v1/models 会公布当前 context_length、vision 与 unsupported tool/reasoning 能力。
         """
 
@@ -3333,64 +3479,11 @@ struct ProductionView: View {
                     to: &apiRuntime
                 )
 
-                // Build 79 storage-memory co-design. Preserve the
-                // verified 4096 path; above it, trade throughput for
-                // Metal working-set and address-space headroom while the
-                // non-offloaded weights remain file-backed through mmap.
-                let build79LongContext =
-                    selectedAPIContext > 4096
-                if build79LongContext {
-                    apiRuntime.flashAttention = true
-                }
-
-                switch selectedAPIContext {
-                case 65_536...:
-                    apiRuntime.batch =
-                        min(apiRuntime.batch, 4)
-                    apiRuntime.ubatch =
-                        min(apiRuntime.ubatch, 4)
-                    apiRuntime.gpuLayers =
-                        min(apiRuntime.gpuLayers, 24)
-                case 32_768...:
-                    apiRuntime.batch =
-                        min(apiRuntime.batch, 8)
-                    apiRuntime.ubatch =
-                        min(apiRuntime.ubatch, 8)
-                    apiRuntime.gpuLayers =
-                        min(apiRuntime.gpuLayers, 40)
-                case 16_384...:
-                    apiRuntime.batch =
-                        min(apiRuntime.batch, 16)
-                    apiRuntime.ubatch =
-                        min(apiRuntime.ubatch, 16)
-                    apiRuntime.gpuLayers =
-                        min(apiRuntime.gpuLayers, 56)
-                case 4097...:
-                    apiRuntime.batch =
-                        min(apiRuntime.batch, 16)
-                    apiRuntime.ubatch =
-                        min(apiRuntime.ubatch, 16)
-                default:
-                    break
-                }
-
-                UserDefaults.standard.set(
-                    build79LongContext,
-                    forKey: "BonsaiBuild79LongContextMode"
+                applyBuild80LongContextPolicy(
+                    to: &apiRuntime,
+                    context: selectedAPIContext,
+                    source: "fresh_start"
                 )
-                UserDefaults.standard.set(
-                    apiRuntime.batch,
-                    forKey: "BonsaiBuild79EffectiveBatch"
-                )
-                UserDefaults.standard.set(
-                    apiRuntime.ubatch,
-                    forKey: "BonsaiBuild79EffectiveUBatch"
-                )
-                UserDefaults.standard.set(
-                    apiRuntime.gpuLayers,
-                    forKey: "BonsaiBuild79EffectiveGPULayers"
-                )
-                UserDefaults.standard.synchronize()
 
                 RC126APIStartupLifecycle.mark(
                     "BACKEND_PREWARM_BEGIN"
@@ -4123,7 +4216,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 79 Long Context API Runtime 已就绪"
+                        "RC1.26 Build 80 Long Context API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
