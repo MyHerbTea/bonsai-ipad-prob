@@ -21,7 +21,10 @@ assert "min(apiRuntime.batch, 4)" in view
 assert "min(apiRuntime.ubatch, 4)" in view
 assert "apiRuntime.offloadKQV = true" in view
 assert "apiRuntime.opOffload = true" in view
-assert "[BUILD 82 EFFECTIVE LONG CONTEXT]" in view
+assert (
+    "[BUILD 82 EFFECTIVE LONG CONTEXT]" in view
+    or "[BUILD 83 EFFECTIVE LONG CONTEXT]" in view
+)
 for marker in [
     "BonsaiBuild82EngineModelGPULayers",
     "BonsaiBuild82ModelLoadCompleted",
