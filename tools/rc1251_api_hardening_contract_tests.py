@@ -127,7 +127,7 @@ assert (
     or "Build80-Long-Context-Tier-Reload-Fix" in workflow
     or "Build81-32K-Memory-Squeeze" in workflow
     or "Build82-Unified-Metal-32K-Lab" in workflow
-    or "Build83-Prism-Metal-KV-Sharding" in workflow
+    or "Build84-Native-Context-Trace" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")
