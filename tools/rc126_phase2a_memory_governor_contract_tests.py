@@ -19,7 +19,7 @@ assert (
     or '"build_id": "rc1.26-build80-long-context-tier-reload-fix"' in server
     or '"build_id": "rc1.26-build81-32k-memory-squeeze"' in server
     or '"build_id": "rc1.26-build82-unified-metal-32k-lab"' in server
-    or '"build_id": "rc1.26-build87-scheduler-context-guard"' in server
+    or '"build_id": "rc1.26-build88-scheduler-mmap-recovery"' in server
 )
 
 for marker in [

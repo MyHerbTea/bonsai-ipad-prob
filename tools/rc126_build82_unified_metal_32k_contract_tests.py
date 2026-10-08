@@ -7,10 +7,10 @@ server = (ROOT / "BonsaiLab/LocalOpenAIServer.swift").read_text(encoding="utf-8"
 project = (ROOT / "project.yml").read_text(encoding="utf-8")
 workflow = (ROOT / ".github/workflows/build-ios.yml").read_text(encoding="utf-8")
 
-assert ('CURRENT_PROJECT_VERSION: "82"' in project or 'CURRENT_PROJECT_VERSION: "87"' in project)
-assert ('RC126APIStartupLifecycle.begin(build: "82")' in view or 'RC126APIStartupLifecycle.begin(build: "87"' in view)
-assert ("RC1.26 Build 82 Unified-Metal 32K Lab" in view or "RC1.26 Build 87 Scheduler Context Guard" in view)
-assert ('"build_id": "rc1.26-build82-unified-metal-32k-lab"' in server or '"build_id": "rc1.26-build87-scheduler-context-guard"' in server)
+assert ('CURRENT_PROJECT_VERSION: "82"' in project or 'CURRENT_PROJECT_VERSION: "88"' in project)
+assert ('RC126APIStartupLifecycle.begin(build: "82")' in view or 'RC126APIStartupLifecycle.begin(build: "88"' in view)
+assert ("RC1.26 Build 82 Unified-Metal 32K Lab" in view or "RC1.26 Build 88 Scheduler mmap Recovery" in view)
+assert ('"build_id": "rc1.26-build82-unified-metal-32k-lab"' in server or '"build_id": "rc1.26-build88-scheduler-mmap-recovery"' in server)
 assert "private func applyBuild82LongContextPolicy(" in view
 assert view.count("applyBuild82LongContextPolicy(") == 3
 assert "ctx16k-build79-validated" in view
@@ -50,10 +50,10 @@ assert "RC1.26 Build 82 unified-Metal 32K contracts" in workflow
 assert "tools/rc126_build82_unified_metal_32k_contract_tests.py" in workflow
 assert (
     "BonsaiLab-v1-RC1.26-build82-unified-metal-32k-lab-unsigned.ipa" in workflow
-    or "BonsaiLab-v1-RC1.26-build87-scheduler-context-guard-unsigned.ipa" in workflow
+    or "BonsaiLab-v1-RC1.26-build88-scheduler-mmap-recovery-unsigned.ipa" in workflow
 )
 assert (
     "BonsaiLab-iPad-v1-RC1.26-Build82-Unified-Metal-32K-Lab" in workflow
-    or "BonsaiLab-iPad-v1-RC1.26-Build87-Scheduler-Context-Guard" in workflow
+    or "BonsaiLab-iPad-v1-RC1.26-Build88-Scheduler-mmap-Recovery" in workflow
 )
 print("RC1.26 Build 82 unified-Metal 32K contracts: PASS")
