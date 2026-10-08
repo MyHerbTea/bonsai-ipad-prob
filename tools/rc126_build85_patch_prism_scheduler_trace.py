@@ -35,8 +35,9 @@ once('    sched.reset(ggml_backend_sched_new(backend_ptrs.data(), backend_buft.d
 '''    bonsai_build84_trace("BUILD85_BACKEND_SCHED_NEW_BEGIN count=%zu", backend_ptrs.size());
     sched.reset(ggml_backend_sched_new(backend_ptrs.data(), backend_buft.data(), backend_ptrs.size(), max_nodes, cparams.pipeline_parallel, cparams.op_offload));
     bonsai_build84_trace("BUILD85_BACKEND_SCHED_NEW_DONE");''',"backend create")
-once('        mctx = memory->init_full();',
-'''        bonsai_build84_trace("BUILD85_MEMORY_INIT_FULL_BEGIN");
+once('        LLAMA_LOG_DEBUG("%s: reserving full memory module\\n", __func__);\n        mctx = memory->init_full();',
+'''        LLAMA_LOG_DEBUG("%s: reserving full memory module\\n", __func__);
+        bonsai_build84_trace("BUILD85_MEMORY_INIT_FULL_BEGIN");
         mctx = memory->init_full();
         bonsai_build84_trace("BUILD85_MEMORY_INIT_FULL_DONE");''',"full memory")
 once('    resolve_fused_ops(mctx.get(), n_seqs);',
@@ -66,8 +67,10 @@ once('    ggml_backend_sched_reset(sched.get());\n\n    // when the scheduler is
     bonsai_build84_trace("BUILD85_GRAPH_RESET_DONE");
 
     // when the scheduler is reset,''',"graph reset")
-once('    auto * gf = model.build_graph(gparams);',
-'''    bonsai_build84_trace("BUILD85_MODEL_BUILD_GRAPH_BEGIN n_tokens=%u", n_tokens);
+once('    res->reset();\n\n    auto * gf = model.build_graph(gparams);',
+'''    res->reset();
+
+    bonsai_build84_trace("BUILD85_MODEL_BUILD_GRAPH_BEGIN n_tokens=%u", n_tokens);
     auto * gf = model.build_graph(gparams);
     bonsai_build84_trace("BUILD85_MODEL_BUILD_GRAPH_DONE nodes=%d", gf ? ggml_graph_n_nodes(gf) : -1);''',"graph build")
 once('    } else if (!ggml_backend_sched_reserve(sched.get(), gf)) {',
