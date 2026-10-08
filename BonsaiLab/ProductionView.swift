@@ -4391,8 +4391,10 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.24.0 Build 55 Profiling Runtime 预热失败"
+                        "OpenAI API 启动失败（Build 89 · Context \(selectedAPIContext)）"
                     detail = error.localizedDescription
+                        + "\n32K 初始化未完成时，建议选择已验证的 16384 Context。"
+                        + "\n可复制完整原生崩溃追踪以定位最后失败阶段。"
                 }
             }
         }
