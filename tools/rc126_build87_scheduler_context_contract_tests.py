@@ -10,7 +10,7 @@ assert 'CURRENT_PROJECT_VERSION: "88"' in (root/"project.yml").read_text()
 assert 'RC126APIStartupLifecycle.begin(build: "88")' in v
 assert '"build_id": "rc1.26-build88-scheduler-mmap-recovery"' in srv
 assert "build87_sched_context_trace_supported" in srv
-assert "build=87" in e
+assert "build=88" in e
 assert 'guard contextLength >= 32_768 else' in e
 assert "复制完整原生崩溃追踪（当前及上次）" in v
 assert "os_termination_cause=unknown_without_iPadOS_ips" in v
