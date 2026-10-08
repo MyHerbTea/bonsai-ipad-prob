@@ -7,10 +7,10 @@ project = (ROOT / "project.yml").read_text(encoding="utf-8")
 workflow = (ROOT / ".github/workflows/build-ios.yml").read_text(encoding="utf-8")
 patcher = (ROOT / "tools/rc126_build83_patch_prism_kv_sharding.py").read_text(encoding="utf-8")
 
-assert 'CURRENT_PROJECT_VERSION: "84"' in project
+assert 'CURRENT_PROJECT_VERSION: "85"' in project
 assert 'RC126APIStartupLifecycle.begin(build: "84"' in view
-assert "RC1.26 Build 84 Native Context Trace" in view
-assert '"build_id": "rc1.26-build84-native-context-trace"' in server
+assert "RC1.26 Build 85 Scheduler Reserve Isolation" in view
+assert '"build_id": "rc1.26-build85-scheduler-reserve-isolation"' in server
 
 assert "ctx32k-q4-unified-metal-gpu99-b4" in view
 assert "apiRuntime.gpuLayers = 99" in view
@@ -40,7 +40,7 @@ assert "adfffbe41b2cabcd51fff326ab045662265062bb" in workflow
 assert "rc126_build83_patch_prism_kv_sharding.py" in workflow
 assert "build-xcframework.sh ios-device" in workflow
 assert "RC1.26 Build 83 Prism Metal KV sharding contracts" in workflow
-assert "BonsaiLab-v1-RC1.26-build84-native-context-trace-unsigned.ipa" in workflow
-assert "BonsaiLab-iPad-v1-RC1.26-Build84-Native-Context-Trace" in workflow
+assert "BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa" in workflow
+assert "BonsaiLab-iPad-v1-RC1.26-Build85-Scheduler-Reserve-Isolation" in workflow
 
 print("RC1.26 Build 83 Prism Metal KV sharding contracts: PASS")
