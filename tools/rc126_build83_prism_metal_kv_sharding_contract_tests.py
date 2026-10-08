@@ -8,7 +8,7 @@ workflow = (ROOT / ".github/workflows/build-ios.yml").read_text(encoding="utf-8"
 patcher = (ROOT / "tools/rc126_build83_patch_prism_kv_sharding.py").read_text(encoding="utf-8")
 
 assert 'CURRENT_PROJECT_VERSION: "86"' in project
-assert 'RC126APIStartupLifecycle.begin(build: "85"' in view
+assert 'RC126APIStartupLifecycle.begin(build: "86"' in view
 assert "RC1.26 Build 86 Crash Forensics V2" in view
 assert '"build_id": "rc1.26-build86-crash-forensics-v2"' in server
 
