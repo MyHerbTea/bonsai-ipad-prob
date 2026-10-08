@@ -447,8 +447,8 @@ jobs:
               .github/workflows/build-ios.yml
           )"
 
-          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
-          grep -q 'BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
+          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build86-crash-forensics-v2-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
+          grep -q 'BonsaiLab-v1-RC1.26-build86-crash-forensics-v2-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
           if grep -q 'build75-api-cold-start-guard' <<< "$PACKAGE_BLOCK"; then
             echo "ERROR: Build 78 packaging leaked into Build 79 package step." >&2
             exit 1
@@ -576,17 +576,17 @@ jobs:
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.26-build86-crash-forensics-v2-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.26-build86-crash-forensics-v2-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build86-crash-forensics-v2-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: BonsaiLab-iPad-v1-RC1.26-Build86-Crash-Forensics-V2
           path: |
-            build/BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa
-            build/BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.26-build86-crash-forensics-v2-unsigned.ipa
+            build/BonsaiLab-v1-RC1.26-build86-crash-forensics-v2-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             RC1.20_RELEASE_ACCEPTANCE.md
             tools/rc126_phase2d_prefill_batch_arm.ps1
