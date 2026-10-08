@@ -94,7 +94,7 @@ assert (
     or "RC1.26 Build 80 Long-Context Tier Reload Fix" in view
     or "RC1.26 Build 81 32K Memory Squeeze" in view
     or "RC1.26 Build 82 Unified-Metal 32K Lab" in view
-    or "RC1.26 Build 85 Scheduler Reserve Isolation" in view
+    or "RC1.26 Build 86 Crash Forensics V2" in view
 )
 
 for marker in [
@@ -123,7 +123,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "80"' in project
     or 'CURRENT_PROJECT_VERSION: "81"' in project
     or 'CURRENT_PROJECT_VERSION: "82"' in project
-    or 'CURRENT_PROJECT_VERSION: "85"' in project
+    or 'CURRENT_PROJECT_VERSION: "86"' in project
 )
 assert "RC1.26 Phase 2C-1 fresh backend contracts" in workflow
 assert "tools/rc126_phase2c1_fresh_backend_contract_tests.py" in workflow
