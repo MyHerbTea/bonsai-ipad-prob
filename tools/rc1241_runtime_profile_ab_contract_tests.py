@@ -34,7 +34,7 @@ assert (
     or 'Text("1.0 · RC1.26 Build 80 Long-Context Tier Reload Fix")' in view
     or 'Text("1.0 · RC1.26 Build 81 32K Memory Squeeze")' in view
     or 'Text("1.0 · RC1.26 Build 82 Unified-Metal 32K Lab")' in view
-    or 'Text("1.0 · RC1.26 Build 85 Scheduler Reserve Isolation")' in view
+    or 'Text("1.0 · RC1.26 Build 86 Crash Forensics V2")' in view
 )
 assert 'Text("Safe").tag("safe")' in view
 assert 'Text("Flash").tag("ab_flash_only")' in view

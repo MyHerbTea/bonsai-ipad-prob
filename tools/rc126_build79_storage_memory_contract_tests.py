@@ -53,7 +53,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "80"' in project
     or 'CURRENT_PROJECT_VERSION: "81"' in project
     or 'CURRENT_PROJECT_VERSION: "82"' in project
-    or 'CURRENT_PROJECT_VERSION: "85"' in project
+    or 'CURRENT_PROJECT_VERSION: "86"' in project
 )
 assert 'CODE_SIGN_ENTITLEMENTS: "BonsaiLab/BonsaiLab.entitlements"' in project
 assert "Security.framework" in project
@@ -64,7 +64,7 @@ assert (
     or '"build_id": "rc1.26-build80-long-context-tier-reload-fix"' in server
     or '"build_id": "rc1.26-build81-32k-memory-squeeze"' in server
     or '"build_id": "rc1.26-build82-unified-metal-32k-lab"' in server
-    or '"build_id": "rc1.26-build85-scheduler-reserve-isolation"' in server
+    or '"build_id": "rc1.26-build86-crash-forensics-v2"' in server
 )
 assert "build79_kv_cache_type" in server
 assert "build79_effective_extended_va" in server
@@ -74,14 +74,14 @@ assert (
     or 'RC126APIStartupLifecycle.begin(build: "80")' in view
     or 'RC126APIStartupLifecycle.begin(build: "81")' in view
     or 'RC126APIStartupLifecycle.begin(build: "82")' in view
-    or 'RC126APIStartupLifecycle.begin(build: "85")' in view
+    or 'RC126APIStartupLifecycle.begin(build: "86")' in view
 )
 assert (
     "RC1.26 Build 79 Storage-Memory Long Context Lab" in view
     or "RC1.26 Build 80 Long-Context Tier Reload Fix" in view
     or "RC1.26 Build 81 32K Memory Squeeze" in view
     or "RC1.26 Build 82 Unified-Metal 32K Lab" in view
-    or "RC1.26 Build 85 Scheduler Reserve Isolation" in view
+    or "RC1.26 Build 86 Crash Forensics V2" in view
 )
 assert "RC1.26 Build 79 storage-memory long-context contracts" in workflow
 assert "tools/rc126_build79_storage_memory_contract_tests.py" in workflow
@@ -96,7 +96,7 @@ assert (
     or "BonsaiLab-v1-RC1.26-build80-long-context-tier-reload-fix-unsigned.ipa" in package_block
     or "BonsaiLab-v1-RC1.26-build81-32k-memory-squeeze-unsigned.ipa" in package_block
     or "BonsaiLab-v1-RC1.26-build82-unified-metal-32k-lab-unsigned.ipa" in package_block
-    or "BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa" in package_block
+    or "BonsaiLab-v1-RC1.26-build86-crash-forensics-v2-unsigned.ipa" in package_block
 )
 assert "build78-context-boundary-lab-unsigned.ipa" not in package_block
 
