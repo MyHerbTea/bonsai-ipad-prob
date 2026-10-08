@@ -30,7 +30,7 @@ assert (
     or "RC1.26 Build 80 Long-Context Tier Reload Fix" in view
     or "RC1.26 Build 81 32K Memory Squeeze" in view
     or "RC1.26 Build 82 Unified-Metal 32K Lab" in view
-    or "RC1.26 Build 88 Scheduler mmap Recovery" in view
+    or "RC1.26 Build 89 Compact Scheduler Metadata" in view
 )
 
 # A fresh vision encode must not begin while request-local KV from the previous
