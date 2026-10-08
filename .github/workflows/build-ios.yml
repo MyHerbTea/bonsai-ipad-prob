@@ -439,8 +439,8 @@ jobs:
               .github/workflows/build-ios.yml
           )"
 
-          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build84-native-context-trace-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
-          grep -q 'BonsaiLab-v1-RC1.26-build84-native-context-trace-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
+          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
+          grep -q 'BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
           if grep -q 'build75-api-cold-start-guard' <<< "$PACKAGE_BLOCK"; then
             echo "ERROR: Build 78 packaging leaked into Build 79 package step." >&2
             exit 1
@@ -557,24 +557,24 @@ jobs:
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
           Build 84 preserves the Build 82 effective runtime policy and patches Prism only for Qwen3.5 Metal KV at >=32K, allocating each full-attention layer KV in its own backend buffer.
-          Build 84 follows Build 82 evidence: model mmap/load completes with ~4974 MiB available but llama_init_from_model terminates. Prism groups Metal attention KV by buffer type into one owned MTLBuffer; Build 83 shards that allocation per full-attention layer only for Qwen3.5 >=32K.
+          Build 85 follows Build 84 real-device evidence: model mmap/load completes with ~4974 MiB available but llama_init_from_model terminates. Prism groups Metal attention KV by buffer type into one owned MTLBuffer; Build 83 shards that allocation per full-attention layer only for Qwen3.5 >=32K.
           Model and Vision Tower weights are NOT bundled in the IPA.
           INFO
           echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.26-build84-native-context-trace-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.26-build84-native-context-trace-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build84-native-context-trace-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: BonsaiLab-iPad-v1-RC1.26-Build85-Scheduler-Reserve-Isolation
           path: |
-            build/BonsaiLab-v1-RC1.26-build84-native-context-trace-unsigned.ipa
-            build/BonsaiLab-v1-RC1.26-build84-native-context-trace-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa
+            build/BonsaiLab-v1-RC1.26-build85-scheduler-reserve-isolation-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             RC1.20_RELEASE_ACCEPTANCE.md
             tools/rc126_phase2d_prefill_batch_arm.ps1
