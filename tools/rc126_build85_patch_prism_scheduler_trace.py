@@ -26,7 +26,7 @@ once('    const size_t max_nodes = this->graph_max_nodes(n_tokens);',
 '''    bonsai_build84_trace("BUILD85_GRAPH_MAX_NODES_BEGIN n_tokens=%u", n_tokens);
     const size_t max_nodes = this->graph_max_nodes(n_tokens);
     bonsai_build84_trace("BUILD85_GRAPH_MAX_NODES_DONE max_nodes=%zu", max_nodes);''',"max nodes")
-once('    gf_res_prev.reset(new llm_graph_result(max_nodes));\\n    gf_res_reserve.reset(new llm_graph_result(max_nodes));',
+once('    gf_res_prev.reset(new llm_graph_result(max_nodes));\n    gf_res_reserve.reset(new llm_graph_result(max_nodes));',
 '''    bonsai_build84_trace("BUILD85_GRAPH_RESULT_ALLOC_BEGIN");
     gf_res_prev.reset(new llm_graph_result(max_nodes));
     gf_res_reserve.reset(new llm_graph_result(max_nodes));
@@ -60,7 +60,7 @@ once('        auto * gf = graph_reserve(n_tokens, n_seqs, n_outputs_pp, mctx.get
 once('    LLAMA_LOG_INFO("%s: reserve took %.2f ms, sched copies = %d\\n",',
 '''    bonsai_build84_trace("BUILD85_SCHED_DONE");
     LLAMA_LOG_INFO("%s: reserve took %.2f ms, sched copies = %d\\n",''',"sched done")
-once('    ggml_backend_sched_reset(sched.get());\\n\\n    // when the scheduler is reset,',
+once('    ggml_backend_sched_reset(sched.get());\n\n    // when the scheduler is reset,',
 '''    bonsai_build84_trace("BUILD85_GRAPH_RESET_BEGIN n_tokens=%u", n_tokens);
     ggml_backend_sched_reset(sched.get());
     bonsai_build84_trace("BUILD85_GRAPH_RESET_DONE");
