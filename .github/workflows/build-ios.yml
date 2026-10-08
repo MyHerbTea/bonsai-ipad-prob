@@ -1,4 +1,4 @@
-name: Build Bonsai iPad Lab v1 RC1.26 Build 83 Prism Metal KV Sharding
+name: Build Bonsai iPad Lab v1 RC1.26 Build 84 Native Context Trace
 
 on:
   push:
@@ -21,6 +21,7 @@ on:
       - lab-v1-rc1-26-build82-unified-metal-v2
       - lab-v1-rc1-26-build82-unified-metal-v3
       - lab-v1-rc1-26-build83-prism-kv-sharding
+      - lab-v1-rc1-26-build84-native-context-crash-isolation
   workflow_dispatch:
 
 concurrency:
@@ -126,7 +127,7 @@ jobs:
           grep -q 'requireFullOutputBudget:' BonsaiLab/ProductionView.swift
           grep -q 'cleanupAfterRequestFailure' BonsaiLab/ProductionView.swift
           grep -q 'OpenAIMultimodalNormalizer' BonsaiLab/LocalOpenAIServer.swift
-          grep -q 'RC1.26 Build 83 Prism Metal KV Sharding' BonsaiLab/ProductionView.swift
+          grep -q 'RC1.26 Build 84 Native Context Trace' BonsaiLab/ProductionView.swift
           grep -q 'Live Vision Injection' BonsaiLab/ContentView.swift
           grep -q 'Text("MLX Vision Metrics")' BonsaiLab/ContentView.swift
           grep -q 'maxPixels: Int = 65_536' BonsaiLab/BonsaiMLXVisionSidecar.swift
@@ -409,12 +410,19 @@ jobs:
           set -euo pipefail
           python3 tools/rc126_build83_prism_metal_kv_sharding_contract_tests.py
 
-      - name: RC1.26 Build 83 packaging identity preflight
+      - name: RC1.26 Build 84 native trace contracts
         shell: bash
         run: |
           set -euo pipefail
-          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"83\"' project.yml)" -ge 1
-          grep -q '"rc1.26-build83-prism-metal-kv-sharding"' BonsaiLab/LocalOpenAIServer.swift
+          python3 tools/rc126_build84_native_trace_contract_tests.py
+          python3 -m py_compile tools/rc126_build84_patch_prism_native_trace.py
+
+      - name: RC1.26 Build 84 packaging identity preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"84\"' project.yml)" -ge 1
+          grep -q '"rc1.26-build84-native-context-trace"' BonsaiLab/LocalOpenAIServer.swift
           grep -q 'RC126APIStartupLifecycle.begin(build: \"83\")' BonsaiLab/ProductionView.swift
 
           PACKAGE_BLOCK="$(
@@ -423,13 +431,13 @@ jobs:
               .github/workflows/build-ios.yml
           )"
 
-          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build83-prism-metal-kv-sharding-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
-          grep -q 'BonsaiLab-v1-RC1.26-build83-prism-metal-kv-sharding-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
+          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build84-native-context-trace-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
+          grep -q 'BonsaiLab-v1-RC1.26-build84-native-context-trace-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
           if grep -q 'build75-api-cold-start-guard' <<< "$PACKAGE_BLOCK"; then
             echo "ERROR: Build 78 packaging leaked into Build 79 package step." >&2
             exit 1
           fi
-          echo "Build 83 packaging identity preflight: PASS"
+          echo "Build 84 packaging identity preflight: PASS"
 
       - name: Validate Build 79 entitlements source
         shell: bash
@@ -458,11 +466,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PRISM_DIR="/tmp/prism-build83"
+          PRISM_DIR="/tmp/prism-build84"
           rm -rf "$PRISM_DIR" Vendor/llama.xcframework
           git clone --filter=blob:none https://github.com/PrismML-Eng/llama.cpp.git "$PRISM_DIR"
           git -C "$PRISM_DIR" checkout adfffbe41b2cabcd51fff326ab045662265062bb
           python3 "$GITHUB_WORKSPACE/tools/rc126_build83_patch_prism_kv_sharding.py" "$PRISM_DIR/src/llama-kv-cache.cpp"
+          python3 "$GITHUB_WORKSPACE/tools/rc126_build84_patch_prism_native_trace.py" "$PRISM_DIR/src/llama-kv-cache.cpp" "$PRISM_DIR/src/llama-context.cpp"
+          grep -q 'BUILD84_KV_ALLOC_BEGIN' "$PRISM_DIR/src/llama-kv-cache.cpp"
+          grep -q 'BUILD84_CTX_MEMORY_BEGIN' "$PRISM_DIR/src/llama-context.cpp"
+          grep -q 'BONSAI_BUILD84_TRACE_PATH' "$PRISM_DIR/src/bonsai-build84-trace.h"
           grep -q 'BUILD83_METAL_KV_LAYER_SHARD' "$PRISM_DIR/src/llama-kv-cache.cpp"
           git -C "$PRISM_DIR" diff --check
           cmake --version
@@ -529,29 +541,29 @@ jobs:
           ditto "$APP" build/ipa/Payload/BonsaiLab.app
 
           cat > build/BUILD_INFO.txt <<'INFO'
-          Bonsai iPad Lab v1 RC1.26 Build 83 Prism Metal KV Sharding
+          Bonsai iPad Lab v1 RC1.26 Build 84 Native Context Trace
           Prism: prism-b10743-adfffbe
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
-          Build 83 preserves the Build 82 effective runtime policy and patches Prism only for Qwen3.5 Metal KV at >=32K, allocating each full-attention layer KV in its own backend buffer.
-          Build 83 follows Build 82 evidence: model mmap/load completes with ~4974 MiB available but llama_init_from_model terminates. Prism groups Metal attention KV by buffer type into one owned MTLBuffer; Build 83 shards that allocation per full-attention layer only for Qwen3.5 >=32K.
+          Build 84 preserves the Build 82 effective runtime policy and patches Prism only for Qwen3.5 Metal KV at >=32K, allocating each full-attention layer KV in its own backend buffer.
+          Build 84 follows Build 82 evidence: model mmap/load completes with ~4974 MiB available but llama_init_from_model terminates. Prism groups Metal attention KV by buffer type into one owned MTLBuffer; Build 83 shards that allocation per full-attention layer only for Qwen3.5 >=32K.
           Model and Vision Tower weights are NOT bundled in the IPA.
           INFO
           echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.26-build83-prism-metal-kv-sharding-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.26-build84-native-context-trace-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.26-build83-prism-metal-kv-sharding-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build83-prism-metal-kv-sharding-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.26-build84-native-context-trace-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build84-native-context-trace-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.26-Build83-Prism-Metal-KV-Sharding
+          name: BonsaiLab-iPad-v1-RC1.26-Build84-Native-Context-Trace
           path: |
-            build/BonsaiLab-v1-RC1.26-build83-prism-metal-kv-sharding-unsigned.ipa
-            build/BonsaiLab-v1-RC1.26-build83-prism-metal-kv-sharding-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.26-build84-native-context-trace-unsigned.ipa
+            build/BonsaiLab-v1-RC1.26-build84-native-context-trace-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             RC1.20_RELEASE_ACCEPTANCE.md
             tools/rc126_phase2d_prefill_batch_arm.ps1
