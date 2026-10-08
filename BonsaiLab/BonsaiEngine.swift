@@ -286,6 +286,44 @@ actor BonsaiEngine {
         mark("API_COLD_04_BACKEND_READY")
     }
 
+    // Native trace is enabled only for experimental >=32K context creation.
+    // Prism fsyncs each stage to survive process termination before Swift can catch errors.
+    private func beginBuild84NativeContextTrace(contextLength: Int) {
+        guard contextLength >= 32_768 else {
+            unsetenv("BONSAI_BUILD84_TRACE_PATH")
+            return
+        }
+        let directory = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        )[0]
+        let url = directory.appendingPathComponent(
+            "bonsai_build84_native_context_trace.txt"
+        )
+        do {
+            try FileManager.default.createDirectory(
+                at: directory,
+                withIntermediateDirectories: true
+            )
+            let header = "build=84\ncontext=\(contextLength)\nstarted=\(Date().timeIntervalSince1970)\n"
+            try header.write(to: url, atomically: true, encoding: .utf8)
+            setenv("BONSAI_BUILD84_TRACE_PATH", url.path, 1)
+            UserDefaults.standard.removeObject(
+                forKey: "BonsaiBuild84TraceSetupError"
+            )
+        } catch {
+            unsetenv("BONSAI_BUILD84_TRACE_PATH")
+            UserDefaults.standard.set(
+                error.localizedDescription,
+                forKey: "BonsaiBuild84TraceSetupError"
+            )
+        }
+    }
+
+    private func endBuild84NativeContextTrace() {
+        unsetenv("BONSAI_BUILD84_TRACE_PATH")
+    }
+
     func loadModel(url: URL, runtime: RuntimeConfig) throws -> ModelMetrics {
         let config = try runtime.validated()
         mark("MODEL_00_RESET_BEGIN")
@@ -438,6 +476,8 @@ actor BonsaiEngine {
         )
         UserDefaults.standard.synchronize()
         mark("MODEL_07_CONTEXT_CREATE_BEGIN")
+        beginBuild84NativeContextTrace(contextLength: config.context)
+        defer { endBuild84NativeContextTrace() }
         guard let loadedContext = llama_init_from_model(loadedModel, contextParams) else {
             mark("MODEL_07_CONTEXT_CREATE_NULL")
             llama_model_free(loadedModel)
@@ -2839,6 +2879,8 @@ actor BonsaiEngine {
             forKey: "BonsaiBuild81EffectiveThreads"
         )
 
+        beginBuild84NativeContextTrace(contextLength: validated.context)
+        defer { endBuild84NativeContextTrace() }
         guard let created = llama_init_from_model(model, params) else {
             throw LabError.contextCreateFailed
         }

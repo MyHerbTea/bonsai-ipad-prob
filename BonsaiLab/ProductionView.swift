@@ -1076,7 +1076,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 83 Prism Metal KV Sharding")
+                            Text("1.0 · RC1.26 Build 84 Native Context Trace")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -2460,6 +2460,31 @@ struct ProductionView: View {
             "=== END BONSAILAB DIAGNOSTIC SNAPSHOT ===",
         ]
 
+        // Read only a bounded suffix of the crash-persistent native file.
+        // This is available after relaunch even when context creation aborted.
+        let nativeTraceURL = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        )[0].appendingPathComponent("bonsai_build84_native_context_trace.txt")
+        var traceLines = [
+            "",
+            "[BUILD 84 NATIVE CONTEXT CRASH TRACE]",
+            "trace_setup_error=" + (defaults.string(
+                forKey: "BonsaiBuild84TraceSetupError"
+            ) ?? "none"),
+            "recovery_hint=Manually select 16384 API Context; 32768 remains experimental",
+        ]
+        if let contents = try? String(contentsOf: nativeTraceURL, encoding: .utf8) {
+            traceLines.append("trace_present=true")
+            traceLines += contents.split(separator: "\n")
+                .suffix(120)
+                .map(String.init)
+        } else {
+            traceLines.append("trace_present=false")
+        }
+        if let end = lines.firstIndex(of: "=== END BONSAILAB DIAGNOSTIC SNAPSHOT ===") {
+            lines.insert(contentsOf: traceLines, at: end)
+        }
         lines.removeAll {
             $0.contains("Optional(")
         }
@@ -3481,9 +3506,9 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "83")
+        RC126APIStartupLifecycle.begin(build: "84")
         busy = true
-        status = "正在执行 RC1.26 Build 83 Prism Metal KV Sharding + API 冷启动保护…"
+        status = "正在执行 RC1.26 Build 84 Native Context Trace + API 冷启动保护…"
         detail = """
         Build 60 的 API/视觉路径保持不变。
         Build 82 保留已验证 16K 路径；32K/64K 改为统一 Metal 后端：Q4 KV、mmap、全层 Metal、KQV/Op offload 与小 batch，避免 partial-offload graph split。
@@ -4273,7 +4298,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 83 Long Context API Runtime 已就绪"
+                        "RC1.26 Build 84 Long Context API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
