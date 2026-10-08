@@ -1228,6 +1228,9 @@ final class LocalOpenAIServer: ObservableObject {
                 defaults.integer(forKey: "BonsaiBuild82EngineContextBatch"),
             "build82_engine_context_ubatch":
                 defaults.integer(forKey: "BonsaiBuild82EngineContextUBatch"),
+            "build83_prism_kv_layer_sharding": true,
+            "build83_prism_base_commit":
+                "adfffbe41b2cabcd51fff326ab045662265062bb",
             "ggml_metal_tensor_disable":
                 tensorDisable ?? "unset",
             "metal_tensor_prefill_requested": requested,
@@ -1617,7 +1620,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build82-unified-metal-32k-lab",
+            "build_id": "rc1.26-build83-prism-metal-kv-sharding",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",
