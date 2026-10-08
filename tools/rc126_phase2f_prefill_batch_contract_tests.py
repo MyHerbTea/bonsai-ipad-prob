@@ -29,7 +29,7 @@ assert (
     or "RC1.26 Build 80 Long-Context Tier Reload Fix" in view
     or "RC1.26 Build 81 32K Memory Squeeze" in view
     or "RC1.26 Build 82 Unified-Metal 32K Lab" in view
-    or "RC1.26 Build 83 Prism Metal KV Sharding" in view
+    or "RC1.26 Build 84 Native Context Trace" in view
 )
 
 for marker in [
@@ -52,7 +52,7 @@ assert (
     or '"rc1.26-build80-long-context-tier-reload-fix"' in server
     or '"rc1.26-build81-32k-memory-squeeze"' in server
     or '"rc1.26-build82-unified-metal-32k-lab"' in server
-    or '"rc1.26-build83-prism-metal-kv-sharding"' in server
+    or '"rc1.26-build84-native-context-trace"' in server
 )
 
 for marker in [
@@ -75,7 +75,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "80"' in project
     or 'CURRENT_PROJECT_VERSION: "81"' in project
     or 'CURRENT_PROJECT_VERSION: "82"' in project
-    or 'CURRENT_PROJECT_VERSION: "83"' in project
+    or 'CURRENT_PROJECT_VERSION: "84"' in project
 )
 assert "RC1.26 Phase 2F prefill batch contracts" in workflow
 assert "tools/rc126_phase2f_prefill_batch_arm.ps1" in workflow
