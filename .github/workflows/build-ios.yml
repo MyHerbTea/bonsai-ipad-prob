@@ -523,7 +523,7 @@ jobs:
           file "$FRAMEWORK"
           otool -L "$APP/BonsaiLab"
           test "$(plutil -extract CFBundleShortVersionString raw -o - "$APP/Info.plist")" = "1.0.0"
-          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")"  = "84"
+          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "84"
           nm -gU "$FRAMEWORK" > build/llama-symbols.txt
           grep -q '_mtmd_init_from_file' build/llama-symbols.txt
           grep -q '_mtmd_helper_eval_chunks' build/llama-symbols.txt
