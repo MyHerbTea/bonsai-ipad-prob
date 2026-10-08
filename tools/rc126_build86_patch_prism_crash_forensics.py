@@ -56,7 +56,7 @@ ctx=patch_one(ctx,
         }
     } else if ((bonsai_build84_trace("BUILD85_BACKEND_RESERVE_BEGIN"), false) ||''',
 '''        } else {
-            bonsai_build84_trace("BUILD86_CONTEXT_SPLIT_BEGIN nodes=%d leafs=%d", ggml_graph_n_nodes(gf), gf->n_leafs);
+            bonsai_build84_trace("BUILD86_CONTEXT_SPLIT_BEGIN nodes=%d", ggml_graph_n_nodes(gf));
             ggml_backend_sched_split_graph(sched.get(), gf);
             bonsai_build84_trace("BUILD86_CONTEXT_SPLIT_DONE splits=%d", ggml_backend_sched_get_n_splits(sched.get()));
         }
