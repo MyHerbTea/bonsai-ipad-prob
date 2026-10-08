@@ -1230,6 +1230,7 @@ final class LocalOpenAIServer: ObservableObject {
                 defaults.integer(forKey: "BonsaiBuild82EngineContextUBatch"),
             "build83_prism_kv_layer_sharding": true,
             "build84_native_context_trace_supported": true,
+            "build85_scheduler_reserve_trace_supported": true,
             "build83_prism_base_commit":
                 "adfffbe41b2cabcd51fff326ab045662265062bb",
             "ggml_metal_tensor_disable":
@@ -1621,7 +1622,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build84-native-context-trace",
+            "build_id": "rc1.26-build85-scheduler-reserve-isolation",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",

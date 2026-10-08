@@ -305,7 +305,7 @@ actor BonsaiEngine {
                 at: directory,
                 withIntermediateDirectories: true
             )
-            let header = "build=84\ncontext=\(contextLength)\nstarted=\(Date().timeIntervalSince1970)\n"
+            let header = "build=85\ncontext=\(contextLength)\nstarted=\(Date().timeIntervalSince1970)\n"
             try header.write(to: url, atomically: true, encoding: .utf8)
             setenv("BONSAI_BUILD84_TRACE_PATH", url.path, 1)
             UserDefaults.standard.removeObject(

@@ -1076,7 +1076,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 84 Native Context Trace")
+                            Text("1.0 · RC1.26 Build 85 Scheduler Reserve Isolation")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -2469,6 +2469,7 @@ struct ProductionView: View {
         var traceLines = [
             "",
             "[BUILD 84 NATIVE CONTEXT CRASH TRACE]",
+            "build85_scope=Scheduler initialization, fused GDN, graph-build, backend-reserve",
             "trace_setup_error=" + (defaults.string(
                 forKey: "BonsaiBuild84TraceSetupError"
             ) ?? "none"),
@@ -3506,9 +3507,9 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "84")
+        RC126APIStartupLifecycle.begin(build: "85")
         busy = true
-        status = "正在执行 RC1.26 Build 84 Native Context Trace + API 冷启动保护…"
+        status = "正在执行 RC1.26 Build 85 Scheduler Reserve Isolation + API 冷启动保护…"
         detail = """
         Build 60 的 API/视觉路径保持不变。
         Build 82 保留已验证 16K 路径；32K/64K 改为统一 Metal 后端：Q4 KV、mmap、全层 Metal、KQV/Op offload 与小 batch，避免 partial-offload graph split。
@@ -4298,7 +4299,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 84 Long Context API Runtime 已就绪"
+                        "RC1.26 Build 85 Long Context API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
