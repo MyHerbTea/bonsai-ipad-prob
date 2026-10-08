@@ -6,11 +6,11 @@ view = (root/"BonsaiLab/ProductionView.swift").read_text(encoding="utf-8")
 server = (root/"BonsaiLab/LocalOpenAIServer.swift").read_text(encoding="utf-8")
 workflow = (root/".github/workflows/build-ios.yml").read_text(encoding="utf-8")
 patch = (root/"tools/rc126_build88_patch_prism_mmap_recovery.py").read_text(encoding="utf-8")
-assert 'CURRENT_PROJECT_VERSION: "88"' in (root/"project.yml").read_text()
-assert 'RC126APIStartupLifecycle.begin(build: "88")' in view
-assert '"build_id": "rc1.26-build88-scheduler-mmap-recovery"' in server
+assert 'CURRENT_PROJECT_VERSION: "89"' in (root/"project.yml").read_text()
+assert 'RC126APIStartupLifecycle.begin(build: "89")' in view
+assert '"build_id": "rc1.26-build89-compact-scheduler-metadata"' in server
 assert '"build88_scheduler_mmap_recovery": true' in server
-assert "build=88" in engine
+assert "build=89" in engine
 assert "ctx16k-build79-validated" in view
 assert "min(apiRuntime.gpuLayers, 56)" in view
 assert 'guard contextLength >= 32_768 else' in engine
@@ -24,5 +24,5 @@ assert "BUILD88_SCHED_NEW_NULL_CTX_ABORT_PREVENTED" in patch
 assert "throw std::runtime_error" in patch
 assert "tools/rc126_build88_patch_prism_mmap_recovery.py" in workflow
 assert "tools/rc126_build88_scheduler_mmap_contract_tests.py" in workflow
-assert "BonsaiLab-v1-RC1.26-build88-scheduler-mmap-recovery-unsigned.ipa" in workflow
+assert "BonsaiLab-v1-RC1.26-build89-compact-scheduler-metadata-unsigned.ipa" in workflow
 print("RC1.26 Build88 scheduler mmap recovery contracts: PASS")
