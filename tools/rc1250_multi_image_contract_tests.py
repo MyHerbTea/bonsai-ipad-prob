@@ -69,7 +69,7 @@ assert (
     or 'Text("1.0 · RC1.26 Build 80 Long-Context Tier Reload Fix")' in view
     or 'Text("1.0 · RC1.26 Build 81 32K Memory Squeeze")' in view
     or 'Text("1.0 · RC1.26 Build 82 Unified-Metal 32K Lab")' in view
-    or 'Text("1.0 · RC1.26 Build 86 Crash Forensics V2")' in view
+    or 'Text("1.0 · RC1.26 Build 87 Scheduler Context Guard")' in view
 )
 
 # Production runtime remains the proven Full profile by default.

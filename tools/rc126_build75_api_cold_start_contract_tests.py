@@ -39,7 +39,7 @@ assert (
     or 'RC126APIStartupLifecycle.begin(build: "80")' in view
     or 'RC126APIStartupLifecycle.begin(build: "81")' in view
     or 'RC126APIStartupLifecycle.begin(build: "82")' in view
-    or 'RC126APIStartupLifecycle.begin(build: "86")' in view
+    or 'RC126APIStartupLifecycle.begin(build: "87")' in view
 )
 assert (
     'RC1.26 Build 75 API Cold-Start Guard' in view
@@ -50,7 +50,7 @@ assert (
     or 'RC1.26 Build 80 Long-Context Tier Reload Fix' in view
     or 'RC1.26 Build 81 32K Memory Squeeze' in view
     or 'RC1.26 Build 82 Unified-Metal 32K Lab' in view
-    or 'RC1.26 Build 86 Crash Forensics V2' in view
+    or 'RC1.26 Build 87 Scheduler Context Guard' in view
 )
 assert (
     '"rc1.26-build75-api-cold-start-guard"' in server
@@ -61,7 +61,7 @@ assert (
     or '"rc1.26-build80-long-context-tier-reload-fix"' in server
     or '"rc1.26-build81-32k-memory-squeeze"' in server
     or '"rc1.26-build82-unified-metal-32k-lab"' in server
-    or '"rc1.26-build86-crash-forensics-v2"' in server
+    or '"rc1.26-build87-scheduler-context-guard"' in server
 )
 
 for marker in [
@@ -104,7 +104,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "80"' in project
     or 'CURRENT_PROJECT_VERSION: "81"' in project
     or 'CURRENT_PROJECT_VERSION: "82"' in project
-    or 'CURRENT_PROJECT_VERSION: "86"' in project
+    or 'CURRENT_PROJECT_VERSION: "87"' in project
 )
 assert "RC1.26 Build 75 cold-start guard contracts" in workflow
 assert "tools/rc126_build75_api_cold_start_probe.ps1" in workflow
