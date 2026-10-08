@@ -1076,7 +1076,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 82 Unified-Metal 32K Lab")
+                            Text("1.0 · RC1.26 Build 83 Prism Metal KV Sharding")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -2360,7 +2360,10 @@ struct ProductionView: View {
             "api_kv_unified=true",
             "api_load_mode=mmap",
             "",
-            "[BUILD 82 EFFECTIVE LONG CONTEXT]",
+            "[BUILD 83 EFFECTIVE LONG CONTEXT]",
+            "prism_base_commit=adfffbe41b2cabcd51fff326ab045662265062bb",
+            "prism_metal_kv_layer_sharding=true",
+            "prism_metal_kv_layer_sharding_scope=qwen35-metal-kv>=32768",
             "profile=" + (defaults.string(forKey: "BonsaiBuild82UnifiedMetalProfile") ?? "unknown"),
             "policy_source=" + (defaults.string(forKey: "BonsaiBuild80PolicySource") ?? "unknown"),
             "target_context=" + String(defaults.integer(forKey: "BonsaiBuild80TargetContext")),
@@ -3478,9 +3481,9 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "82")
+        RC126APIStartupLifecycle.begin(build: "83")
         busy = true
-        status = "正在执行 RC1.26 Build 82 Unified-Metal 32K Lab + API 冷启动保护…"
+        status = "正在执行 RC1.26 Build 83 Prism Metal KV Sharding + API 冷启动保护…"
         detail = """
         Build 60 的 API/视觉路径保持不变。
         Build 82 保留已验证 16K 路径；32K/64K 改为统一 Metal 后端：Q4 KV、mmap、全层 Metal、KQV/Op offload 与小 batch，避免 partial-offload graph split。
@@ -4270,7 +4273,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 82 Long Context API Runtime 已就绪"
+                        "RC1.26 Build 83 Long Context API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
