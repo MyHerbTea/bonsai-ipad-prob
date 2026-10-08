@@ -1231,6 +1231,7 @@ final class LocalOpenAIServer: ObservableObject {
             "build83_prism_kv_layer_sharding": true,
             "build84_native_context_trace_supported": true,
             "build85_scheduler_reserve_trace_supported": true,
+            "build86_crash_forensics_v2": true,
             "build83_prism_base_commit":
                 "adfffbe41b2cabcd51fff326ab045662265062bb",
             "ggml_metal_tensor_disable":
@@ -1622,7 +1623,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build85-scheduler-reserve-isolation",
+            "build_id": "rc1.26-build86-crash-forensics-v2",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",

@@ -1076,7 +1076,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 85 Scheduler Reserve Isolation")
+                            Text("1.0 · RC1.26 Build 86 Crash Forensics V2")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -1522,6 +1522,33 @@ struct ProductionView: View {
                                     snapshot
                             }
                             .buttonStyle(.borderedProminent)
+
+                            Button("复制完整原生崩溃追踪（当前及上次）") {
+                                let folder = FileManager.default.urls(
+                                    for: .applicationSupportDirectory,
+                                    in: .userDomainMask
+                                )[0]
+                                let names = [
+                                    "bonsai_build84_native_context_trace.txt",
+                                    "bonsai_build86_previous_native_trace.txt",
+                                ]
+                                var export = [
+                                    "=== BONSAILAB BUILD 86 COMPLETE NATIVE TRACE ===",
+                                    "privacy=NO_MODEL_DATA_NO_PROMPTS_NO_API_KEYS",
+                                ]
+                                for name in names {
+                                    let url = folder.appendingPathComponent(name)
+                                    export.append("[FILE \(name)]")
+                                    export.append(
+                                        (try? String(contentsOf: url, encoding: .utf8))
+                                            ?? "not_available"
+                                    )
+                                }
+                                export.append("=== END COMPLETE NATIVE TRACE ===")
+                                UIPasteboard.general.string =
+                                    export.joined(separator: "\n")
+                            }
+                            .buttonStyle(.bordered)
 
                             Text(
                                 "一次收集 API、模型、Vision、阶段、内存与最近一次 API Vision Metrics；不包含 API Key、原始图片、base64 或 prompt 正文。"
@@ -2460,8 +2487,9 @@ struct ProductionView: View {
             "=== END BONSAILAB DIAGNOSTIC SNAPSHOT ===",
         ]
 
-        // Read only a bounded suffix of the crash-persistent native file.
-        // This is available after relaunch even when context creation aborted.
+        // Build86 crash forensics: summarize the *complete* durable trace,
+        // preserving the header and the ending without silently dropping evidence.
+        // A separate "copy full trace" action exports every event.
         let nativeTraceURL = FileManager.default.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
@@ -2469,20 +2497,61 @@ struct ProductionView: View {
         var traceLines = [
             "",
             "[BUILD 84 NATIVE CONTEXT CRASH TRACE]",
-            "build85_scope=Scheduler initialization, fused GDN, graph-build, backend-reserve",
+            "[BUILD 86 FORENSIC SUMMARY]",
+            "trace_format=2",
+            "trace_scope=fused-probe, ggml scheduler passes 1-5, backend assignments",
             "trace_setup_error=" + (defaults.string(
                 forKey: "BonsaiBuild84TraceSetupError"
             ) ?? "none"),
             "recovery_hint=Manually select 16384 API Context; 32768 remains experimental",
+            "os_termination_cause=unknown_without_iPadOS_ips",
         ]
         if let contents = try? String(contentsOf: nativeTraceURL, encoding: .utf8) {
-            traceLines.append("trace_present=true")
-            traceLines += contents.split(separator: "\n")
-                .suffix(120)
-                .map(String.init)
+            let events = contents.split(separator: "\n").map(String.init)
+            let nativeEvents = events.filter { $0.hasPrefix("BUILD") }
+            let lastNative = nativeEvents.last ?? "none"
+            let lastProbe = nativeEvents.last {
+                $0.hasPrefix("BUILD86_FUSED_PROBE_BEGIN")
+            } ?? "none"
+            let lastSplit = nativeEvents.last {
+                $0.hasPrefix("BUILD86_SPLIT_")
+            } ?? "none"
+            let completed = nativeEvents.contains {
+                $0.hasPrefix("BUILD84_CTX_SCHED_DONE")
+            }
+            traceLines += [
+                "trace_present=true",
+                "trace_bytes=\(contents.utf8.count)",
+                "trace_total_lines=\(events.count)",
+                "trace_native_events=\(nativeEvents.count)",
+                "trace_context_completed=\(completed)",
+                "trace_last_native_event=\(lastNative)",
+                "trace_last_fused_probe=\(lastProbe)",
+                "trace_last_split_event=\(lastSplit)",
+            ]
+            if events.count <= 320 {
+                traceLines += events
+                traceLines.append("trace_display_omitted_lines=0")
+            } else {
+                let headerCount = 24
+                let tailCount = 256
+                traceLines += Array(events.prefix(headerCount))
+                traceLines.append(
+                    "trace_display_omitted_lines=\(events.count - headerCount - tailCount)"
+                )
+                traceLines += Array(events.suffix(tailCount))
+                traceLines.append(
+                    "trace_export_hint=Use Copy Full Native Trace for all events"
+                )
+            }
         } else {
             traceLines.append("trace_present=false")
         }
+        let priorTrace = nativeTraceURL.deletingLastPathComponent()
+            .appendingPathComponent("bonsai_build86_previous_native_trace.txt")
+        traceLines.append(
+            "previous_native_trace_present=\(FileManager.default.fileExists(atPath: priorTrace.path))"
+        )
         if let end = lines.firstIndex(of: "=== END BONSAILAB DIAGNOSTIC SNAPSHOT ===") {
             lines.insert(contentsOf: traceLines, at: end)
         }
@@ -3507,9 +3576,9 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "85")
+        RC126APIStartupLifecycle.begin(build: "86")
         busy = true
-        status = "正在执行 RC1.26 Build 85 Scheduler Reserve Isolation + API 冷启动保护…"
+        status = "正在执行 RC1.26 Build 86 Crash Forensics V2 + API 冷启动保护…"
         detail = """
         Build 60 的 API/视觉路径保持不变。
         Build 82 保留已验证 16K 路径；32K/64K 改为统一 Metal 后端：Q4 KV、mmap、全层 Metal、KQV/Op offload 与小 batch，避免 partial-offload graph split。
@@ -4299,7 +4368,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 85 Long Context API Runtime 已就绪"
+                        "RC1.26 Build 86 Long Context API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()

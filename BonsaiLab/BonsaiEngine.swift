@@ -305,7 +305,16 @@ actor BonsaiEngine {
                 at: directory,
                 withIntermediateDirectories: true
             )
-            let header = "build=85\ncontext=\(contextLength)\nstarted=\(Date().timeIntervalSince1970)\n"
+            let header = "build=86\ntrace_format=2\ncontext=\(contextLength)\nstarted=\(Date().timeIntervalSince1970)\n"
+            // Preserve last attempt even when a new 32K run is started.
+            // The diagnostic UI can export both traces after a crash.
+            let previous = directory.appendingPathComponent(
+                "bonsai_build86_previous_native_trace.txt"
+            )
+            if FileManager.default.fileExists(atPath: url.path) {
+                try? FileManager.default.removeItem(at: previous)
+                try? FileManager.default.copyItem(at: url, to: previous)
+            }
             try header.write(to: url, atomically: true, encoding: .utf8)
             setenv("BONSAI_BUILD84_TRACE_PATH", url.path, 1)
             UserDefaults.standard.removeObject(
