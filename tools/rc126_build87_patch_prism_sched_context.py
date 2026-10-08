@@ -53,6 +53,7 @@ exact(
 
 exact(
 '''    ggml_free(sched->ctx);
+
     sched->ctx = ggml_init(params);
     if (sched->ctx == NULL) {
         GGML_ABORT("%s: failed to initialize context\\n", __func__);
