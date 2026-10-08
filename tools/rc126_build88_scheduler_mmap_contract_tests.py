@@ -16,7 +16,7 @@ assert "min(apiRuntime.gpuLayers, 56)" in view
 assert 'guard contextLength >= 32_768 else' in engine
 assert "BONSAI_BUILD84_TRACE_PATH" in patch
 assert "MAP_PRIVATE | MAP_ANON" in patch
-assert 'if (sched->context_buffer == NULL && std::getenv("BONSAI_BUILD84_TRACE_PATH") != NULL)' in patch
+assert 'if (sched->context_buffer == NULL && getenv("BONSAI_BUILD84_TRACE_PATH") != NULL)' in patch
 assert "BUILD88_MMAP_BEGIN" in patch and "BUILD88_MMAP_SUCCESS" in patch
 assert "BUILD88_MMAP_FAILURE" in patch and "BUILD88_SCHED_ALLOC_EXHAUSTED" in patch
 assert "context_buffer_mmap = true" in patch and "munmap(sched->context_buffer, sched->context_buffer_size)" in patch

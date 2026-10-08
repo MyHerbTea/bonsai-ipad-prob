@@ -305,7 +305,7 @@ actor BonsaiEngine {
                 at: directory,
                 withIntermediateDirectories: true
             )
-            let header = "build=87\ntrace_format=2\ncontext=\(contextLength)\nstarted=\(Date().timeIntervalSince1970)\n"
+            let header = "build=88\ntrace_format=2\ncontext=\(contextLength)\nstarted=\(Date().timeIntervalSince1970)\n"
             // Preserve last attempt even when a new 32K run is started.
             // The diagnostic UI can export both traces after a crash.
             let previous = directory.appendingPathComponent(

@@ -52,7 +52,7 @@ backend = once(backend,
     // 32K-only recovery: anonymous mmap reserves a contiguous virtual range
     // without eagerly committing the entire worst-case graph metadata pool.
     // Graph scheduler semantics and maximum capacity are unchanged.
-    if (sched->context_buffer == NULL && std::getenv("BONSAI_BUILD84_TRACE_PATH") != NULL) {
+    if (sched->context_buffer == NULL && getenv("BONSAI_BUILD84_TRACE_PATH") != NULL) {
         bonsai_build84_trace("BUILD88_MMAP_BEGIN bytes=%zu", sched->context_buffer_size);
         void * mapped = mmap(NULL, sched->context_buffer_size,
                             PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
