@@ -1234,6 +1234,7 @@ final class LocalOpenAIServer: ObservableObject {
             "build86_crash_forensics_v2": true,
             "build87_sched_context_trace_supported": true,
             "build88_scheduler_mmap_recovery": true,
+            "build89_compact_scheduler_metadata": true,
             "build83_prism_base_commit":
                 "adfffbe41b2cabcd51fff326ab045662265062bb",
             "ggml_metal_tensor_disable":
@@ -1625,7 +1626,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build88-scheduler-mmap-recovery",
+            "build_id": "rc1.26-build89-compact-scheduler-metadata",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",

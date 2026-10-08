@@ -1076,7 +1076,7 @@ struct ProductionView: View {
                                 .font(.title2.bold())
                             Text("本地 · 离线 · Vision")
                                 .foregroundStyle(.secondary)
-                            Text("1.0 · RC1.26 Build 88 Scheduler mmap Recovery")
+                            Text("1.0 · RC1.26 Build 89 Compact Scheduler Metadata")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -3576,9 +3576,9 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "88")
+        RC126APIStartupLifecycle.begin(build: "89")
         busy = true
-        status = "正在执行 RC1.26 Build 88 Scheduler mmap Recovery + API 冷启动保护…"
+        status = "正在执行 RC1.26 Build 89 Compact Scheduler Metadata + API 冷启动保护…"
         detail = """
         Build 60 的 API/视觉路径保持不变。
         Build 82 保留已验证 16K 路径；32K/64K 改为统一 Metal 后端：Q4 KV、mmap、全层 Metal、KQV/Op offload 与小 batch，避免 partial-offload graph split。
