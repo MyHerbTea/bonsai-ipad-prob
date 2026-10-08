@@ -8,7 +8,7 @@ project = (ROOT / "project.yml").read_text(encoding="utf-8")
 workflow = (ROOT / ".github/workflows/build-ios.yml").read_text(encoding="utf-8")
 
 assert ('CURRENT_PROJECT_VERSION: "82"' in project or 'CURRENT_PROJECT_VERSION: "85"' in project)
-assert ('RC126APIStartupLifecycle.begin(build: "82")' in view or 'RC126APIStartupLifecycle.begin(build: "84"' in view)
+assert ('RC126APIStartupLifecycle.begin(build: "82")' in view or 'RC126APIStartupLifecycle.begin(build: "85"' in view)
 assert ("RC1.26 Build 82 Unified-Metal 32K Lab" in view or "RC1.26 Build 85 Scheduler Reserve Isolation" in view)
 assert ('"build_id": "rc1.26-build82-unified-metal-32k-lab"' in server or '"build_id": "rc1.26-build85-scheduler-reserve-isolation"' in server)
 assert "private func applyBuild82LongContextPolicy(" in view
