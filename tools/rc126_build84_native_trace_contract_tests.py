@@ -7,7 +7,7 @@ workflow=(root/".github/workflows/build-ios.yml").read_text()
 project=(root/"project.yml").read_text()
 patch=(root/"tools/rc126_build84_patch_prism_native_trace.py").read_text()
 assert ('CURRENT_PROJECT_VERSION: "94"' in project or 'CURRENT_PROJECT_VERSION: "95"' in project)
-assert 'RC126APIStartupLifecycle.begin(build: "94"' in view
+assert ('RC126APIStartupLifecycle.begin(build: "94"' in view or 'RC126APIStartupLifecycle.begin(build: "95"' in view)
 assert ('"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server or '"build_id": "rc1.26-build95-native-k1-ptq1-dense5"' in server)
 assert "[BUILD 84 NATIVE CONTEXT CRASH TRACE]" in view
 assert "trace_present=false" in view and "trace_setup_error=" in view
@@ -22,5 +22,5 @@ assert "BUILD84_KV_ALLOC_BEGIN" in patch
 assert "BUILD84_KV_CLEAR_BEGIN" in patch
 assert "BUILD84_CTX_MEMORY_BEGIN" in patch and "BUILD84_CTX_SCHED_BEGIN" in patch
 assert "::fsync(fd)" in patch and "BONSAI_BUILD84_TRACE_PATH" in patch
-assert "BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa" in workflow
+assert ("BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa" in workflow or "BonsaiLab-v1-RC1.26-build95-native-k1-ptq1-dense5-unsigned.ipa" in workflow)
 print("RC1.26 Build 84 native trace contracts: PASS")
