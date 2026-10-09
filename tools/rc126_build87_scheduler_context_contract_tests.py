@@ -6,9 +6,9 @@ v=(root/"BonsaiLab/ProductionView.swift").read_text()
 srv=(root/"BonsaiLab/LocalOpenAIServer.swift").read_text()
 flow=(root/".github/workflows/build-ios.yml").read_text()
 patch=(root/"tools/rc126_build87_patch_prism_sched_context.py").read_text()
-assert 'CURRENT_PROJECT_VERSION: "89"' in (root/"project.yml").read_text()
-assert 'RC126APIStartupLifecycle.begin(build: "89")' in v
-assert '"build_id": "rc1.26-build89-compact-scheduler-metadata"' in srv
+assert 'CURRENT_PROJECT_VERSION: "90"' in (root/"project.yml").read_text()
+assert 'RC126APIStartupLifecycle.begin(build: "90")' in v
+assert '"build_id": "rc1.26-build90-certification-p1"' in srv
 assert "build87_sched_context_trace_supported" in srv
 assert "build=89" in e
 assert 'guard contextLength >= 32_768 else' in e
@@ -23,7 +23,7 @@ assert "BUILD87_SPLIT_RESET_DONE" in patch
 assert "BUILD87_SPLIT_UID_DONE" in patch
 assert "tools/rc126_build87_patch_prism_sched_context.py" in flow
 assert "tools/rc126_build87_scheduler_context_contract_tests.py" in flow
-assert "BonsaiLab-v1-RC1.26-build89-compact-scheduler-metadata-unsigned.ipa" in flow
+assert "BonsaiLab-v1-RC1.26-build90-certification-p1-unsigned.ipa" in flow
 assert "tools/rc126_build86_patch_prism_crash_forensics.py" in flow
 assert "ctx16k-build79-validated" in v and "min(apiRuntime.gpuLayers, 56)" in v
 print("RC1.26 Build87 scheduler context forensics contracts: PASS")
