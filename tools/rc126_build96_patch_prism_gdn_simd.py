@@ -39,7 +39,7 @@ def main():
     assert gdn.count("s_k = simd_sum(s_k);") == 1, "unexpected original GDN reduction"
     assert gdn.count("y = simd_sum(y);") == 1, "unexpected original GDN output reduction"
     patch_text = patch.read_text(encoding="utf-8")
-    changed = [line[11:] for line in patch_text.splitlines() if line.startswith("diff --git a/")]
+    changed = [line[len("diff --git a/"):].split(" b/", 1)[0] for line in patch_text.splitlines() if line.startswith("diff --git a/")]
     assert changed == list(FILES), f"patch changed unexpected source files: {changed}"
     assert "LANES_PER_ROW = 8" in patch_text and "(4 * nsg)" in patch_text
 
