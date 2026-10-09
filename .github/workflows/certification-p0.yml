@@ -1,0 +1,31 @@
+name: Bonsai 32K Certification Windows Runner P0
+on:
+  push:
+    branches:
+      - lab-v1-rc1-26-certification-p0-windows-runner
+    paths:
+      - "device_tests/**"
+      - ".github/workflows/certification-p0.yml"
+      - "docs/backburner-integration/RC126_BUILD89_CERTIFICATION_P0.md"
+  workflow_dispatch:
+jobs:
+  runner-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile Python
+        run: python -m py_compile device_tests/certify.py device_tests/test_certify.py
+      - name: Loopback mock API and redaction contracts
+        run: python -m unittest discover -s device_tests -p "test_*.py" -v
+      - name: Assert Build89 frozen product files remain unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --quiet 4245e99767c1f09b5b07efe636ebc45a29b1ec61 HEAD -- \
+            BonsaiLab/ .github/workflows/build-ios.yml project.yml \
+            tools/rc126_build89_patch_prism_compact_scheduler.py
+          echo "P0 Build89 source isolation: PASS"

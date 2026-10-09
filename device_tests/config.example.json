@@ -1,0 +1,8 @@
+{
+  "base_url": "http://IPAD_IP:8080/v1",
+  "model": "bonsai-2-27b-local",
+  "api_key": "REPLACE_ONLY_IN_LOCAL_FILE",
+  "context_window": 32768,
+  "server_max_output_tokens": 256,
+  "build_id": "rc1.26-build89-compact-scheduler-metadata"
+}
