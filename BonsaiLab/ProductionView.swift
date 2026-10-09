@@ -3293,8 +3293,13 @@ struct ProductionView: View {
             // identical, so partial offload is not buying discrete-GPU-like
             // memory savings. Prefer one Metal backend and avoid CPU/Metal
             // scheduler splits for the 32K experiment.
-            apiRuntime.batch = min(apiRuntime.batch, 4)
-            apiRuntime.ubatch = min(apiRuntime.ubatch, 4)
+            // Build93: only 32768 enters the guarded 8/8 candidate. A
+            // prior incomplete candidate or startup error selects 4/4.
+            // Other 32K+ contexts retain their Build92 shape.
+            let trial = Build93BatchTrialPolicy.select(context: context)
+            let batchCap = trial == .candidate8 ? 8 : 4
+            apiRuntime.batch = min(apiRuntime.batch, batchCap)
+            apiRuntime.ubatch = min(apiRuntime.ubatch, batchCap)
             apiRuntime.gpuLayers = 99
             apiRuntime.offloadKQV = true
             apiRuntime.opOffload = true
@@ -3345,7 +3350,9 @@ struct ProductionView: View {
         if context >= 65_536 {
             build82Profile = "ctx64k-q4-unified-metal-gpu99-b2"
         } else if context >= 32_768 {
-            build82Profile = "ctx32k-q4-unified-metal-gpu99-b4"
+            build82Profile = context == 32_768
+                ? "ctx32k-q4-unified-metal-gpu99-b\(apiRuntime.batch)"
+                : "ctx32k-q4-unified-metal-gpu99-b4"
         } else if context >= 16_384 {
             build82Profile = "ctx16k-build79-validated"
         } else {
@@ -3576,7 +3583,7 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "92")
+        RC126APIStartupLifecycle.begin(build: "93")
         busy = true
         status = "正在执行 RC1.26 Build 89 Compact Scheduler Metadata + API 冷启动保护…"
         detail = """
@@ -4318,6 +4325,9 @@ struct ProductionView: View {
 
                     let textGenerationEnd =
                         RC1232PerformanceDiagnostics.now()
+                    Build93BatchTrialPolicy.noteSuccessfulText(
+                        promptTokens: metrics.promptTokens
+                    )
 
                     let resourceSnapshot =
                         await sharedEngine
@@ -4376,7 +4386,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 92 Native Prefill Observability P0 API Runtime 已就绪"
+                        "RC1.26 Build 93 Prefill Batch8 A/B P0 API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
@@ -4392,6 +4402,7 @@ struct ProductionView: View {
                         + String(selectedAPIContext)
                 }
             } catch {
+                Build93BatchTrialPolicy.noteStartupFailure()
                 RC126APIStartupLifecycle.fail(error)
                 apiServer.stop()
                 await sharedEngine.unloadAll()
