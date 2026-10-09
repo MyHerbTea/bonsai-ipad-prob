@@ -14,8 +14,8 @@ assert '"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server
 
 assert "ctx32k-q4-unified-metal-gpu99-b4" in view
 assert "apiRuntime.gpuLayers = 99" in view
-assert "apiRuntime.batch = min(apiRuntime.batch, batchCap)" in view and "let batchCap = trial == .candidate8 ? 8 : 4" in view
-assert "apiRuntime.ubatch = min(apiRuntime.ubatch, batchCap)" in view and "let batchCap = trial == .candidate8 ? 8 : 4" in view
+assert "apiRuntime.batch = min(apiRuntime.batch, batchCap)" in view and "case .candidate16: batchCap = 16" in view
+assert "apiRuntime.ubatch = min(apiRuntime.ubatch, batchCap)" in view and "case .candidate16: batchCap = 16" in view
 assert "apiRuntime.offloadKQV = true" in view
 assert "apiRuntime.opOffload = true" in view
 
