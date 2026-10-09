@@ -21,6 +21,7 @@ assert (
     or '"build_id": "rc1.26-build82-unified-metal-32k-lab"' in server
     or '"build_id": "rc1.26-build90-certification-p1"' in server
     or '"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server
+    or '"build_id": "rc1.26-build95-native-k1-ptq1-dense5"' in server
 )
 
 for marker in [
