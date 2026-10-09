@@ -185,7 +185,14 @@ final class LocalOpenAIServer: ObservableObject {
 
     private func forensicsSnapshot() -> [String: Any] {
         forensicsLock.lock()
-        let active = Array(forensicsActive.values)
+        let now = ProcessInfo.processInfo.systemUptime
+        let active = forensicsActive.values.map { original -> [String: Any] in
+            var entry = original
+            if let started = entry["start_uptime_s"] as? Double {
+                entry["elapsed_s"] = max(0, now - started)
+            }
+            return entry
+        }
         let last = forensicsLastEvent
         let seq = forensicsSequence
         forensicsLock.unlock()
