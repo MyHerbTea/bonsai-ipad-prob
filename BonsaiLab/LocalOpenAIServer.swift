@@ -226,9 +226,9 @@ final class LocalOpenAIServer: ObservableObject {
         let seq = forensicsSequence
         forensicsLock.unlock()
         return [
-            "schema": "bonsai-build91-forensics-p0",
+            "schema": "bonsai-build92-execution-v1",
             "observer_only": true,
-            "native_prefill_progress_available": false,
+            "native_prefill_progress_available": true,
             "cancellation_propagation_verified": false,
             "process_uptime_s": max(0, ProcessInfo.processInfo.systemUptime - forensicsStarted),
             "sequence": seq,
