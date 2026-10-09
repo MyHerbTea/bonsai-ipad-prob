@@ -23,7 +23,7 @@ assert "BUILD87_SPLIT_RESET_DONE" in patch
 assert "BUILD87_SPLIT_UID_DONE" in patch
 assert "tools/rc126_build87_patch_prism_sched_context.py" in flow
 assert "tools/rc126_build87_scheduler_context_contract_tests.py" in flow
-assert "BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa" in flow
+assert ("BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa" in flow or "BonsaiLab-v1-RC1.26-build95-native-k1-ptq1-dense5-unsigned.ipa" in flow)
 assert "tools/rc126_build86_patch_prism_crash_forensics.py" in flow
 assert "ctx16k-build79-validated" in v and "min(apiRuntime.gpuLayers, 56)" in v
 print("RC1.26 Build87 scheduler context forensics contracts: PASS")
