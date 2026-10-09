@@ -52,7 +52,7 @@ assert (
     or '"rc1.26-build80-long-context-tier-reload-fix"' in server
     or '"rc1.26-build81-32k-memory-squeeze"' in server
     or '"rc1.26-build82-unified-metal-32k-lab"' in server
-    or '"rc1.26-build89-compact-scheduler-metadata"' in server
+    or '"rc1.26-build90-certification-p1"' in server
 )
 
 for marker in [
@@ -75,7 +75,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "80"' in project
     or 'CURRENT_PROJECT_VERSION: "81"' in project
     or 'CURRENT_PROJECT_VERSION: "82"' in project
-    or 'CURRENT_PROJECT_VERSION: "89"' in project
+    or 'CURRENT_PROJECT_VERSION: "90"' in project
 )
 assert "RC1.26 Phase 2F prefill batch contracts" in workflow
 assert "tools/rc126_phase2f_prefill_batch_arm.ps1" in workflow
