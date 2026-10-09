@@ -4369,7 +4369,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 90 Certification API Runtime 已就绪"
+                        "RC1.26 Build 91 Certification API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
