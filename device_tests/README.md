@@ -54,3 +54,13 @@ Add app-side immutable product identity manifest, validate the CI SHA against in
   the failing stage and **source location**, without printing API Key or URLs.
 - Existing `config.local.json` works unchanged. Replace the runner files
   but retain your private config; no new iPad build required.
+
+## P0.2 Tailscale 404 diagnostics (2026-10-09)
+The observed P0.1 device evidence contains only `GET /health: HTTP 404`, after approximately 20 seconds; Build89 inference was **never called**, so this is not proof of model failure.
+
+- `certify.py` now uses `urllib.request.ProxyHandler({})` to bypass Windows system/HTTP proxies for LAN/Tailscale requests.
+- It logs the intended root path (`/health`) but never the API Key or Authorization header, and saves a redacted JSON body if the server still responds with HTTP 404.
+- The runner does not auto-rewrite `/health` to `/v1/health` because Build89's server code requires `/health` at root.
+- If P0.2 continues to receive 404, verify the destination host and API process with:
+  `curl.exe --noproxy "*" -i http://100.64.94.167:8080/health`
+- This is a Windows-only runner update; existing iPad Build89 and private config remain unchanged.

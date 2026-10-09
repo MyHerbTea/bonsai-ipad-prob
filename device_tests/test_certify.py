@@ -5,6 +5,7 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import patch
+import urllib.request
 from device_tests.certify import Certification, safe_id, response_json, MODEL, BUILD89_ID, safe_error_location
 
 
@@ -54,6 +55,18 @@ class RunnerTests(unittest.TestCase):
         self.assertNotIn(".removesuffix(", source)
         self.assertIn("self.url[:-3] + path", source)
 
+    def test_proxy_disabled_and_root_health_path(self):
+        with tempfile.TemporaryDirectory() as d:
+            instance = Certification({
+                "base_url": "http://100.64.94.167:8080/v1",
+                "api_key": "LOCAL_SECRET",
+            }, "readonly", Path(d))
+            self.assertEqual(instance.origin + "/health", "http://100.64.94.167:8080/health")
+            self.assertEqual(instance.origin + "/v1/models", "http://100.64.94.167:8080/v1/models")
+            handlers = [h for h in instance.opener.handlers if isinstance(h, urllib.request.ProxyHandler)]
+            self.assertEqual(len(handlers), 1)
+            self.assertEqual(handlers[0].proxies, {})
+
     def test_error_site_never_exposes_secret(self):
         try:
             raise AttributeError("server_url SECRET_DO_NOT_PERSIST")
@@ -95,6 +108,8 @@ class RunnerTests(unittest.TestCase):
                 self.assertEqual(summary["result"], "PASS")
                 self.assertFalse(summary["server_side_run_request_correlation_verified"])
                 self.assertFalse(summary["server_product_git_sha_verified"])
+                self.assertEqual(summary["cases"][0]["target_path"], "/health")
+                self.assertEqual(summary["cases"][0]["transport"], "direct_no_system_proxy")
         finally:
             server.shutdown()
             t.join(timeout=2)

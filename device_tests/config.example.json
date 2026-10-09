@@ -4,5 +4,6 @@
   "api_key": "REPLACE_ONLY_IN_LOCAL_FILE",
   "context_window": 32768,
   "server_max_output_tokens": 256,
+  "network_transport": "direct_no_system_proxy",
   "build_id": "rc1.26-build89-compact-scheduler-metadata"
 }

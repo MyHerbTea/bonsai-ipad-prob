@@ -17,6 +17,7 @@ import time
 import traceback
 import urllib.error
 import urllib.request
+import urllib.parse
 import uuid
 import zipfile
 
@@ -76,8 +77,16 @@ class Certification:
         self.config = config
         self.suite = suite
         self.url = str(config.get("base_url", "")).rstrip("/")
-        if not self.url.startswith(("http://", "https://")) or not self.url.endswith("/v1"):
-            raise ValueError("base_url must be http(s)://HOST:PORT/v1")
+        parsed = urllib.parse.urlsplit(self.url)
+        if (parsed.scheme not in ("http", "https")
+                or not parsed.hostname
+                or parsed.path != "/v1" or parsed.query or parsed.fragment
+                or parsed.username is not None or parsed.password is not None):
+            raise ValueError("base_url must be http(s)://HOST:PORT/v1 with no query/credentials")
+        self.origin = self.url[:-3]
+        # urllib honors Windows proxy/PAC and HTTP_PROXY by default.
+        # Tailscale and LAN devices must be contacted DIRECTLY.
+        self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         self.api_key = os.environ.get("BONSAI_API_KEY") or str(config.get("api_key", ""))
         if not self.api_key:
             raise ValueError("No API key: set BONSAI_API_KEY or config.local.json api_key")
@@ -112,16 +121,18 @@ class Certification:
         }
         if wire is not None:
             headers["Content-Type"] = "application/json"
-        req = urllib.request.Request(self.url[:-3] + path,
+        req = urllib.request.Request(self.origin + path,
                                      data=wire, method=method, headers=headers)
         output = {
             "case": case, "run_id": self.run_id, "request_id": request_id,
             "timestamp": now_utc(), "method": method, "path": path,
+            "target_path": urllib.parse.urlsplit(req.full_url).path,
+            "transport": "direct_no_system_proxy",
             "status": None, "duration_ms": None, "ttfb_ms": None,
             "first_token_ms": None, "ok": False, "error": None,
         }
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with self.opener.open(req, timeout=self.timeout) as resp:
                 output["status"] = resp.status
                 output["ttfb_ms"] = round((time.perf_counter() - start) * 1000, 2)
                 if streaming:
@@ -148,6 +159,9 @@ class Certification:
                     # Only synthetic prompts are run by this tool; still limit saved SSE to summary.
                 else:
                     body = response_json(resp.read())
+                    body = json.loads(
+                        json.dumps(body, ensure_ascii=False).replace(self.api_key, "[REDACTED]")
+                    )
                     (self.outdir / "responses" / f"{self.counter:04d}-{case}.json").write_text(
                         json.dumps(body, ensure_ascii=False, indent=2), encoding="utf-8"
                     )
@@ -155,8 +169,17 @@ class Certification:
                     output["ok"] = resp.status == 200
         except urllib.error.HTTPError as exc:
             output["status"] = exc.code
+            output["content_type"] = exc.headers.get("Content-Type", "unknown") if exc.headers else "unknown"
             try:
-                output["response"] = response_json(exc.read())
+                body = response_json(exc.read())
+                # Never persist server-controlled content containing a credential.
+                sanitized = json.loads(
+                    json.dumps(body, ensure_ascii=False).replace(self.api_key, "[REDACTED]")
+                )
+                output["response"] = sanitized
+                (self.outdir / "responses" / f"{self.counter:04d}-{case}-http-error.json").write_text(
+                    json.dumps(sanitized, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
             except Exception:
                 output["error"] = "HTTP response was not JSON"
         except Exception as exc:
@@ -174,6 +197,7 @@ class Certification:
                 stored["usage"] = resp["usage"]
             if isinstance(resp.get("error"), dict):
                 stored["error_code"] = resp["error"].get("code")
+                stored["error_message"] = str(resp["error"].get("message", ""))[:300]
         self.events.append(stored)
         print(f"[{'PASS' if output['ok'] else 'FAIL'}] {case}: HTTP {output['status']}  {output['duration_ms']} ms", flush=True)
         return output
@@ -185,7 +209,10 @@ class Certification:
     def run(self) -> int:
         try:
             health = self.request("health_before", "/health")
-            self.require(health["ok"] and health["response"].get("status") == "ok", "Health failed")
+            self.require(health["ok"] and health.get("response", {}).get("status") == "ok",
+                         ("Health failed: HTTP " + str(health.get("status")) +
+                          " at /health via direct connection. Check that your Tailscale IP:8080 "
+                          "actually points to the running BonsaiLab API."))
             self.require(int(health["response"].get("context_window", -1)) == self.expected_ctx,
                          "Health context mismatch")
 
@@ -268,6 +295,7 @@ class Certification:
             "notes": [
                 "Build89 does not echo or persist client X-Bonsai IDs; this is client-only correlation.",
                 "Runtime memory samples represent sampled values, not certified peaks.",
+                "HTTP transport uses a proxy-free opener to reach the LAN/Tailscale iPad directly.",
                 "Responses contain only fixed synthetic testing prompts; credentials are never included.",
             ],
             "cases": self.events,
