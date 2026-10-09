@@ -31,3 +31,23 @@ jobs:
             BonsaiLab/ .github/workflows/build-ios.yml project.yml \
             tools/rc126_build89_patch_prism_compact_scheduler.py
           echo "P0 Build89 source isolation: PASS"
+      - name: Package sanitized Windows runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/BonsaiBuild89CertificationP0
+          cp device_tests/certify.py \
+             device_tests/config.example.json \
+             device_tests/RUN_SMOKE.cmd \
+             device_tests/README.md \
+             dist/BonsaiBuild89CertificationP0/
+          cd dist
+          zip -qry BonsaiBuild89CertificationP0.zip BonsaiBuild89CertificationP0
+          test -s BonsaiBuild89CertificationP0.zip
+          shasum -a 256 BonsaiBuild89CertificationP0.zip
+      - name: Publish Windows test runner
+        uses: actions/upload-artifact@v4
+        with:
+          name: BonsaiBuild89-Certification-P0-WindowsRunner
+          path: dist/BonsaiBuild89CertificationP0.zip
+          retention-days: 30
