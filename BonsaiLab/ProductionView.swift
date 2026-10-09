@@ -4285,7 +4285,14 @@ struct ProductionView: View {
                                 generation: gen,
                                 reasoningEffort:
                                     payload.reasoningEffort,
-                                onDelta: onDelta
+                                onDelta: onDelta,
+                                onPrefillProgress: { stage, total, processed, index, ms in
+                                    apiServer.observeNativeTextPrefill(
+                                        requestID: requestID, stage: stage,
+                                        total: total, processed: processed,
+                                        batchIndex: index, durationMs: ms
+                                    )
+                                }
                             )
                     } catch let error as LabError {
                         switch error {
