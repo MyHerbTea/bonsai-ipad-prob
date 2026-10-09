@@ -4,8 +4,8 @@ server = (root / "BonsaiLab/LocalOpenAIServer.swift").read_text()
 view = (root / "BonsaiLab/ProductionView.swift").read_text()
 workflow = (root / ".github/workflows/build-ios.yml").read_text()
 project = (root / "project.yml").read_text()
-assert 'CURRENT_PROJECT_VERSION: "90"' in project or 'CURRENT_PROJECT_VERSION: "92"' in project
-assert ('"rc1.26-build90-certification-p1"' in server or '"rc1.26-build92-native-prefill-observability-p0"' in server)
+assert 'CURRENT_PROJECT_VERSION: "90"' in project or 'CURRENT_PROJECT_VERSION: "93"' in project
+assert ('"rc1.26-build90-certification-p1"' in server or '"rc1.26-build93-prefill-batch8-ab-p0"' in server)
 assert 'request.path == "/debug/request-trace"' in server
 assert server.index('guard authorized(request) else') < server.index('request.path == "/debug/request-trace"')
 assert 'payload.certificationTrace = certificationTrace' in server
@@ -13,7 +13,7 @@ assert 'BonsaiRequestTrace.from(headers: request.headers)' in server
 assert 'recordCertificationTrace(' in server
 assert 'certificationTraceLimit = 64' in server
 assert 'payload.certificationTrace?.requestID' in view
-assert 'RC126APIStartupLifecycle.begin(build: "92")' in view
+assert 'RC126APIStartupLifecycle.begin(build: "93")' in view
 assert 'BonsaiCertificationBuildIdentity.sourceGitSHA' in server
 assert 'Embed exact product build identity' in workflow
 assert 'github_run_id' not in server or 'workflow_run_id' in server
