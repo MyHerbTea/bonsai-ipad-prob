@@ -37,7 +37,7 @@ assert (
     or "ctx32k-q4-gpu24-b4-cpu-kqv-op" in view
     or "ctx32k-q4-unified-metal-gpu99-b4" in view
 )
-assert "apiRuntime.batch = min(apiRuntime.batch, batchCap)" in view and "let batchCap = trial == .candidate8 ? 8 : 4" in view
+assert "apiRuntime.batch = min(apiRuntime.batch, batchCap)" in view and "case .candidate16: batchCap = 16" in view
 
 # Crossing a model-residency tier must reload; context-only rebuild cannot
 # change llama_model_params.n_gpu_layers after the model has been loaded.
