@@ -226,10 +226,21 @@ final class LocalOpenAIServer: ObservableObject {
         let seq = forensicsSequence
         forensicsLock.unlock()
         return [
-            "schema": "bonsai-build92-execution-v1",
+            "schema": "bonsai-build93-execution-v1",
             "observer_only": true,
             "native_prefill_progress_available": true,
             "cancellation_propagation_verified": false,
+            "batch_trial": [
+                "mode": UserDefaults.standard.string(forKey: Build93BatchTrialPolicy.modeKey) ?? "not_selected",
+                "reason": UserDefaults.standard.string(forKey: Build93BatchTrialPolicy.reasonKey) ?? "none",
+                "pending": UserDefaults.standard.bool(forKey: Build93BatchTrialPolicy.pendingKey),
+                "confirmed_text_1024": UserDefaults.standard.bool(forKey: Build93BatchTrialPolicy.confirmedKey),
+                "sticky_fallback": UserDefaults.standard.bool(forKey: Build93BatchTrialPolicy.fallbackKey),
+                "active_batch": advertisedBatch,
+                "active_ubatch": advertisedUBatch,
+                "engine_context_batch": UserDefaults.standard.integer(forKey: "BonsaiBuild82EngineContextBatch"),
+                "engine_context_ubatch": UserDefaults.standard.integer(forKey: "BonsaiBuild82EngineContextUBatch")
+            ] as [String: Any],
             "process_uptime_s": max(0, ProcessInfo.processInfo.systemUptime - forensicsStarted),
             "sequence": seq,
             "active_count": active.count,
@@ -1835,7 +1846,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build92-native-prefill-observability-p0",
+            "build_id": "rc1.26-build93-prefill-batch8-ab-p0",
             "product_git_sha": BonsaiCertificationBuildIdentity.sourceGitSHA,
             "workflow_run_id": BonsaiCertificationBuildIdentity.workflowRunID,
             "prism_upstream_sha": "adfffbe41b2cabcd51fff326ab045662265062bb",
