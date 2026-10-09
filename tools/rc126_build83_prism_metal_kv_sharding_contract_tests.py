@@ -8,7 +8,7 @@ workflow = (ROOT / ".github/workflows/build-ios.yml").read_text(encoding="utf-8"
 patcher = (ROOT / "tools/rc126_build83_patch_prism_kv_sharding.py").read_text(encoding="utf-8")
 
 assert ('CURRENT_PROJECT_VERSION: "94"' in project or 'CURRENT_PROJECT_VERSION: "96"' in project)
-assert ('RC126APIStartupLifecycle.begin(build: "94"' in view or 'RC126APIStartupLifecycle.begin(build: "95"' in view)
+assert ('RC126APIStartupLifecycle.begin(build: "94"' in view or 'RC126APIStartupLifecycle.begin(build: "96"' in view)
 assert "RC1.26 Build 89 Compact Scheduler Metadata" in view
 assert ('"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server or '"build_id": "rc1.26-build96-native-k2-gdn-simd"' in server)
 
