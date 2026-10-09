@@ -1888,7 +1888,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build94-prefill-kernel-boundary-p0",
+            "build_id": "rc1.26-build95-native-k1-ptq1-dense5",
             "product_git_sha": BonsaiCertificationBuildIdentity.sourceGitSHA,
             "workflow_run_id": BonsaiCertificationBuildIdentity.workflowRunID,
             "prism_upstream_sha": "adfffbe41b2cabcd51fff326ab045662265062bb",
