@@ -3296,8 +3296,13 @@ struct ProductionView: View {
             // Build93: only 32768 enters the guarded 8/8 candidate. A
             // prior incomplete candidate or startup error selects 4/4.
             // Other 32K+ contexts retain their Build92 shape.
-            let trial = Build93BatchTrialPolicy.select(context: context)
-            let batchCap = trial == .candidate8 ? 8 : 4
+            let arm = Build94BatchExperiment.select(context: context)
+            let batchCap: Int
+            switch arm {
+            case .candidate16: batchCap = 16
+            case .baseline8: batchCap = 8
+            default: batchCap = 4
+            }
             apiRuntime.batch = min(apiRuntime.batch, batchCap)
             apiRuntime.ubatch = min(apiRuntime.ubatch, batchCap)
             apiRuntime.gpuLayers = 99
@@ -3583,7 +3588,7 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "93")
+        RC126APIStartupLifecycle.begin(build: "94")
         busy = true
         status = "正在执行 RC1.26 Build 89 Compact Scheduler Metadata + API 冷启动保护…"
         detail = """
@@ -4325,7 +4330,7 @@ struct ProductionView: View {
 
                     let textGenerationEnd =
                         RC1232PerformanceDiagnostics.now()
-                    Build93BatchTrialPolicy.noteSuccessfulText(
+                    Build94BatchExperiment.noteTextSuccess(
                         promptTokens: metrics.promptTokens
                     )
 
@@ -4386,7 +4391,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 93 Prefill Batch8 A/B P0 API Runtime 已就绪"
+                        "RC1.26 Build 94 Prefill 8/16 A/B P0 API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
@@ -4402,7 +4407,7 @@ struct ProductionView: View {
                         + String(selectedAPIContext)
                 }
             } catch {
-                Build93BatchTrialPolicy.noteStartupFailure()
+                Build94BatchExperiment.noteStartupFailure()
                 RC126APIStartupLifecycle.fail(error)
                 apiServer.stop()
                 await sharedEngine.unloadAll()
