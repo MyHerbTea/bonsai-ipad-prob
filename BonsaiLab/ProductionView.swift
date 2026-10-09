@@ -3588,7 +3588,7 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "94")
+        RC126APIStartupLifecycle.begin(build: "96")
         busy = true
         status = "正在执行 RC1.26 Build 89 Compact Scheduler Metadata + API 冷启动保护…"
         detail = """
@@ -4391,7 +4391,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 94 Prefill 8/16 A/B P0 API Runtime 已就绪"
+                        "RC1.26 Build 96 Native K2 GDN SIMD API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
