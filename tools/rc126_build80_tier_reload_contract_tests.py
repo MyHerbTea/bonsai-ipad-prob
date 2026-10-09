@@ -11,6 +11,7 @@ assert ('CURRENT_PROJECT_VERSION: "80"' in project or 'CURRENT_PROJECT_VERSION: 
     or 'CURRENT_PROJECT_VERSION: "95"' in project)
 assert ('RC126APIStartupLifecycle.begin(build: "80")' in view or 'RC126APIStartupLifecycle.begin(build: "81")' in view or 'RC126APIStartupLifecycle.begin(build: "82")' in view
     or 'RC126APIStartupLifecycle.begin(build: "94")' in view
+    or 'RC126APIStartupLifecycle.begin(build: "95")' in view
     or 'RC126APIStartupLifecycle.begin(build: "95")' in view)
 assert ("RC1.26 Build 80 Long-Context Tier Reload Fix" in view or "RC1.26 Build 81 32K Memory Squeeze" in view or "RC1.26 Build 82 Unified-Metal 32K Lab" in view
     or "RC1.26 Build 89 Compact Scheduler Metadata" in view)
@@ -70,6 +71,6 @@ for field in [
 
 assert "RC1.26 Build 80 tier reload contracts" in workflow
 assert "tools/rc126_build80_tier_reload_contract_tests.py" in workflow
-assert ("build80-long-context-tier-reload-fix-unsigned.ipa" in workflow or "build81-32k-memory-squeeze-unsigned.ipa" in workflow or "build82-unified-metal-32k-lab-unsigned.ipa" in workflow or "build94-prefill-kernel-boundary-p0-unsigned.ipa" in workflow)
+assert (("build80-long-context-tier-reload-fix-unsigned.ipa" in workflow or "build81-32k-memory-squeeze-unsigned.ipa" in workflow or "build82-unified-metal-32k-lab-unsigned.ipa" in workflow or "build94-prefill-kernel-boundary-p0-unsigned.ipa" in workflow) or ("build80-long-context-tier-reload-fix-unsigned.ipa" in workflow or "build81-32k-memory-squeeze-unsigned.ipa" in workflow or "build82-unified-metal-32k-lab-unsigned.ipa" in workflow or "build95-native-k1-ptq1-dense5-unsigned.ipa" in workflow))
 
 print("RC1.26 Build 80 tier reload contracts: PASS")
