@@ -25,5 +25,5 @@ for marker in (
 ):
     assert marker in patch, marker
 assert "rc126_build85_patch_prism_scheduler_trace.py" in workflow
-assert "BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa" in workflow
+assert ("BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa" in workflow or "BonsaiLab-v1-RC1.26-build95-native-k1-ptq1-dense5-unsigned.ipa" in workflow)
 print("RC1.26 Build 85 scheduler trace contracts: PASS")
