@@ -32,5 +32,5 @@ for expected in ("pass 1: assign backends", "pass 2: expand current",
 assert "../../src/bonsai-build84-trace.h" in patch
 assert "tools/rc126_build86_patch_prism_crash_forensics.py" in flow
 assert "tools/rc126_build86_crash_forensics_contract_tests.py" in flow
-assert "BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa" in flow
+assert ("BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa" in flow or "BonsaiLab-v1-RC1.26-build95-native-k1-ptq1-dense5-unsigned.ipa" in flow)
 print("RC1.26 Build86 crash forensics v2 contracts: PASS")
