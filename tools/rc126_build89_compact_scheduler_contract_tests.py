@@ -5,9 +5,9 @@ v=(root/"BonsaiLab/ProductionView.swift").read_text()
 srv=(root/"BonsaiLab/LocalOpenAIServer.swift").read_text()
 wf=(root/".github/workflows/build-ios.yml").read_text()
 p=(root/"tools/rc126_build89_patch_prism_compact_scheduler.py").read_text()
-assert 'CURRENT_PROJECT_VERSION: "94"' in (root/"project.yml").read_text()
-assert 'RC126APIStartupLifecycle.begin(build: "94")' in v
-assert '"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in srv
+assert ('CURRENT_PROJECT_VERSION: "94"' in (root/"project.yml").read_text() or 'CURRENT_PROJECT_VERSION: "95"' in (root/"project.yml").read_text())
+assert ('RC126APIStartupLifecycle.begin(build: "94")' in v or 'RC126APIStartupLifecycle.begin(build: "95")' in v)
+assert ('"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in srv or '"build_id": "rc1.26-build95-native-k1-ptq1-dense5"' in srv)
 assert '"build89_compact_scheduler_metadata": true' in srv
 assert 'let header = "build=89' in e
 assert 'guard contextLength >= 32_768 else' in e
