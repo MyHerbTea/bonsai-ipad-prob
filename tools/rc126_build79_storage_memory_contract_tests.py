@@ -53,7 +53,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "80"' in project
     or 'CURRENT_PROJECT_VERSION: "81"' in project
     or 'CURRENT_PROJECT_VERSION: "82"' in project
-    or 'CURRENT_PROJECT_VERSION: "90"' in project
+    or 'CURRENT_PROJECT_VERSION: "91"' in project
 )
 assert 'CODE_SIGN_ENTITLEMENTS: "BonsaiLab/BonsaiLab.entitlements"' in project
 assert "Security.framework" in project
@@ -64,7 +64,7 @@ assert (
     or '"build_id": "rc1.26-build80-long-context-tier-reload-fix"' in server
     or '"build_id": "rc1.26-build81-32k-memory-squeeze"' in server
     or '"build_id": "rc1.26-build82-unified-metal-32k-lab"' in server
-    or '"build_id": "rc1.26-build90-certification-p1"' in server
+    or '"build_id": "rc1.26-build91-long-context-forensics-p0"' in server
 )
 assert "build79_kv_cache_type" in server
 assert "build79_effective_extended_va" in server
@@ -74,7 +74,7 @@ assert (
     or 'RC126APIStartupLifecycle.begin(build: "80")' in view
     or 'RC126APIStartupLifecycle.begin(build: "81")' in view
     or 'RC126APIStartupLifecycle.begin(build: "82")' in view
-    or 'RC126APIStartupLifecycle.begin(build: "90")' in view
+    or 'RC126APIStartupLifecycle.begin(build: "91")' in view
 )
 assert (
     "RC1.26 Build 79 Storage-Memory Long Context Lab" in view
@@ -96,7 +96,7 @@ assert (
     or "BonsaiLab-v1-RC1.26-build80-long-context-tier-reload-fix-unsigned.ipa" in package_block
     or "BonsaiLab-v1-RC1.26-build81-32k-memory-squeeze-unsigned.ipa" in package_block
     or "BonsaiLab-v1-RC1.26-build82-unified-metal-32k-lab-unsigned.ipa" in package_block
-    or "BonsaiLab-v1-RC1.26-build90-certification-p1-unsigned.ipa" in package_block
+    or "BonsaiLab-v1-RC1.26-build91-long-context-forensics-p0-unsigned.ipa" in package_block
 )
 assert "build78-context-boundary-lab-unsigned.ipa" not in package_block
 
