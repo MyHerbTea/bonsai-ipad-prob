@@ -88,7 +88,7 @@ jobs:
           grep -q 'warm.kvReuseHit' BonsaiLab/ProductionView.swift
           grep -q 'UIPasteboard.general.string' BonsaiLab/ProductionView.swift
           grep -q 'MARKETING_VERSION: "1.0.0"' project.yml
-          grep -q 'CURRENT_PROJECT_VERSION: "90"' project.yml
+          grep -q 'CURRENT_PROJECT_VERSION: "91"' project.yml
           grep -q 'reasoningEffort' BonsaiLab/BonsaiEngine.swift
           grep -q 'payload.reasoningEffort' BonsaiLab/ProductionView.swift
           grep -q '<think>\\n\\n</think>\\n\\n' BonsaiLab/BonsaiEngine.swift
@@ -470,12 +470,12 @@ jobs:
           set -euo pipefail
           python3 tools/rc126_build90_certification_trace_contract_tests.py
 
-      - name: RC1.26 Build 90 packaging identity preflight
+      - name: RC1.26 Build 91 packaging identity preflight
         shell: bash
         run: |
           set -euo pipefail
-          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"90\"' project.yml)" -ge 1
-          grep -q '"rc1.26-build90-certification-p1"' BonsaiLab/LocalOpenAIServer.swift
+          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"91\"' project.yml)" -ge 1
+          grep -q '"rc1.26-build91-long-context-forensics-p0"' BonsaiLab/LocalOpenAIServer.swift
           grep -q 'RC126APIStartupLifecycle.begin(build: \"90\")' BonsaiLab/ProductionView.swift
 
           PACKAGE_BLOCK="$(
@@ -484,13 +484,13 @@ jobs:
               .github/workflows/build-ios.yml
           )"
 
-          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build90-certification-p1-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
-          grep -q 'BonsaiLab-v1-RC1.26-build90-certification-p1-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
+          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build91-long-context-forensics-p0-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
+          grep -q 'BonsaiLab-v1-RC1.26-build91-long-context-forensics-p0-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
           if grep -q 'build75-api-cold-start-guard' <<< "$PACKAGE_BLOCK"; then
             echo "ERROR: Build 78 packaging leaked into Build 79 package step." >&2
             exit 1
           fi
-          echo "Build 90 packaging identity preflight: PASS"
+          echo "Build 91 packaging identity preflight: PASS"
 
       - name: Validate Build 79 entitlements source
         shell: bash
@@ -636,17 +636,17 @@ jobs:
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.26-build90-certification-p1-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.26-build91-long-context-forensics-p0-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.26-build90-certification-p1-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build90-certification-p1-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.26-build91-long-context-forensics-p0-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build91-long-context-forensics-p0-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.26-Build90-Certification-P1
+          name: BonsaiLab-iPad-v1-RC1.26-Build91-Long-Context-Forensics-P0
           path: |
-            build/BonsaiLab-v1-RC1.26-build90-certification-p1-unsigned.ipa
-            build/BonsaiLab-v1-RC1.26-build90-certification-p1-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.26-build91-long-context-forensics-p0-unsigned.ipa
+            build/BonsaiLab-v1-RC1.26-build91-long-context-forensics-p0-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             RC1.20_RELEASE_ACCEPTANCE.md
             tools/rc126_phase2d_prefill_batch_arm.ps1
