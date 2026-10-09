@@ -1,4 +1,4 @@
-name: Build Bonsai iPad Lab v1 RC1.26 Build 93 Prefill Batch8 A/B P0
+name: Build Bonsai iPad Lab v1 RC1.26 Build 94 Prefill Kernel Boundary P0
 
 on:
   push:
@@ -31,6 +31,7 @@ on:
       - lab-v1-rc1-26-build91-long-context-forensics
       - lab-v1-rc1-26-build92-native-prefill-observability
       - lab-v1-rc1-26-build93-prefill-batch8-ab
+      - lab-v1-rc1-26-build94-kernel-boundary-review
   workflow_dispatch:
 
 concurrency:
@@ -51,7 +52,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build93 executable rollback lifecycle and integration contracts
+      - name: Build93 and Build94 executable rollback lifecycle and integration contracts
         shell: bash
         run: |
           set -euo pipefail
@@ -61,6 +62,13 @@ jobs:
             -o "$RUNNER_TEMP/build93_policy_tests"
           "$RUNNER_TEMP/build93_policy_tests"
           python3 tools/rc126_build93_contract_tests.py
+          xcrun swiftc -DDEBUG -swift-version 5 \
+            BonsaiLab/Build93BatchTrialPolicy.swift \
+            BonsaiLab/Build94BatchExperiment.swift \
+            tools/rc126_build94_policy_tests.swift \
+            -o "$RUNNER_TEMP/build94_policy_tests"
+          "$RUNNER_TEMP/build94_policy_tests"
+          python3 tools/rc126_build94_contract_tests.py
 
       - name: Live vision injection gate
         shell: bash
@@ -101,7 +109,7 @@ jobs:
           grep -q 'warm.kvReuseHit' BonsaiLab/ProductionView.swift
           grep -q 'UIPasteboard.general.string' BonsaiLab/ProductionView.swift
           grep -q 'MARKETING_VERSION: "1.0.0"' project.yml
-          grep -q 'CURRENT_PROJECT_VERSION: "93"' project.yml
+          grep -q 'CURRENT_PROJECT_VERSION: "94"' project.yml
           grep -q 'reasoningEffort' BonsaiLab/BonsaiEngine.swift
           grep -q 'payload.reasoningEffort' BonsaiLab/ProductionView.swift
           grep -q '<think>\\n\\n</think>\\n\\n' BonsaiLab/BonsaiEngine.swift
@@ -483,13 +491,13 @@ jobs:
           set -euo pipefail
           python3 tools/rc126_build90_certification_trace_contract_tests.py
 
-      - name: RC1.26 Build 93 packaging identity preflight
+      - name: RC1.26 Build 94 packaging identity preflight
         shell: bash
         run: |
           set -euo pipefail
-          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"93\"' project.yml)" -ge 1
-          grep -q '"rc1.26-build93-prefill-batch8-ab-p0"' BonsaiLab/LocalOpenAIServer.swift
-          grep -q 'RC126APIStartupLifecycle.begin(build: \"93\")' BonsaiLab/ProductionView.swift
+          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"94\"' project.yml)" -ge 1
+          grep -q '"rc1.26-build94-prefill-kernel-boundary-p0"' BonsaiLab/LocalOpenAIServer.swift
+          grep -q 'RC126APIStartupLifecycle.begin(build: \"94\")' BonsaiLab/ProductionView.swift
 
           PACKAGE_BLOCK="$(
             sed -n \
@@ -497,13 +505,13 @@ jobs:
               .github/workflows/build-ios.yml
           )"
 
-          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build93-prefill-batch8-ab-p0-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
-          grep -q 'BonsaiLab-v1-RC1.26-build93-prefill-batch8-ab-p0-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
+          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
+          grep -q 'BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
           if grep -q 'build75-api-cold-start-guard' <<< "$PACKAGE_BLOCK"; then
             echo "ERROR: Build 78 packaging leaked into Build 79 package step." >&2
             exit 1
           fi
-          echo "Build 93 packaging identity preflight: PASS"
+          echo "Build 94 packaging identity preflight: PASS"
 
       - name: Validate Build 79 entitlements source
         shell: bash
@@ -619,7 +627,7 @@ jobs:
           file "$FRAMEWORK"
           otool -L "$APP/BonsaiLab"
           test "$(plutil -extract CFBundleShortVersionString raw -o - "$APP/Info.plist")" = "1.0.0"
-          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "93"
+          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "94"
           nm -gU "$FRAMEWORK" > build/llama-symbols.txt
           grep -q '_mtmd_init_from_file' build/llama-symbols.txt
           grep -q '_mtmd_helper_eval_chunks' build/llama-symbols.txt
@@ -649,17 +657,17 @@ jobs:
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.26-build93-prefill-batch8-ab-p0-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.26-build93-prefill-batch8-ab-p0-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build93-prefill-batch8-ab-p0-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.26-Build93-Prefill-Batch8-AB-P0
+          name: BonsaiLab-iPad-v1-RC1.26-Build94-Prefill-Kernel-Boundary-P0
           path: |
-            build/BonsaiLab-v1-RC1.26-build93-prefill-batch8-ab-p0-unsigned.ipa
-            build/BonsaiLab-v1-RC1.26-build93-prefill-batch8-ab-p0-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa
+            build/BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             RC1.20_RELEASE_ACCEPTANCE.md
             tools/rc126_phase2d_prefill_batch_arm.ps1
