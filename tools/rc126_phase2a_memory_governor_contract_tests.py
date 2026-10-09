@@ -20,7 +20,7 @@ assert (
     or '"build_id": "rc1.26-build81-32k-memory-squeeze"' in server
     or '"build_id": "rc1.26-build82-unified-metal-32k-lab"' in server
     or '"build_id": "rc1.26-build90-certification-p1"' in server
-    or '"build_id": "rc1.26-build91-long-context-forensics-p0"' in server
+    or '"build_id": "rc1.26-build92-native-prefill-observability-p0"' in server
 )
 
 for marker in [
