@@ -63,9 +63,22 @@ class RunnerTests(unittest.TestCase):
             }, "readonly", Path(d))
             self.assertEqual(instance.origin + "/health", "http://100.64.94.167:8080/health")
             self.assertEqual(instance.origin + "/v1/models", "http://100.64.94.167:8080/v1/models")
+            # CPython's OpenerDirector does not register an EMPTY ProxyHandler
+            # (no *_open methods). That means direct networking with NO proxy
+            # handler; a default opener would register a populated proxy handler.
             handlers = [h for h in instance.opener.handlers if isinstance(h, urllib.request.ProxyHandler)]
-            self.assertEqual(len(handlers), 1)
-            self.assertEqual(handlers[0].proxies, {})
+            self.assertEqual(handlers, [])
+            with patch("urllib.request.getproxies", return_value={
+                "http": "http://fake-proxy:3128"
+            }):
+                default = urllib.request.build_opener()
+                populated = [h for h in default.handlers if isinstance(h, urllib.request.ProxyHandler)]
+                self.assertEqual(len(populated), 1)
+                self.assertTrue(populated[0].proxies)
+                self.assertEqual(
+                    [h for h in instance.opener.handlers if isinstance(h, urllib.request.ProxyHandler)],
+                    []
+                )
 
     def test_error_site_never_exposes_secret(self):
         try:
