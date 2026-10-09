@@ -7,10 +7,10 @@ server = (ROOT / "BonsaiLab/LocalOpenAIServer.swift").read_text(encoding="utf-8"
 project = (ROOT / "project.yml").read_text(encoding="utf-8")
 workflow = (ROOT / ".github/workflows/build-ios.yml").read_text(encoding="utf-8")
 
-assert ('CURRENT_PROJECT_VERSION: "82"' in project or 'CURRENT_PROJECT_VERSION: "90"' in project)
+assert ('CURRENT_PROJECT_VERSION: "82"' in project or 'CURRENT_PROJECT_VERSION: "91"' in project)
 assert ('RC126APIStartupLifecycle.begin(build: "82")' in view or 'RC126APIStartupLifecycle.begin(build: "90"' in view)
 assert ("RC1.26 Build 82 Unified-Metal 32K Lab" in view or "RC1.26 Build 89 Compact Scheduler Metadata" in view)
-assert ('"build_id": "rc1.26-build82-unified-metal-32k-lab"' in server or '"build_id": "rc1.26-build90-certification-p1"' in server)
+assert ('"build_id": "rc1.26-build82-unified-metal-32k-lab"' in server or '"build_id": "rc1.26-build91-long-context-forensics-p0"' in server)
 assert "private func applyBuild82LongContextPolicy(" in view
 assert view.count("applyBuild82LongContextPolicy(") == 3
 assert "ctx16k-build79-validated" in view
@@ -50,10 +50,10 @@ assert "RC1.26 Build 82 unified-Metal 32K contracts" in workflow
 assert "tools/rc126_build82_unified_metal_32k_contract_tests.py" in workflow
 assert (
     "BonsaiLab-v1-RC1.26-build82-unified-metal-32k-lab-unsigned.ipa" in workflow
-    or "BonsaiLab-v1-RC1.26-build90-certification-p1-unsigned.ipa" in workflow
+    or "BonsaiLab-v1-RC1.26-build91-long-context-forensics-p0-unsigned.ipa" in workflow
 )
 assert (
     "BonsaiLab-iPad-v1-RC1.26-Build82-Unified-Metal-32K-Lab" in workflow
-    or "BonsaiLab-iPad-v1-RC1.26-Build90-Certification-P1" in workflow
+    or "BonsaiLab-iPad-v1-RC1.26-Build91-Long-Context-Forensics-P0" in workflow
 )
 print("RC1.26 Build 82 unified-Metal 32K contracts: PASS")
