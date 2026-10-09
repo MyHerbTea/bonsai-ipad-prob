@@ -53,7 +53,8 @@ class RunnerTests(unittest.TestCase):
         # mock could not reproduce AttributeError: str.removesuffix.
         source = (Path(__file__).resolve().parent / "certify.py").read_text(encoding="utf-8")
         self.assertNotIn(".removesuffix(", source)
-        self.assertIn("self.url[:-3] + path", source)
+        self.assertIn("self.origin + path", source)
+        self.assertIn('urllib.request.ProxyHandler({})', source)
 
     def test_proxy_disabled_and_root_health_path(self):
         with tempfile.TemporaryDirectory() as d:
