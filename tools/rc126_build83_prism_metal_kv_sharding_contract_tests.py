@@ -8,7 +8,7 @@ workflow = (ROOT / ".github/workflows/build-ios.yml").read_text(encoding="utf-8"
 patcher = (ROOT / "tools/rc126_build83_patch_prism_kv_sharding.py").read_text(encoding="utf-8")
 
 assert 'CURRENT_PROJECT_VERSION: "91"' in project
-assert 'RC126APIStartupLifecycle.begin(build: "90"' in view
+assert 'RC126APIStartupLifecycle.begin(build: "91"' in view
 assert "RC1.26 Build 89 Compact Scheduler Metadata" in view
 assert '"build_id": "rc1.26-build91-long-context-forensics-p0"' in server
 
