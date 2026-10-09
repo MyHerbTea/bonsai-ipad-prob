@@ -175,10 +175,22 @@ final class LocalOpenAIServer: ObservableObject {
             "start_uptime_s": start,
             "elapsed_s": max(0, uptime - start)
         ]
-        forensicsLastEvent = entry
         if terminal {
+            var completed = entry
+            if let previous = forensicsActive[trace.requestID] {
+                for key in [
+                    "native_completed_batches", "native_completed_tokens",
+                    "native_decode_wall_ms_total", "native_average_batch_ms",
+                    "native_batch_last_completed_ms", "native_prompt_tokens_total",
+                    "native_prompt_tokens_processed", "native_batch_index"
+                ] {
+                    completed[key] = previous[key]
+                }
+            }
+            forensicsLastEvent = completed
             forensicsActive.removeValue(forKey: trace.requestID)
         } else {
+            forensicsLastEvent = entry
             forensicsActive[trace.requestID] = entry
         }
     }
@@ -196,12 +208,29 @@ final class LocalOpenAIServer: ObservableObject {
         entry["native_prompt_tokens_total"] = total
         entry["native_prompt_tokens_processed"] = processed
         entry["native_batch_index"] = batchIndex
-        entry["native_batch_last_completed_ms"] = durationMs
         entry["native_last_update_uptime_s"] = now
         if stage == "decode_begin" {
+            // Do not reset the last *completed* batch latency while another
+            // llama_decode is in flight. An API monitor may poll at any time.
             entry["native_batch_start_uptime_s"] = now
-        } else {
+        } else if stage == "decode_end" {
             entry.removeValue(forKey: "native_batch_start_uptime_s")
+            let oldProcessed = (entry["native_previous_completed_tokens"] as? Int) ?? 0
+            let advanced = max(0, processed - oldProcessed)
+            if advanced > 0 {
+                let batches = (entry["native_completed_batches"] as? Int ?? 0) + 1
+                let elapsed = (entry["native_decode_wall_ms_total"] as? Double ?? 0)
+                    + max(0, durationMs)
+                entry["native_completed_batches"] = batches
+                entry["native_completed_tokens"] = processed
+                entry["native_previous_completed_tokens"] = processed
+                entry["native_decode_wall_ms_total"] = elapsed
+                entry["native_average_batch_ms"] = elapsed / Double(batches)
+                entry["native_batch_last_completed_ms"] = max(0, durationMs)
+            } else {
+                entry["native_decode_errors"] =
+                    (entry["native_decode_errors"] as? Int ?? 0) + 1
+            }
         }
         forensicsActive[requestID] = entry
     }
@@ -226,10 +255,11 @@ final class LocalOpenAIServer: ObservableObject {
         let seq = forensicsSequence
         forensicsLock.unlock()
         return [
-            "schema": "bonsai-build93-execution-v1",
+            "schema": "bonsai-build94-execution-v1",
             "observer_only": true,
             "native_prefill_progress_available": true,
             "cancellation_propagation_verified": false,
+            "batch94_experiment": Build94BatchExperiment.snapshot(),
             "batch_trial": [
                 "mode": UserDefaults.standard.string(forKey: Build93BatchTrialPolicy.modeKey) ?? "not_selected",
                 "reason": UserDefaults.standard.string(forKey: Build93BatchTrialPolicy.reasonKey) ?? "none",
@@ -678,6 +708,18 @@ final class LocalOpenAIServer: ObservableObject {
         if request.method == "GET",
            request.path == "/debug/execution" {
             sendJSON(connection, status: 200, object: forensicsSnapshot())
+            return
+        }
+
+        if request.method == "GET",
+           request.path == "/debug/build94/launch" {
+            sendJSON(connection, status: 200, object: debugBuild94LaunchObject())
+            return
+        }
+
+        if request.method == "POST",
+           request.path == "/debug/build94/next-launch" {
+            updateBuild94NextLaunch(request, connection: connection)
             return
         }
 
@@ -1846,7 +1888,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build93-prefill-batch8-ab-p0",
+            "build_id": "rc1.26-build94-prefill-kernel-boundary-p0",
             "product_git_sha": BonsaiCertificationBuildIdentity.sourceGitSHA,
             "workflow_run_id": BonsaiCertificationBuildIdentity.workflowRunID,
             "prism_upstream_sha": "adfffbe41b2cabcd51fff326ab045662265062bb",
@@ -1912,6 +1954,61 @@ final class LocalOpenAIServer: ObservableObject {
             effective: effective,
             fallbacks: fallbacks
         )
+    }
+
+    private func debugBuild94LaunchObject() -> [String: Any] {
+        var result = Build94BatchExperiment.snapshot()
+        result["phase"] = "RC1.26_BUILD94_32K_PREFILL_KERNEL_BOUNDARY"
+        result["context_window"] = advertisedContextWindow
+        result["active_batch"] = advertisedBatch
+        result["active_ubatch"] = advertisedUBatch
+        result["engine_context_batch"] = UserDefaults.standard.integer(
+            forKey: "BonsaiBuild82EngineContextBatch"
+        )
+        result["engine_context_ubatch"] = UserDefaults.standard.integer(
+            forKey: "BonsaiBuild82EngineContextUBatch"
+        )
+        return result
+    }
+
+    private func updateBuild94NextLaunch(
+        _ request: HTTPRequest, connection: NWConnection
+    ) {
+        do {
+            guard
+                let root = try JSONSerialization.jsonObject(with: request.body)
+                    as? [String: Any],
+                let raw = root["arm"] as? String,
+                let arm = Build94BatchExperiment.Arm(rawValue: raw.uppercased())
+            else {
+                sendJSON(connection, status: 400, object: Self.errorObject(
+                    "invalid_build94_arm",
+                    "arm must be SAFE4, BASELINE8 or CANDIDATE16."
+                ))
+                return
+            }
+            let acknowledged = root["acknowledge_recovery"] as? Bool ?? false
+            guard advertisedContextWindow == 32_768 else {
+                sendJSON(connection, status: 409, object: Self.errorObject(
+                    "build94_context_mismatch", "32K context is required."
+                ))
+                return
+            }
+            guard Build94BatchExperiment.scheduleNext(
+                arm, acknowledgeRecovery: acknowledged
+            ) else {
+                sendJSON(connection, status: 409, object: Self.errorObject(
+                    "build94_arm_blocked",
+                    "Complete a baseline8 >=200-token request first, or explicitly acknowledge safe4 recovery."
+                ))
+                return
+            }
+            sendJSON(connection, status: 200, object: debugBuild94LaunchObject())
+        } catch {
+            sendJSON(connection, status: 400, object: Self.errorObject(
+                "invalid_build94_request", "Expected JSON object with arm."
+            ))
+        }
     }
 
     private func debugRuntimeObject() -> [String: Any] {
