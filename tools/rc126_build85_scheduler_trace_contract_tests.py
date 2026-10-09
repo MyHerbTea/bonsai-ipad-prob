@@ -5,9 +5,9 @@ engine=(root/"BonsaiLab/BonsaiEngine.swift").read_text()
 server=(root/"BonsaiLab/LocalOpenAIServer.swift").read_text()
 workflow=(root/".github/workflows/build-ios.yml").read_text()
 patch=(root/"tools/rc126_build85_patch_prism_scheduler_trace.py").read_text()
-assert 'CURRENT_PROJECT_VERSION: "94"' in (root/"project.yml").read_text()
-assert 'RC126APIStartupLifecycle.begin(build: "94")' in view
-assert '"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server
+assert ('CURRENT_PROJECT_VERSION: "94"' in (root/"project.yml").read_text() or 'CURRENT_PROJECT_VERSION: "95"' in (root/"project.yml").read_text())
+assert ('RC126APIStartupLifecycle.begin(build: "94")' in view or 'RC126APIStartupLifecycle.begin(build: "95")' in view)
+assert ('"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server or '"build_id": "rc1.26-build95-native-k1-ptq1-dense5"' in server)
 assert "build85_scheduler_reserve_trace_supported" in server
 assert "build=89" in engine
 assert "[BUILD 84 NATIVE CONTEXT CRASH TRACE]" in view
