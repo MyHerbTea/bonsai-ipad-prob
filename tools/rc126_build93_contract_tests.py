@@ -7,16 +7,16 @@ engine = (root / "BonsaiLab/BonsaiEngine.swift").read_text()
 server = (root / "BonsaiLab/LocalOpenAIServer.swift").read_text()
 policy = (root / "BonsaiLab/Build93BatchTrialPolicy.swift").read_text()
 project = (root / "project.yml").read_text()
-assert 'CURRENT_PROJECT_VERSION: "93"' in project
-assert 'RC126APIStartupLifecycle.begin(build: "93")' in view
-assert '"build_id": "rc1.26-build93-prefill-batch8-ab-p0"' in server
-assert '"schema": "bonsai-build93-execution-v1"' in server
-assert 'Build93BatchTrialPolicy.select(context: context)' in view
-assert 'let batchCap = trial == .candidate8 ? 8 : 4' in view
+assert 'CURRENT_PROJECT_VERSION: "94"' in project
+assert 'RC126APIStartupLifecycle.begin(build: "94")' in view
+assert '"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server
+assert '"schema": "bonsai-build94-execution-v1"' in server
+assert 'Build94BatchExperiment.select(context: context)' in view
+assert 'case .candidate16: batchCap = 16' in view
 assert 'apiRuntime.batch = min(apiRuntime.batch, batchCap)' in view
 assert 'apiRuntime.ubatch = min(apiRuntime.ubatch, batchCap)' in view
-assert 'Build93BatchTrialPolicy.noteSuccessfulText(' in view
-assert 'Build93BatchTrialPolicy.noteStartupFailure()' in view
+assert 'Build94BatchExperiment.noteTextSuccess(' in view
+assert 'Build94BatchExperiment.noteStartupFailure()' in view
 assert view.index('Phase2FPrefillBatchLaunchLatch.apply(') < view.index('applyBuild82LongContextPolicy(', view.index('private func startAPIServer()'))
 assert 'contextParams.n_batch = UInt32(config.batch)' in engine
 assert 'contextParams.n_ubatch = UInt32(config.ubatch)' in engine
