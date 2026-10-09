@@ -67,6 +67,6 @@ for field in [
 
 assert "RC1.26 Build 80 tier reload contracts" in workflow
 assert "tools/rc126_build80_tier_reload_contract_tests.py" in workflow
-assert ("build80-long-context-tier-reload-fix-unsigned.ipa" in workflow or "build81-32k-memory-squeeze-unsigned.ipa" in workflow or "build82-unified-metal-32k-lab-unsigned.ipa" in workflow or "build89-compact-scheduler-metadata-unsigned.ipa" in workflow)
+assert ("build80-long-context-tier-reload-fix-unsigned.ipa" in workflow or "build81-32k-memory-squeeze-unsigned.ipa" in workflow or "build82-unified-metal-32k-lab-unsigned.ipa" in workflow or "build90-certification-p1-unsigned.ipa" in workflow)
 
 print("RC1.26 Build 80 tier reload contracts: PASS")
