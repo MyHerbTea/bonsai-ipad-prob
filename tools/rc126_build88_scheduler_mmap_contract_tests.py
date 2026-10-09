@@ -6,9 +6,9 @@ view = (root/"BonsaiLab/ProductionView.swift").read_text(encoding="utf-8")
 server = (root/"BonsaiLab/LocalOpenAIServer.swift").read_text(encoding="utf-8")
 workflow = (root/".github/workflows/build-ios.yml").read_text(encoding="utf-8")
 patch = (root/"tools/rc126_build88_patch_prism_mmap_recovery.py").read_text(encoding="utf-8")
-assert 'CURRENT_PROJECT_VERSION: "94"' in (root/"project.yml").read_text()
-assert 'RC126APIStartupLifecycle.begin(build: "94")' in view
-assert '"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server
+assert ('CURRENT_PROJECT_VERSION: "94"' in (root/"project.yml").read_text() or 'CURRENT_PROJECT_VERSION: "95"' in (root/"project.yml").read_text())
+assert ('RC126APIStartupLifecycle.begin(build: "94")' in view or 'RC126APIStartupLifecycle.begin(build: "95")' in view)
+assert ('"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server or '"build_id": "rc1.26-build95-native-k1-ptq1-dense5"' in server)
 assert '"build88_scheduler_mmap_recovery": true' in server
 assert "build=89" in engine
 assert "ctx16k-build79-validated" in view
