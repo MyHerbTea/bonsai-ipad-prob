@@ -1,0 +1,34 @@
+# Native K1 — AI A / AI B Review Reconciliation
+Date: 2026-10-09. Status: source-checked decision, NOT code implementation or device certification.
+Repository: MyHerbTea/bonsai-ipad-prob. Build94 base aeb0f0c4d1918bc5618aba5d883404cc04436067. Prism base adfffbe41b2cabcd51fff326ab045662265062bb.
+
+## Adjudication (source checked)
+ACCEPT AI B: Build94 272-token 8/8→16/16 result is a configuration gain, not a kernel speedup. TG128 baseline has not been measured; do it before promoting a Decode optimization. Keep A/B actual runtime config equal, verify memory/thermal/EOS/prompt-token count, and test native numeric correctness separately from Apple device integration.
+REJECT AI B pseudo-code and facts listed below. DO NOT copy any kernel or benchmark code from that report.
+
+1. **Wrong type/symbols.** Actual pinned Prism type `GGML_TYPE_PTQ1_0`; actual single-vector shader `kernel_mul_mv_ptq1_0_f32`, defined in `ggml/src/ggml-metal/kernels/mul_mv.metal`. The report's `GGML_TYPE_TQ1_0`, `kernel_mul_mv_tq1_0_f32_dense`, and `ggml-metal-ptq1.metal` don't identify these pinned-source objects.
+2. **Wrong row/tile rationale.** The 4→5 denotes **output rows of the matvec tile**, sharing activation staging over one more output row. It is NOT a 5 trits-per-byte = 5 output rows alignment, and it does not reduce the number of *kernel launches* from N/4 to N/5; threadgroup work size/grid changes. Report's float5, custom trit unpack and threadgroup 320 samples are invented.
+3. **Wrong patch complexity.** Exact upstream commit 5e9365f05e56c7d28ff596c874dcffa3da785b15 dated 2026-10-08 changes **3 files, +6/-3 lines**: `ggml/src/ggml-metal/ggml-metal-device.cpp`, `ggml/src/ggml-metal/ggml-metal-impl.h`, and `ggml/src/ggml-metal/kernels/mul_mv.metal`. Dense `N_R0_PTQ1_0`→5, independent `N_R0_ID_PTQ1_0`→4, ID dispatch and template use ID constant. No new dense shader, no guessed ops.cpp/ops.h API migrations. Check patch application to pinned source and compile; don't assume zero integration risk.
+4. **Wrong date.** Real upstream commit date 2026-10-08 (not report's 2024-10-08). Recorded M1 Max TG128 10.300→11.505 tok/s is an external device observation, not an iPad prediction.
+5. **Contradictory kernel dispatch and unsourced PP272 `ne11=1`.** Pinned ops.cpp uses source type, `ne11=op->src[1]->ne[1]`, 2..8 `mul_mv_ext`, larger eligible batches `mul_mm`, and single vector `mul_mv`. Trace actual graph shape for accurate attribution; report cannot claim `ne11=1` *and* generic `mul_mm` based on that. Build94 PP speed alone does not prove precise Metal shader.
+6. **Nonexistent API routes.** Current Build94 POST `/v1/chat/completions`; no `/v1/completions`, no `/v1/engine/config`, `/v1/engine/reset`, `/v1/engine/status`, `/v1/engine/model_info`. Existing authenticated debug routes include `/debug/build94/launch`, `/debug/execution`, `/debug/telemetry`, `/debug/prefill`; reuse these rather than invent a second surface. `/health` exists. Report's sample Python tester would return 404.
+7. **Wrong TG speed metric.** Completion tokens divided by entire request wall time includes prefill/TTFT; it is not sustained Decode tokens/s. Use native generation time/tokens if exposed (or end-to-end timing minus prefill and first-token latency, clearly labeled), account for EOS and SSE chunk boundaries.
+8. **Invalid A/B identity.** Hashing the first 1 MB of a file is not a full-model SHA256 and does not prove identical weights; full hash may be done once offline with retained manifests. iOS files are selected by the user via security-scoped URLs, not guaranteed bundled `model.gguf`.
+9. **Incorrect mandatory probes.** 32768 input tokens plus 128 output tokens exceeds 32768 context capacity. Seven-day crash-free run or 100 repeated TG128 requests is not a prerequisite for a controlled source experiment. Thermal/system stress and longer-term certification are progression gates, not pre-lab blockers.
+10. **Unsubstantiated precision or ROI claims.** 5/4=1.25 refers to row tile, NOT guaranteed end-to-end 25% speedup. AI B's hypothetical TG 10.23/s and 65% GPU use are examples, not measurements. Its claimed 20–50% benefit from GDN/FWHT likewise has no grounded iPad M5 benchmark.
+
+## Verified implementation scope K1
+Source: https://github.com/PrismML-Eng/llama.cpp/commit/5e9365f05e56c7d28ff596c874dcffa3da785b15
+Upstream only 3 files +6/-3 lines. Dense kernel N_R0_PTQ1_0=5; MUL_MAT_ID stays N_R0_ID_PTQ1_0=4 due actual upstream numerical failure for 5-row ID. Even if Bonsai architecture does not use MoE in typical graph, preserve ID correctness for library-wide tests.
+Current baseline pinned header still N_R0_PTQ1_0=4. Upstream reports 45/45 dense PTQ1 MUL_MAT and 75/75 PTQ1 MUL_MAT_ID on M1 Max. Repeat inside project CI before saying project certified.
+
+## Agreed execution plan
+Gate A (existing Build94): one-click TG128 short input at 32K, actual active candidate16/16, identical Q4 KV/model/GPU context, stream=true; collect `usage.completion_tokens`, finish_reason, per-request prefill/TTFT/native generation seconds or best-labeled proxy, thermal and memory; 2–3 replicates only if compatible. If current process auto-selected BASELINE8 after restart, follow Build94 existing next-launch lifecycle; do not bypass fallback.
+Gate B (independent native worktree): implement **exact three-file upstream K1 patch** with no full Prism upgrade, no API output-token changes, no renderer/vision changes. Verify native kernel tests and CI Xcode unsigned IPA. Instrument provenance of native source SHA, package hashes, effective runtime config. No Mac required locally; GitHub Actions already builds XCFramework and IPA.
+Gate C (iPad A/B): A Build94 at 16/16 and B K1 at 16/16, full same model hash, short prompt; primary TG128 *decode-only* t/s, PP272/512 sanity, numerical correctness, 32K start, 1–3 image and post-vision text survival, SSE/UTF8/JSON API. Record median/spread, temperature, memory. Any binary crash or incorrect output stops promotion.
+Gate D: retain isolated K2 GDN 2026-09-29 (445fa82) and K3 SwiGLU+FWHT 2026-09-28 (79971a4) as alternatives. Do not force K1 just because it exists, and do not claim those fusions automatically win over K1.
+
+## Decision
+**GO** prepare/source-port K1 on a research worktree and establish Build94 TG128 baseline in parallel. **NO-GO** production promotion until actual iPad decode benefit and correctness/safety gates pass. No need to wait seven days merely to compile a small, reversible patch.
+
+Key files: https://github.com/PrismML-Eng/llama.cpp/blob/adfffbe41b2cabcd51fff326ab045662265062bb/ggml/src/ggml-metal/ggml-metal-impl.h ; https://github.com/MyHerbTea/bonsai-ipad-prob/blob/aeb0f0c4d1918bc5618aba5d883404cc04436067/BonsaiLab/Build94BatchExperiment.swift
