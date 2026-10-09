@@ -476,7 +476,7 @@ jobs:
           set -euo pipefail
           test "$(grep -c 'CURRENT_PROJECT_VERSION: \"91\"' project.yml)" -ge 1
           grep -q '"rc1.26-build91-long-context-forensics-p0"' BonsaiLab/LocalOpenAIServer.swift
-          grep -q 'RC126APIStartupLifecycle.begin(build: \"90\")' BonsaiLab/ProductionView.swift
+          grep -q 'RC126APIStartupLifecycle.begin(build: \"91\")' BonsaiLab/ProductionView.swift
 
           PACKAGE_BLOCK="$(
             sed -n \
