@@ -17,8 +17,8 @@ assert "ctx16k-build79-validated" in view
 assert "min(apiRuntime.gpuLayers, 56)" in view
 assert "ctx32k-q4-unified-metal-gpu99-b4" in view
 assert "apiRuntime.gpuLayers = 99" in view
-assert "apiRuntime.batch = min(apiRuntime.batch, batchCap)" in view and "let batchCap = trial == .candidate8 ? 8 : 4" in view
-assert "apiRuntime.ubatch = min(apiRuntime.ubatch, batchCap)" in view and "let batchCap = trial == .candidate8 ? 8 : 4" in view
+assert "apiRuntime.batch = min(apiRuntime.batch, batchCap)" in view and "case .candidate16: batchCap = 16" in view
+assert "apiRuntime.ubatch = min(apiRuntime.ubatch, batchCap)" in view and "case .candidate16: batchCap = 16" in view
 assert "apiRuntime.offloadKQV = true" in view
 assert "apiRuntime.opOffload = true" in view
 assert (
