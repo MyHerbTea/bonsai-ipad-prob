@@ -149,6 +149,59 @@ final class LocalOpenAIServer: ObservableObject {
     private let certificationTraceLock = NSLock()
     private var certificationTraceHistory: [[String: Any]] = []
     private let certificationTraceLimit = 64
+    // Build91: observer only; never holds the inference lock or modifies the engine.
+    private let forensicsLock = NSLock()
+    private var forensicsActive: [String: [String: Any]] = [:]
+    private var forensicsLastEvent: [String: Any]? = nil
+    private var forensicsSequence = 0
+    private let forensicsStarted = ProcessInfo.processInfo.systemUptime
+
+    private func forensicsEvent(
+        _ trace: BonsaiRequestTrace, phase: String, terminal: Bool = false
+    ) {
+        let uptime = ProcessInfo.processInfo.systemUptime
+        forensicsLock.lock()
+        defer { forensicsLock.unlock() }
+        forensicsSequence += 1
+        let start = (forensicsActive[trace.requestID]?["start_uptime_s"] as? Double)
+            ?? uptime
+        let entry: [String: Any] = [
+            "request_id": trace.requestID,
+            "run_id": trace.runID,
+            "test_case": trace.testCase,
+            "phase": phase,
+            "sequence": forensicsSequence,
+            "observed_uptime_s": uptime,
+            "start_uptime_s": start,
+            "elapsed_s": max(0, uptime - start)
+        ]
+        forensicsLastEvent = entry
+        if terminal {
+            forensicsActive.removeValue(forKey: trace.requestID)
+        } else {
+            forensicsActive[trace.requestID] = entry
+        }
+    }
+
+    private func forensicsSnapshot() -> [String: Any] {
+        forensicsLock.lock()
+        let active = Array(forensicsActive.values)
+        let last = forensicsLastEvent
+        let seq = forensicsSequence
+        forensicsLock.unlock()
+        return [
+            "schema": "bonsai-build91-forensics-p0",
+            "observer_only": true,
+            "native_prefill_progress_available": false,
+            "cancellation_propagation_verified": false,
+            "process_uptime_s": max(0, ProcessInfo.processInfo.systemUptime - forensicsStarted),
+            "sequence": seq,
+            "active_count": active.count,
+            "active_requests": active,
+            "last_event": last ?? NSNull()
+        ]
+    }
+
 
     func configureModelMetadata(
         contextWindow: Int,
@@ -576,6 +629,12 @@ final class LocalOpenAIServer: ObservableObject {
         }
 
         if request.method == "GET",
+           request.path == "/debug/execution" {
+            sendJSON(connection, status: 200, object: forensicsSnapshot())
+            return
+        }
+
+        if request.method == "GET",
            request.path == "/debug/request-trace" {
             sendJSON(
                 connection,
@@ -786,6 +845,7 @@ final class LocalOpenAIServer: ObservableObject {
 
         let certificationTrace = BonsaiRequestTrace.from(headers: request.headers)
         recordCertificationTrace(certificationTrace, stage: "received", status: 0)
+        forensicsEvent(certificationTrace, phase: "received")
 
         DispatchQueue.main.async {
             self.requestAttemptCount += 1
@@ -882,6 +942,7 @@ final class LocalOpenAIServer: ObservableObject {
             )
 
             Task {
+                self.forensicsEvent(certificationTrace, phase: "handler_running_stream")
                 _ = self.captureGovernorRequestBoundary(
                     stage: "API_REQUEST_BEGIN"
                 )
@@ -922,6 +983,7 @@ final class LocalOpenAIServer: ObservableObject {
                     self.recordCertificationTrace(
                         certificationTrace, stage: "inference_finished", status: 200
                     )
+                    self.forensicsEvent(certificationTrace, phase: "completed", terminal: true)
 
                     self.queue.async {
                         if !state.started {
@@ -944,6 +1006,7 @@ final class LocalOpenAIServer: ObservableObject {
                         self.lastError = ""
                     }
                 } catch {
+                    self.forensicsEvent(certificationTrace, phase: "handler_error_stream", terminal: true)
                     _ = self.captureGovernorRequestBoundary(
                         stage: "API_REQUEST_END_ERROR"
                     )
@@ -991,6 +1054,7 @@ final class LocalOpenAIServer: ObservableObject {
         }
 
         Task {
+            self.forensicsEvent(certificationTrace, phase: "handler_running_nonstream")
             _ = self.captureGovernorRequestBoundary(
                 stage: "API_REQUEST_BEGIN"
             )
@@ -1003,6 +1067,7 @@ final class LocalOpenAIServer: ObservableObject {
                 self.recordCertificationTrace(
                     certificationTrace, stage: "inference_finished", status: 200
                 )
+                self.forensicsEvent(certificationTrace, phase: "completed", terminal: true)
                 self.sendCompletion(
                     connection,
                     model: payload.model,
@@ -1013,6 +1078,7 @@ final class LocalOpenAIServer: ObservableObject {
                     self.lastError = ""
                 }
             } catch {
+                self.forensicsEvent(certificationTrace, phase: "handler_error_nonstream", terminal: true)
                 _ = self.captureGovernorRequestBoundary(
                     stage: "API_REQUEST_END_ERROR"
                 )
