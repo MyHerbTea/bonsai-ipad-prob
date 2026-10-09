@@ -9,7 +9,7 @@ assert auth < diag
 for marker in [
     'private let forensicsLock = NSLock()',
     'private func forensicsSnapshot()',
-    '"native_prefill_progress_available": false',
+    '"native_prefill_progress_available": true',
     '"cancellation_propagation_verified": false',
     'phase: "handler_running_stream"',
     'phase: "handler_running_nonstream"',
