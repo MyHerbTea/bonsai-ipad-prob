@@ -130,6 +130,7 @@ assert (
     or "Build89-Compact-Scheduler-Metadata" in workflow
     or "Build90-Certification-P1" in workflow
     or "Build91-Long-Context-Forensics-P0" in workflow
+    or "Build92-Native-Prefill-Observability-P0" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")
