@@ -198,7 +198,7 @@ final class LocalOpenAIServer: ObservableObject {
             "sequence": seq,
             "active_count": active.count,
             "active_requests": active,
-            "last_event": last ?? NSNull()
+            "last_event": (last as Any?) ?? NSNull()
         ]
     }
 
