@@ -7,9 +7,9 @@ engine=(root/"BonsaiLab/BonsaiEngine.swift").read_text(encoding="utf-8")
 server=(root/"BonsaiLab/LocalOpenAIServer.swift").read_text(encoding="utf-8")
 flow=(root/".github/workflows/build-ios.yml").read_text(encoding="utf-8")
 patch=(root/"tools/rc126_build86_patch_prism_crash_forensics.py").read_text(encoding="utf-8")
-assert 'CURRENT_PROJECT_VERSION: "94"' in (root/"project.yml").read_text()
-assert 'RC126APIStartupLifecycle.begin(build: "94")' in view
-assert '"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server
+assert ('CURRENT_PROJECT_VERSION: "94"' in (root/"project.yml").read_text() or 'CURRENT_PROJECT_VERSION: "95"' in (root/"project.yml").read_text())
+assert ('RC126APIStartupLifecycle.begin(build: "94")' in view or 'RC126APIStartupLifecycle.begin(build: "95")' in view)
+assert ('"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server or '"build_id": "rc1.26-build95-native-k1-ptq1-dense5"' in server)
 assert "build86_crash_forensics_v2" in server
 assert 'trace_format=2' in engine and 'trace_format=2' in view
 assert "bonsai_build86_previous_native_trace.txt" in engine
