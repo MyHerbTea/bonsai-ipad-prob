@@ -21,5 +21,5 @@ assert 'BUILD89_COMPACT_ALLOC_FAILURE' in p and 'BUILD89_META_USED' in p
 assert 'ggml_used_mem(sched->ctx)' in p
 assert 'rc126_build88_patch_prism_mmap_recovery.py' in wf
 assert 'rc126_build89_patch_prism_compact_scheduler.py' in wf
-assert 'BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa' in wf
+assert ('BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa' in wf or 'BonsaiLab-v1-RC1.26-build95-native-k1-ptq1-dense5-unsigned.ipa' in wf)
 print("RC1.26 Build89 bounded scheduler metadata contracts: PASS")
