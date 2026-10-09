@@ -2381,7 +2381,8 @@ actor BonsaiEngine {
         userPrompt: String,
         generation: GenerationConfig,
         reasoningEffort: String? = nil,
-        onDelta: (@Sendable (String) -> Void)? = nil
+        onDelta: (@Sendable (String) -> Void)? = nil,
+        onPrefillProgress: (@Sendable (String, Int, Int, Int, Double) -> Void)? = nil
     ) throws -> GenerationMetrics {
         guard let context, let vocab else {
             throw LabError.noModel
@@ -2475,7 +2476,8 @@ actor BonsaiEngine {
                             tokenOffset:
                                 reusedTokens,
                             startPosition:
-                                Int32(reusedTokens)
+                                Int32(reusedTokens),
+                            onProgress: onPrefillProgress
                         )
                     } else {
                         reusedTokens = 0
@@ -2501,7 +2503,8 @@ actor BonsaiEngine {
                     tokens,
                     context: context,
                     batchSize:
-                        appliedRuntime.batch
+                        appliedRuntime.batch,
+                    onProgress: onPrefillProgress
                 )
             }
 
@@ -3110,7 +3113,8 @@ actor BonsaiEngine {
         context: OpaquePointer,
         batchSize: Int,
         tokenOffset: Int = 0,
-        startPosition: Int32 = 0
+        startPosition: Int32 = 0,
+        onProgress: (@Sendable (String, Int, Int, Int, Double) -> Void)? = nil
     ) throws {
         guard tokenOffset >= 0,
               tokenOffset < tokens.count
@@ -3138,8 +3142,15 @@ actor BonsaiEngine {
                 position += 1
             }
 
+            let batchIndex = (offset - tokenOffset) / max(1, batchSize)
+            onProgress?("decode_begin", tokens.count - tokenOffset, offset - tokenOffset, batchIndex, 0)
+            let decodeStart = ProcessInfo.processInfo.systemUptime
             let code = llama_decode(context, batch)
+            let durationMs = (ProcessInfo.processInfo.systemUptime - decodeStart) * 1_000
             llama_batch_free(batch)
+            onProgress?("decode_end", tokens.count - tokenOffset,
+                        offset - tokenOffset + (code == 0 ? count : 0),
+                        batchIndex, durationMs)
 
             if code != 0 {
                 throw LabError.decodeFailed(code)
