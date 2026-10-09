@@ -128,6 +128,7 @@ assert (
     or "Build81-32K-Memory-Squeeze" in workflow
     or "Build82-Unified-Metal-32K-Lab" in workflow
     or "Build89-Compact-Scheduler-Metadata" in workflow
+    or "Build90-Certification-P1" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")
