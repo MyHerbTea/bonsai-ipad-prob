@@ -35,7 +35,7 @@ def main():
     # These exact expectations distinguish the original GDN row/SIMD layout.
     baseline_dispatch = "ggml_metal_encoder_dispatch_threadgroups(enc, op->src[2]->ne[0]/nsg, op->src[2]->ne[1], op->src[2]->ne[3], 32, nsg, 1);"
     assert ops.count(baseline_dispatch) == 1, "unexpected original GDN dispatcher"
-    assert gdn.count("const uint i20 = tgpig.x*NSG + ty;") == 1, "unexpected original GDN lane mapping"
+    assert gdn.count("const uint i20 = tgpig.x*NSG + ty;") == 2, "expected active and #else fallback GDN lane mappings"
     assert gdn.count("s_k = simd_sum(s_k);") == 1, "unexpected original GDN reduction"
     assert gdn.count("y = simd_sum(y);") == 1, "unexpected original GDN output reduction"
     patch_text = patch.read_text(encoding="utf-8")
