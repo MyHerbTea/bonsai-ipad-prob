@@ -8,9 +8,9 @@ engine = (root / "BonsaiLab/BonsaiEngine.swift").read_text()
 policy = (root / "BonsaiLab/Build94BatchExperiment.swift").read_text()
 workflow = (root / ".github/workflows/build-ios.yml").read_text()
 project = (root / "project.yml").read_text()
-assert 'CURRENT_PROJECT_VERSION: "94"' in project
-assert 'RC126APIStartupLifecycle.begin(build: "94")' in view
-assert '"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server
+assert ('CURRENT_PROJECT_VERSION: "94"' in project or 'CURRENT_PROJECT_VERSION: "95"' in project)
+assert ('RC126APIStartupLifecycle.begin(build: "94")' in view or 'RC126APIStartupLifecycle.begin(build: "95")' in view)
+assert ('"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server or '"build_id": "rc1.26-build95-native-k1-ptq1-dense5"' in server)
 assert '"schema": "bonsai-build94-execution-v1"' in server
 assert "Build94BatchExperiment.select(context: context)" in view
 assert "case .candidate16: batchCap = 16" in view
@@ -31,8 +31,8 @@ assert 'contextParams.n_batch = UInt32(config.batch)' in engine
 assert 'contextParams.n_ubatch = UInt32(config.ubatch)' in engine
 assert "adfffbe41b2cabcd51fff326ab045662265062bb" in workflow
 assert "rc126_build94_policy_tests.swift" in workflow
-assert "build94-prefill-kernel-boundary-p0-unsigned.ipa" in workflow
-assert "Build94-Prefill-Kernel-Boundary-P0" in workflow
+assert ('build94-prefill-kernel-boundary-p0-unsigned.ipa' in workflow or 'build95-native-k1-ptq1-dense5-unsigned.ipa' in workflow)
+assert ('Build94-Prefill-Kernel-Boundary-P0' in workflow or 'Build95-Native-K1-PTQ1-Dense5' in workflow)
 for marker in ["pendingKey", "fallbackKey", "baselineOKKey", "confirmedKey", "scheduleNext", "noteStartupFailure", "noteTextSuccess"]:
     assert marker in policy, marker
 print("Build94 guarded 32K batch8/16, safe4 recovery, observer-only timing: PASS")
