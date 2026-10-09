@@ -1,0 +1,24 @@
+name: Bonsai Build91 Forensics Contracts
+on:
+  push:
+    branches:
+      - lab-v1-rc1-26-build91-long-context-forensics
+    paths:
+      - "BonsaiLab/LocalOpenAIServer.swift"
+      - "tools/rc126_build91_forensics_contract_tests.py"
+      - "docs/BUILD91_FORENSICS_DESIGN.md"
+      - ".github/workflows/build91-forensics-contracts.yml"
+  workflow_dispatch:
+jobs:
+  forensics-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile and run static contracts
+        run: |
+          python3 -m py_compile tools/rc126_build91_forensics_contract_tests.py
+          python3 tools/rc126_build91_forensics_contract_tests.py
