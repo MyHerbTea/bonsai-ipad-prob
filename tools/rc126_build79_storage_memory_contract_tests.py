@@ -25,7 +25,7 @@ assert (
     "min(apiRuntime.gpuLayers, 24)" in view
     or "ctx64k-q4-unified-metal-gpu99-b2" in view
 )
-assert "min(apiRuntime.batch, 4)" in view
+assert "apiRuntime.batch = min(apiRuntime.batch, batchCap)" in view and "let batchCap = trial == .candidate8 ? 8 : 4" in view
 assert "apiRuntime.flashAttention = true" in view
 assert 'apiRuntime.loadMode = .mmap' in view
 
