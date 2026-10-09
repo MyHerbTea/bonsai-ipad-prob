@@ -3,6 +3,36 @@ import Network
 import Darwin
 import Metal
 
+struct BonsaiRequestTrace: Sendable {
+    let runID: String
+    let requestID: String
+    let testCase: String
+
+    private static func checked(_ raw: String?, fallback: String) -> String {
+        guard let raw, !raw.isEmpty, raw.utf8.count <= 96 else {
+            return fallback
+        }
+        let allowed = raw.utf8.allSatisfy { byte in
+            (byte >= 48 && byte <= 57)
+                || (byte >= 65 && byte <= 90)
+                || (byte >= 97 && byte <= 122)
+                || byte == 45 || byte == 46 || byte == 95
+        }
+        return allowed ? raw : fallback
+    }
+
+    static func from(headers: [String: String]) -> BonsaiRequestTrace {
+        BonsaiRequestTrace(
+            runID: checked(headers["x-bonsai-run-id"], fallback: "interactive"),
+            requestID: checked(
+                headers["x-bonsai-request-id"],
+                fallback: "srv-" + UUID().uuidString
+            ),
+            testCase: checked(headers["x-bonsai-test-case"], fallback: "interactive")
+        )
+    }
+}
+
 struct OpenAIRequestPayload: Sendable {
     let model: String
     let systemPrompt: String
@@ -18,6 +48,7 @@ struct OpenAIRequestPayload: Sendable {
     let stream: Bool
     let includeUsage: Bool
     let reasoningEffort: String
+    var certificationTrace: BonsaiRequestTrace? = nil
 
     var imageCount: Int {
         images.count
@@ -115,6 +146,9 @@ final class LocalOpenAIServer: ObservableObject {
     private let prefillObservationLock = NSLock()
     private var prefillObservationSequence = 0
     private var lastPrefillObservation: RuntimePrefillObservation?
+    private let certificationTraceLock = NSLock()
+    private var certificationTraceHistory: [[String: Any]] = []
+    private let certificationTraceLimit = 64
 
     func configureModelMetadata(
         contextWindow: Int,
@@ -542,6 +576,16 @@ final class LocalOpenAIServer: ObservableObject {
         }
 
         if request.method == "GET",
+           request.path == "/debug/request-trace" {
+            sendJSON(
+                connection,
+                status: 200,
+                object: certificationTraceSnapshot()
+            )
+            return
+        }
+
+        if request.method == "GET",
            request.path == "/debug/build" {
             sendJSON(
                 connection,
@@ -740,6 +784,9 @@ final class LocalOpenAIServer: ObservableObject {
             return
         }
 
+        let certificationTrace = BonsaiRequestTrace.from(headers: request.headers)
+        recordCertificationTrace(certificationTrace, stage: "received", status: 0)
+
         DispatchQueue.main.async {
             self.requestAttemptCount += 1
             self.lastRequestPath = request.path
@@ -747,6 +794,7 @@ final class LocalOpenAIServer: ObservableObject {
         }
 
         guard let handler else {
+            recordCertificationTrace(certificationTrace, stage: "server_not_ready", status: 503)
             recordRejection("server_not_ready")
             sendJSON(
                 connection,
@@ -759,13 +807,15 @@ final class LocalOpenAIServer: ObservableObject {
             return
         }
 
-        let payload: OpenAIRequestPayload
+        var payload: OpenAIRequestPayload
         do {
             payload = try Self.parseChatPayload(
                 request.body,
                 defaultModel: modelID
             )
+            payload.certificationTrace = certificationTrace
         } catch let error as OpenAIMultimodalError {
+            recordCertificationTrace(certificationTrace, stage: error.code, status: error.status)
             recordRejection(error.code)
             sendJSON(
                 connection,
@@ -777,6 +827,7 @@ final class LocalOpenAIServer: ObservableObject {
             )
             return
         } catch let error as APIServerError {
+            recordCertificationTrace(certificationTrace, stage: error.code, status: error.status)
             recordRejection(error.code)
             sendJSON(
                 connection,
@@ -790,6 +841,7 @@ final class LocalOpenAIServer: ObservableObject {
             )
             return
         } catch {
+            recordCertificationTrace(certificationTrace, stage: "invalid_request_error", status: 400)
             recordRejection("invalid_request_error")
             sendJSON(
                 connection,
@@ -803,6 +855,7 @@ final class LocalOpenAIServer: ObservableObject {
         }
 
         guard payload.model == modelID else {
+            recordCertificationTrace(certificationTrace, stage: "model_not_found", status: 404)
             recordRejection("model_not_found")
             sendJSON(
                 connection,
@@ -866,6 +919,9 @@ final class LocalOpenAIServer: ObservableObject {
                         stage: "API_REQUEST_END"
                     )
                     self.recordPrefillObservation(result)
+                    self.recordCertificationTrace(
+                        certificationTrace, stage: "inference_finished", status: 200
+                    )
 
                     self.queue.async {
                         if !state.started {
@@ -890,6 +946,12 @@ final class LocalOpenAIServer: ObservableObject {
                 } catch {
                     _ = self.captureGovernorRequestBoundary(
                         stage: "API_REQUEST_END_ERROR"
+                    )
+                    let mappedTraceError = Self.mapHandlerError(error)
+                    self.recordCertificationTrace(
+                        certificationTrace,
+                        stage: mappedTraceError.code,
+                        status: mappedTraceError.status
                     )
                     self.queue.async {
                         let mapped = Self.mapHandlerError(error)
@@ -938,6 +1000,9 @@ final class LocalOpenAIServer: ObservableObject {
                     stage: "API_REQUEST_END"
                 )
                 self.recordPrefillObservation(result)
+                self.recordCertificationTrace(
+                    certificationTrace, stage: "inference_finished", status: 200
+                )
                 self.sendCompletion(
                     connection,
                     model: payload.model,
@@ -952,6 +1017,9 @@ final class LocalOpenAIServer: ObservableObject {
                     stage: "API_REQUEST_END_ERROR"
                 )
                 let mapped = Self.mapHandlerError(error)
+                self.recordCertificationTrace(
+                    certificationTrace, stage: mapped.code, status: mapped.status
+                )
                 self.sendJSON(
                     connection,
                     status: mapped.status,
@@ -1622,11 +1690,53 @@ final class LocalOpenAIServer: ObservableObject {
         }
     }
 
+    private func recordCertificationTrace(
+        _ trace: BonsaiRequestTrace,
+        stage: String,
+        status: Int
+    ) {
+        let event: [String: Any] = [
+            "run_id": trace.runID,
+            "request_id": trace.requestID,
+            "test_case": trace.testCase,
+            "stage": stage,
+            "http_status": status,
+            "timestamp": ISO8601DateFormatter().string(from: Date())
+        ]
+        certificationTraceLock.lock()
+        certificationTraceHistory.append(event)
+        if certificationTraceHistory.count > certificationTraceLimit {
+            certificationTraceHistory.removeFirst(
+                certificationTraceHistory.count - certificationTraceLimit
+            )
+        }
+        certificationTraceLock.unlock()
+    }
+
+    private func certificationTraceSnapshot() -> [String: Any] {
+        certificationTraceLock.lock()
+        let events = certificationTraceHistory
+        certificationTraceLock.unlock()
+        return [
+            "schema_version": 1,
+            "capacity": certificationTraceLimit,
+            "count": events.count,
+            "events": events,
+            "persistence": "in_memory_bounded",
+            "contains_prompts": false,
+            "contains_secrets": false
+        ]
+    }
+
     private func debugBuildObject() -> [String: Any] {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build89-compact-scheduler-metadata",
+            "build_id": "rc1.26-build90-certification-p1",
+            "product_git_sha": BonsaiCertificationBuildIdentity.sourceGitSHA,
+            "workflow_run_id": BonsaiCertificationBuildIdentity.workflowRunID,
+            "prism_upstream_sha": "adfffbe41b2cabcd51fff326ab045662265062bb",
+            "certification_trace_endpoint": "/debug/request-trace",
             "version":
                 info["CFBundleShortVersionString"] as? String
                 ?? "unknown",

@@ -3576,7 +3576,7 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "89")
+        RC126APIStartupLifecycle.begin(build: "90")
         busy = true
         status = "正在执行 RC1.26 Build 89 Compact Scheduler Metadata + API 冷启动保护…"
         detail = """
@@ -3696,7 +3696,8 @@ struct ProductionView: View {
                     onDelta in
 
                     let requestID =
-                        UUID().uuidString
+                        payload.certificationTrace?.requestID
+                        ?? UUID().uuidString
                     let requestObservation =
                         RC1232PerformanceDiagnostics
                             .beginRequest()
@@ -4368,7 +4369,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 86 Long Context API Runtime 已就绪"
+                        "RC1.26 Build 90 Certification API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
