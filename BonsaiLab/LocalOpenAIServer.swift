@@ -183,6 +183,29 @@ final class LocalOpenAIServer: ObservableObject {
         }
     }
 
+    // Build92: native prefill observations are strictly metadata, never tokens or prompts.
+    func observeNativeTextPrefill(
+        requestID: String, stage: String, total: Int,
+        processed: Int, batchIndex: Int, durationMs: Double
+    ) {
+        let now = ProcessInfo.processInfo.systemUptime
+        forensicsLock.lock()
+        defer { forensicsLock.unlock() }
+        guard var entry = forensicsActive[requestID] else { return }
+        entry["native_stage"] = stage
+        entry["native_prompt_tokens_total"] = total
+        entry["native_prompt_tokens_processed"] = processed
+        entry["native_batch_index"] = batchIndex
+        entry["native_batch_last_completed_ms"] = durationMs
+        entry["native_last_update_uptime_s"] = now
+        if stage == "decode_begin" {
+            entry["native_batch_start_uptime_s"] = now
+        } else {
+            entry.removeValue(forKey: "native_batch_start_uptime_s")
+        }
+        forensicsActive[requestID] = entry
+    }
+
     private func forensicsSnapshot() -> [String: Any] {
         forensicsLock.lock()
         let now = ProcessInfo.processInfo.systemUptime
@@ -190,6 +213,12 @@ final class LocalOpenAIServer: ObservableObject {
             var entry = original
             if let started = entry["start_uptime_s"] as? Double {
                 entry["elapsed_s"] = max(0, now - started)
+            }
+            if let batchStart = entry["native_batch_start_uptime_s"] as? Double {
+                entry["current_batch_elapsed_ms"] = max(0, now - batchStart) * 1_000
+            }
+            if let update = entry["native_last_update_uptime_s"] as? Double {
+                entry["last_progress_age_ms"] = max(0, now - update) * 1_000
             }
             return entry
         }
