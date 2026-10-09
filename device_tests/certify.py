@@ -14,6 +14,7 @@ from pathlib import Path
 import re
 import sys
 import time
+import traceback
 import urllib.error
 import urllib.request
 import uuid
@@ -36,6 +37,19 @@ def now_utc() -> str:
 
 def make_run_id() -> str:
     return dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-b89-" + uuid.uuid4().hex[:8]
+
+
+def safe_error_location(exc: Exception) -> str:
+    """Only a source filename and line number, never URLs, headers or secrets."""
+    frames = traceback.extract_tb(exc.__traceback__)
+    own = [f for f in frames if Path(f.filename).name == "certify.py"]
+    if own:
+        f = own[-1]
+        return f"certify.py:{f.lineno}:{f.name}"
+    if frames:
+        f = frames[-1]
+        return f"{Path(f.filename).name}:{f.lineno}:{f.name}"
+    return "unknown"
 
 
 def load_config(path: Path) -> dict:
@@ -77,12 +91,14 @@ class Certification:
         self.outdir.mkdir(parents=True, exist_ok=False)
         self.events: list[dict] = []
         self.counter = 0
+        self.current_case = "initialization"
         self.failed = False
         self.identity_level = "unverified"
         (self.outdir / "responses").mkdir()
 
     def request(self, case: str, path: str, *, payload: dict | None = None, streaming: bool = False) -> dict:
         self.counter += 1
+        self.current_case = case
         request_id = safe_id(f"{self.run_id}-{self.counter:04d}")
         start = time.perf_counter()
         method = "POST" if payload is not None else "GET"
@@ -96,7 +112,7 @@ class Certification:
         }
         if wire is not None:
             headers["Content-Type"] = "application/json"
-        req = urllib.request.Request(self.url.removesuffix("/v1") + path,
+        req = urllib.request.Request(self.url[:-3] + path,
                                      data=wire, method=method, headers=headers)
         output = {
             "case": case, "run_id": self.run_id, "request_id": request_id,
@@ -146,6 +162,8 @@ class Certification:
         except Exception as exc:
             # Never echo URL, headers, or API Key (some exception messages include URL).
             output["error"] = type(exc).__name__
+            output["error_site"] = safe_error_location(exc)
+            print(f"[ERROR] {case}: {output['error']} @ {output['error_site']}", flush=True)
         finally:
             output["duration_ms"] = round((time.perf_counter() - start) * 1000, 2)
         # response bodies can be large; store summaries in events.
@@ -228,8 +246,11 @@ class Certification:
             self.failed = True
             # Stable error string: assertion is authored; avoid exposing embedded API URL.
             detail = str(exc) if isinstance(exc, AssertionError) else type(exc).__name__
-            print(f"[STOP] {detail}", file=sys.stderr)
-            self.events.append({"case": "suite_failure", "error": detail, "timestamp": now_utc()})
+            site = safe_error_location(exc)
+            print(f"[STOP] {detail} | phase={self.current_case} | site={site}", file=sys.stderr)
+            self.events.append({"case": "suite_failure", "error": detail,
+                                "phase": self.current_case, "error_site": site,
+                                "timestamp": now_utc()})
             return 1
         finally:
             self.save()

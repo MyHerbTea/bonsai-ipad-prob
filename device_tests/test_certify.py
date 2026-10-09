@@ -5,7 +5,7 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import patch
-from device_tests.certify import Certification, safe_id, response_json, MODEL, BUILD89_ID
+from device_tests.certify import Certification, safe_id, response_json, MODEL, BUILD89_ID, safe_error_location
 
 
 class MockServer(BaseHTTPRequestHandler):
@@ -47,6 +47,21 @@ class MockServer(BaseHTTPRequestHandler):
 
 
 class RunnerTests(unittest.TestCase):
+    def test_no_py39_only_removesuffix(self):
+        # Regression: user's Windows Python may be 3.8; CI's old 3.12-only
+        # mock could not reproduce AttributeError: str.removesuffix.
+        source = (Path(__file__).resolve().parent / "certify.py").read_text(encoding="utf-8")
+        self.assertNotIn(".removesuffix(", source)
+        self.assertIn("self.url[:-3] + path", source)
+
+    def test_error_site_never_exposes_secret(self):
+        try:
+            raise AttributeError("server_url SECRET_DO_NOT_PERSIST")
+        except AttributeError as exc:
+            where = safe_error_location(exc)
+        self.assertIn("test_certify.py:", where)
+        self.assertNotIn("SECRET_DO_NOT_PERSIST", where)
+
     def test_ids(self):
         self.assertEqual(safe_id("run-123.abc"), "run-123.abc")
         with self.assertRaises(ValueError):

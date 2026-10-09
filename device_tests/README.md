@@ -4,7 +4,7 @@ This is the first **non-invasive** certification iteration. It runs against the 
 
 ## Start
 
-Requirements: Python 3.10+ on Windows (stdlib only), LAN/Tailscale path to iPad, Bonsai API already started in the iPad app.
+Requirements: Python 3.8+ on Windows (stdlib only), LAN/Tailscale path to iPad, Bonsai API already started in the iPad app.
 
 Copy `config.example.json` to `config.local.json` and enter your **private** Base URL / API Key. Alternatively set `BONSAI_API_KEY` in your session. Do **not** commit or publicly share `config.local.json`.
 
@@ -42,3 +42,15 @@ No Authorization header or API key is written into results or evidence ZIP. Inpu
 ## Next P1
 
 Add app-side immutable product identity manifest, validate the CI SHA against installed app, accept and persist request IDs through `LocalOpenAIServer` and `RC1232PerformanceDiagnostics`. Do not modify Build89's verified 32K memory path.
+
+## P0.1 Windows compatibility fix
+
+- The first P0 package used `str.removesuffix` (Python >=3.9) while
+  the GitHub mock tests had only exercised Python 3.12. On Python 3.8
+  this would trigger `[STOP] AttributeError` before the first HTTP request.
+- P0.1 uses a Python 3.8-compatible route builder and includes Windows
+  Python 3.8/3.12 loopback tests.
+- If an error occurs, `summary.json` and the console will now show
+  the failing stage and **source location**, without printing API Key or URLs.
+- Existing `config.local.json` works unchanged. Replace the runner files
+  but retain your private config; no new iPad build required.
