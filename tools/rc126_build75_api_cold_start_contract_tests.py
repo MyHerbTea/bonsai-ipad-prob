@@ -51,6 +51,7 @@ assert (
     or 'RC1.26 Build 81 32K Memory Squeeze' in view
     or 'RC1.26 Build 82 Unified-Metal 32K Lab' in view
     or 'RC1.26 Build 89 Compact Scheduler Metadata' in view
+    or 'RC1.26 Build 91 Long-Context Forensics P0' in view
 )
 assert (
     '"rc1.26-build75-api-cold-start-guard"' in server
