@@ -21,8 +21,8 @@ assert view.count("applyBuild82LongContextPolicy(") == 3
 assert "ctx16k-build79-validated" in view
 assert "min(apiRuntime.gpuLayers, 56)" in view
 assert ("ctx32k-q4-gpu24-b4-cpu-kqv-op" in view or "ctx32k-q4-unified-metal-gpu99-b4" in view)
-assert "min(apiRuntime.batch, 4)" in view
-assert "min(apiRuntime.ubatch, 4)" in view
+assert "apiRuntime.batch = min(apiRuntime.batch, batchCap)" in view and "let batchCap = trial == .candidate8 ? 8 : 4" in view
+assert "apiRuntime.ubatch = min(apiRuntime.ubatch, batchCap)" in view and "let batchCap = trial == .candidate8 ? 8 : 4" in view
 assert ("min(apiRuntime.gpuLayers, 24)" in view or "ctx32k-q4-unified-metal-gpu99-b4" in view)
 assert ("ctx64k-q4-gpu8-b2-cpu-kqv-op" in view or "ctx64k-q4-unified-metal-gpu99-b2" in view)
 assert "min(apiRuntime.batch, 2)" in view
