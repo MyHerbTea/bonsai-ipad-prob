@@ -24,5 +24,5 @@ assert "BUILD88_SCHED_NEW_NULL_CTX_ABORT_PREVENTED" in patch
 assert "throw std::runtime_error" in patch
 assert "tools/rc126_build88_patch_prism_mmap_recovery.py" in workflow
 assert "tools/rc126_build88_scheduler_mmap_contract_tests.py" in workflow
-assert "BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa" in workflow
+assert ("BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa" in workflow or "BonsaiLab-v1-RC1.26-build95-native-k1-ptq1-dense5-unsigned.ipa" in workflow)
 print("RC1.26 Build88 scheduler mmap recovery contracts: PASS")
