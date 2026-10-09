@@ -845,7 +845,8 @@ final class LocalOpenAIServer: ObservableObject {
 
         let certificationTrace = BonsaiRequestTrace.from(headers: request.headers)
         recordCertificationTrace(certificationTrace, stage: "received", status: 0)
-        forensicsEvent(certificationTrace, phase: "received")
+        // Pre-admission tracing must not create an active inference lease.
+        forensicsEvent(certificationTrace, phase: "received", terminal: true)
 
         DispatchQueue.main.async {
             self.requestAttemptCount += 1
