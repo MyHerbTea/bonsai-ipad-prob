@@ -1,4 +1,4 @@
-name: Build Bonsai iPad Lab v1 RC1.26 Build 90 Certification P1
+name: Build Bonsai iPad Lab v1 RC1.26 Build 91 Forensics P0
 
 on:
   push:
@@ -28,6 +28,7 @@ on:
       - lab-v1-rc1-26-build88-scheduler-mmap-recovery
       - lab-v1-rc1-26-build89-compact-scheduler-metadata
       - lab-v1-rc1-26-build90-certification-p1
+      - lab-v1-rc1-26-build91-long-context-forensics
   workflow_dispatch:
 
 concurrency:
@@ -457,6 +458,11 @@ jobs:
           set -euo pipefail
           python3 tools/rc126_build89_compact_scheduler_contract_tests.py
           python3 -m py_compile tools/rc126_build89_patch_prism_compact_scheduler.py
+
+      - name: RC1.26 Build 91 observer-only trace contract
+        shell: bash
+        run: |
+          python3 tools/rc126_build91_forensics_contract_tests.py
 
       - name: RC1.26 Build 90 trace contract
         shell: bash
