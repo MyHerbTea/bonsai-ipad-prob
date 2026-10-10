@@ -131,7 +131,7 @@ assert (
     or "Build90-Certification-P1" in workflow
     or "Build91-Long-Context-Forensics-P0" in workflow
     or "Build94-Prefill-Kernel-Boundary-P0" in workflow
-    or "Build97-Output-Config-Vision-Home" in workflow
+    or "Build99-Append-Only-Prefix-Speed-Lab" in workflow
 )
 
 print("RC1.25.1 Build 60 API hardening contracts: PASS")
