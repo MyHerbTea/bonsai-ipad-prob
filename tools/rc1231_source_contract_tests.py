@@ -29,7 +29,7 @@ assert "case 422: return \"Unprocessable Entity\"" in server_s
 assert "selectedMLXVisionWeightsURL" in api
 assert "encodeForInjection(" in api
 assert "writeMLXProjectedVisionCache(" in api
-assert "requireFullOutputBudget: true" in api_s
+assert "requireFullOutputBudget: false" in api_s  # Build103 clips to available vision positions and KV
 assert "prepareVisionEmbeddingCache(" not in api
 assert "vision_model_unavailable" in api
 assert "vision_inference_failed" in api
