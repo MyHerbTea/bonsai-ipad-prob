@@ -1,4 +1,4 @@
-name: Build Bonsai iPad Lab v1 RC1.26 Build 94 Prefill Kernel Boundary P0
+name: Build Bonsai iPad Lab v1 RC1.26 Build 98 M5 FA-vec A/B
 
 on:
   push:
@@ -31,7 +31,8 @@ on:
       - lab-v1-rc1-26-build91-long-context-forensics
       - lab-v1-rc1-26-build92-native-prefill-observability
       - lab-v1-rc1-26-build93-prefill-batch8-ab
-      - lab-v1-rc1-26-build97-output-config-vision-home
+      - lab-v1-rc1-26-build98-m5-fa-vec-ab
+      - lab-v1-rc1-26-build98-m5-fa-vec-ab
   workflow_dispatch:
 
 concurrency:
@@ -492,13 +493,19 @@ jobs:
           set -euo pipefail
           python3 tools/rc126_build90_certification_trace_contract_tests.py
 
+      - name: RC1.26 Build 98 isolated M5 FA-vec contract preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/rc126_build98_fa_vec_contract_tests.py
+
       - name: RC1.26 Build 94 packaging identity preflight
         shell: bash
         run: |
           set -euo pipefail
-          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"97\"' project.yml)" -ge 1
-          grep -q '"rc1.26-build97-output-config-vision-home"' BonsaiLab/LocalOpenAIServer.swift
-          grep -q 'RC126APIStartupLifecycle.begin(build: \"97\")' BonsaiLab/ProductionView.swift
+          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"98\"' project.yml)" -ge 1
+          grep -q '"rc1.26-build98-m5-fa-vec-ab"' BonsaiLab/LocalOpenAIServer.swift
+          grep -q 'RC126APIStartupLifecycle.begin(build: \"98\")' BonsaiLab/ProductionView.swift
 
           PACKAGE_BLOCK="$(
             sed -n \
@@ -506,13 +513,13 @@ jobs:
               .github/workflows/build-ios.yml
           )"
 
-          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build97-output-config-vision-home-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
-          grep -q 'BonsaiLab-v1-RC1.26-build97-output-config-vision-home-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
+          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build98-m5-fa-vec-ab-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
+          grep -q 'BonsaiLab-v1-RC1.26-build98-m5-fa-vec-ab-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
           if grep -q 'build75-api-cold-start-guard' <<< "$PACKAGE_BLOCK"; then
             echo "ERROR: Build 78 packaging leaked into Build 79 package step." >&2
             exit 1
           fi
-          echo "Build 94 packaging identity preflight: PASS"
+          echo "Build 98 packaging identity preflight: PASS"
 
       - name: Validate Build 79 entitlements source
         shell: bash
@@ -552,6 +559,8 @@ jobs:
           python3 "$GITHUB_WORKSPACE/tools/rc126_build87_patch_prism_sched_context.py" "$PRISM_DIR/ggml/src/ggml-backend.cpp"
           python3 "$GITHUB_WORKSPACE/tools/rc126_build88_patch_prism_mmap_recovery.py" "$PRISM_DIR/ggml/src/ggml-backend.cpp" "$PRISM_DIR/src/llama-context.cpp"
           python3 "$GITHUB_WORKSPACE/tools/rc126_build89_patch_prism_compact_scheduler.py" "$PRISM_DIR/ggml/src/ggml-backend.cpp"
+          python3 "$GITHUB_WORKSPACE/tools/rc126_build98_patch_prism_fa_vec_ab.py" "$PRISM_DIR/ggml/src/ggml-metal/ggml-metal-ops.cpp"
+          grep -q 'BONSAI_BUILD98_FA_VEC_AB' "$PRISM_DIR/ggml/src/ggml-metal/ggml-metal-ops.cpp"
           grep -q 'BUILD89_COMPACT_ALLOC_SUCCESS' "$PRISM_DIR/ggml/src/ggml-backend.cpp"
           grep -q 'BUILD89_META_USED' "$PRISM_DIR/ggml/src/ggml-backend.cpp"
           grep -q 'BUILD88_MMAP_SUCCESS' "$PRISM_DIR/ggml/src/ggml-backend.cpp"
@@ -646,30 +655,32 @@ jobs:
           ditto "$APP" build/ipa/Payload/BonsaiLab.app
 
           cat > build/BUILD_INFO.txt <<'INFO'
-          Bonsai iPad Lab v1 RC1.26 Build 89 Compact Scheduler Metadata
+          Bonsai iPad Lab v1 RC1.26 Build 98 M5 FA-vec one-shot A/B
           Prism: prism-b10743-adfffbe
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
           Build 84 preserves the Build 82 effective runtime policy and patches Prism only for Qwen3.5 Metal KV at >=32K, allocating each full-attention layer KV in its own backend buffer.
           Build 85 follows Build 84 real-device evidence: model mmap/load completes with ~4974 MiB available but llama_init_from_model terminates. Prism groups Metal attention KV by buffer type into one owned MTLBuffer; Build 83 shards that allocation per full-attention layer only for Qwen3.5 >=32K.
-          Model and Vision Tower weights are NOT bundled in the IPA.
+          Build98 experiment A0 is original Prism; A1/A2 affect only matching Apple M5 GPU, Q4_0 KV, decode Q=1, dk/dv=256, KV >=1024. Candidate is one-shot and reverts on next app launch.\n          Model and Vision Tower weights are NOT bundled in the IPA.
           INFO
           echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.26-build97-output-config-vision-home-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.26-build98-m5-fa-vec-ab-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.26-build97-output-config-vision-home-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build97-output-config-vision-home-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.26-build98-m5-fa-vec-ab-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build98-m5-fa-vec-ab-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.26-Build97-Output-Config-Vision-Home
+          name: BonsaiLab-iPad-v1-RC1.26-Build98-M5-FA-Vec-AB
           path: |
-            build/BonsaiLab-v1-RC1.26-build97-output-config-vision-home-unsigned.ipa
-            build/BonsaiLab-v1-RC1.26-build97-output-config-vision-home-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.26-build98-m5-fa-vec-ab-unsigned.ipa
+            build/BonsaiLab-v1-RC1.26-build98-m5-fa-vec-ab-unsigned.ipa.sha256
             build/BUILD_INFO.txt
+            tools/rc126_build98_patch_prism_fa_vec_ab.py
+            tools/rc126_build98_fa_vec_contract_tests.py
             RC1.20_RELEASE_ACCEPTANCE.md
             tools/rc126_phase2d_prefill_batch_arm.ps1
             tools/rc126_phase2e_prefill_batch_arm.ps1
