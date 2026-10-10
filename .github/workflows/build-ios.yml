@@ -73,6 +73,8 @@ jobs:
           python3 tools/rc126_build94_contract_tests.py
           python3 tools/rc126_build97_output_vision_contract_tests.py
           python3 tools/rc126_build103_output_budget_contract_tests.py
+          python3 -m py_compile tools/rc126_build103_full_stage_certification.py
+          python3 tools/rc126_build103_full_stage_certification.py --dry-run
           xcrun swiftc -DDEBUG -swift-version 5 \
             BonsaiLab/Build93BatchTrialPolicy.swift \
             BonsaiLab/Build94BatchExperiment.swift \
