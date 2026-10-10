@@ -69,13 +69,20 @@ actor BonsaiEngine {
     private var apiVisionPrefixReuseKey: String?
     private var apiVisionPrefixPositions: Int32 = 0
 
-    // RC1.26 Build 76: exact-token Text KV reuse lab.
-    // After a successful text request, generated-tail KV is removed so the
-    // resident sequence mirrors textKVResidentTokens exactly.
+    // Build104: the recurrent state cannot partially erase an arbitrarily
+    // long generated tail. Keep a separate prompt-prefix checkpoint in seq 1
+    // and generate only in seq 0. Both are always invalidated on failure or
+    // vision transition. Never claim a KV hit without an exact token prefix.
     private var textKVResidentTokens: [llama_token] = []
     private var textKVResidentContext: OpaquePointer?
     private let textKVReuseEnabled = true
     private let textKVMinimumReuseTokens = 16
+    private let textKVCheckpointTailTokens = 32
+    private var textKVCheckpointEnabled: Bool {
+        UserDefaults.standard.object(
+            forKey: "BonsaiBuild104TextKVCheckpointEnabled"
+        ) as? Bool ?? true
+    }
 
     private let stageKey = "BonsaiLabLastStage"
 
@@ -411,8 +418,16 @@ actor BonsaiEngine {
         UserDefaults.standard.set(config.opOffload, forKey: "BonsaiBuild82EngineOpOffload")
         UserDefaults.standard.set(config.kvUnified, forKey: "BonsaiBuild82EngineKVUnified")
         UserDefaults.standard.synchronize()
-        // C2-B deliberately preserves the validated single-sequence context.
-        contextParams.n_seq_max = 1
+        // Build104 32K: a bounded second sequence holds a prompt-only KV
+        // checkpoint. Other context sizes retain the validated single seq.
+        // Recurrent partial tail trim was rejected by pinned Prism; copying
+        // seq 0 to seq 1 before decode avoids corrupting the recurrent state.
+        contextParams.n_seq_max =
+            config.context == 32_768 && textKVCheckpointEnabled ? 2 : 1
+        UserDefaults.standard.set(
+            Int(contextParams.n_seq_max),
+            forKey: "BonsaiBuild104EffectiveSeqMax"
+        )
         contextParams.n_outputs_max = 1
         contextParams.n_outputs_max_per_seq = 1
         contextParams.swa_full = config.swaFull
@@ -2440,82 +2455,87 @@ actor BonsaiEngine {
         var reuseHit = false
         var lcpTokens = 0
         var reusedTokens = 0
-        var reuseReason =
-            "cold_or_incompatible"
+        var reuseReason = "cold_or_incompatible"
+        let mem = llama_get_memory(context)
+        let seqCheckpointCapable =
+            textKVReuseEnabled && textKVCheckpointEnabled &&
+            appliedRuntime.context == 32_768 &&
+            llama_n_seq_max(context) >= 2
+        // Hold back the trailing ChatML header / prompt suffix, so future
+        // turns can diverge there while sharing the frozen recurrent state.
+        let checkpointCount = seqCheckpointCapable &&
+            tokens.count > textKVMinimumReuseTokens + textKVCheckpointTailTokens
+            ? tokens.count - textKVCheckpointTailTokens : 0
+        var checkpointReady = false
 
         do {
-            if textKVReuseEnabled,
+            if checkpointCount > 0,
                textKVResidentContext == context,
-               !textKVResidentTokens.isEmpty,
-               !tokens.isEmpty {
-                lcpTokens =
-                    textKVLongestCommonPrefix(
-                        textKVResidentTokens,
-                        tokens
-                    )
-
-                // Decode at least the final prompt token again so current
-                // logits always belong to this request.
-                reusedTokens = min(
-                    lcpTokens,
-                    max(0, tokens.count - 1)
+               !textKVResidentTokens.isEmpty {
+                lcpTokens = textKVLongestCommonPrefix(
+                    textKVResidentTokens, tokens
                 )
-
-                if reusedTokens >=
-                    textKVMinimumReuseTokens {
-                    let trimmed =
-                        llama_memory_seq_rm(
-                            llama_get_memory(context),
-                            0,
-                            Int32(reusedTokens),
-                            -1
-                        )
-
-                    if trimmed {
+                // Partial rewind is unsupported by this hybrid model.
+                // Reuse only if the *entire* checkpoint is unchanged and
+                // fits before the new request's checkpoint boundary.
+                if lcpTokens == textKVResidentTokens.count &&
+                   lcpTokens <= checkpointCount &&
+                   lcpTokens >= textKVMinimumReuseTokens {
+                    if llama_memory_seq_rm(mem, 0, -1, -1) {
+                        llama_memory_seq_cp(mem, 1, 0, -1, -1)
+                        reusedTokens = lcpTokens
                         reuseHit = true
-                        reuseReason =
-                            "exact_token_lcp_tail_trim"
-                        mark(
-                            "TEXT_KV_10_REUSE_"
-                            + "\(reusedTokens)_OF_"
-                            + "\(tokens.count)"
-                        )
-                        try evalTextTokens(
-                            tokens,
-                            context: context,
-                            batchSize:
-                                appliedRuntime.batch,
-                            tokenOffset:
-                                reusedTokens,
-                            startPosition:
-                                Int32(reusedTokens),
-                            onProgress: onPrefillProgress
-                        )
+                        reuseReason = "build104_exact_prefix_seq1_restore"
+                        mark("TEXT_KV_10_REUSE_\\(reusedTokens)_OF_\\(tokens.count)")
                     } else {
-                        reusedTokens = 0
-                        reuseReason =
-                            "tail_trim_unsupported"
+                        reuseReason = "seq0_full_clear_failed"
                     }
                 } else {
-                    reusedTokens = 0
-                    reuseReason =
-                        lcpTokens > 0
-                            ? "lcp_below_minimum"
-                            : "no_common_prefix"
+                    reuseReason = "checkpoint_prefix_mismatch"
                 }
             }
 
             if !reuseHit {
-                llama_memory_clear(
-                    llama_get_memory(context),
-                    true
-                )
+                llama_memory_clear(mem, true)
                 mark("TEXT_KV_11_FULL_PREFILL")
+            }
+
+            if checkpointCount > 0 {
                 try evalTextTokens(
                     tokens,
                     context: context,
-                    batchSize:
-                        appliedRuntime.batch,
+                    batchSize: appliedRuntime.batch,
+                    tokenOffset: reusedTokens,
+                    startPosition: Int32(reusedTokens),
+                    endOffset: checkpointCount,
+                    onProgress: onPrefillProgress
+                )
+                // The old seq 1 is no longer useful. Removing a *whole*
+                // recurrent sequence is explicitly supported by Prism.
+                guard llama_memory_seq_rm(mem, 1, -1, -1) else {
+                    throw LabError.invalidConfig("Build104 KV checkpoint clear failed")
+                }
+                llama_memory_seq_cp(mem, 0, 1, -1, -1)
+                textKVResidentTokens = Array(tokens.prefix(checkpointCount))
+                textKVResidentContext = context
+                checkpointReady = true
+                mark("TEXT_KV_88_PREFIX_SEQ1_CHECKPOINT")
+                try evalTextTokens(
+                    tokens,
+                    context: context,
+                    batchSize: appliedRuntime.batch,
+                    tokenOffset: checkpointCount,
+                    startPosition: Int32(checkpointCount),
+                    onProgress: onPrefillProgress
+                )
+            } else {
+                // Short prompt or non-32K runtime: safe full prefill, never
+                // claim the unsupported recurrent tail-trim optimization.
+                clearTextKVReuseState(reason: "checkpoint_unavailable")
+                try evalTextTokens(
+                    tokens,
+                    context: context,
+                    batchSize: appliedRuntime.batch,
                     onProgress: onPrefillProgress
                 )
             }
@@ -2557,29 +2577,15 @@ actor BonsaiEngine {
                 throw LabError.emptyOutput
             }
 
-            // Keep only prompt KV resident. The next request can safely
-            // compare its complete prompt token stream to this exact ledger.
-            let retainedPrompt =
-                llama_memory_seq_rm(
-                    llama_get_memory(context),
-                    0,
-                    Int32(tokens.count),
-                    -1
-                )
-
-            if retainedPrompt {
-                textKVResidentTokens = tokens
-                textKVResidentContext = context
+            // Prism hybrid recurrent state cannot trim all generated
+            // tokens with seq_rm(promptEnd,-1). Clear only the working
+            // sequence; the prompt checkpoint in seq 1 is still untouched.
+            let workingCleared = llama_memory_seq_rm(mem, 0, -1, -1)
+            if checkpointReady && workingCleared {
                 mark("TEXT_KV_90_PROMPT_RETAINED")
             } else {
-                clearTextKVReuseState(
-                    reason:
-                        "post_generation_tail_trim_failed"
-                )
-                llama_memory_clear(
-                    llama_get_memory(context),
-                    true
-                )
+                clearTextKVReuseState(reason: "seq0_clear_or_checkpoint_failed")
+                llama_memory_clear(mem, true)
                 mark("TEXT_KV_91_PROMPT_RETAIN_FAIL")
             }
 
@@ -3126,6 +3132,7 @@ actor BonsaiEngine {
         batchSize: Int,
         tokenOffset: Int = 0,
         startPosition: Int32 = 0,
+        endOffset: Int? = nil,
         onProgress: (@Sendable (String, Int, Int, Int, Double) -> Void)? = nil
     ) throws {
         guard tokenOffset >= 0,
@@ -3136,9 +3143,10 @@ actor BonsaiEngine {
 
         var position = startPosition
         var offset = tokenOffset
+        let stopOffset = min(tokens.count, endOffset ?? tokens.count)
 
-        while offset < tokens.count {
-            let count = min(batchSize, tokens.count - offset)
+        while offset < stopOffset {
+            let count = min(batchSize, stopOffset - offset)
             var batch = llama_batch_init(Int32(count), 0, 1)
             batch.n_tokens = 0
 
@@ -3155,12 +3163,12 @@ actor BonsaiEngine {
             }
 
             let batchIndex = (offset - tokenOffset) / max(1, batchSize)
-            onProgress?("decode_begin", tokens.count - tokenOffset, offset - tokenOffset, batchIndex, 0)
+            onProgress?("decode_begin", stopOffset - tokenOffset, offset - tokenOffset, batchIndex, 0)
             let decodeStart = ProcessInfo.processInfo.systemUptime
             let code = llama_decode(context, batch)
             let durationMs = (ProcessInfo.processInfo.systemUptime - decodeStart) * 1_000
             llama_batch_free(batch)
-            onProgress?("decode_end", tokens.count - tokenOffset,
+            onProgress?("decode_end", stopOffset - tokenOffset,
                         offset - tokenOffset + (code == 0 ? count : 0),
                         batchIndex, durationMs)
 
