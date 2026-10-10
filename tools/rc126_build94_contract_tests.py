@@ -8,9 +8,9 @@ engine = (root / "BonsaiLab/BonsaiEngine.swift").read_text()
 policy = (root / "BonsaiLab/Build94BatchExperiment.swift").read_text()
 workflow = (root / ".github/workflows/build-ios.yml").read_text()
 project = (root / "project.yml").read_text()
-assert 'CURRENT_PROJECT_VERSION: "100"' in project
-assert 'RC126APIStartupLifecycle.begin(build: "100")' in view
-assert '"build_id": "rc1.26-build100-b16-accel-guarded"' in server
+assert 'CURRENT_PROJECT_VERSION: "102"' in project
+assert 'RC126APIStartupLifecycle.begin(build: "102")' in view
+assert '"build_id": "rc1.26-build102-batch24-32-isolated"' in server
 assert '"schema": "bonsai-build94-execution-v1"' in server
 assert "Build94BatchExperiment.select(context: context)" in view
 assert "case .candidate16: batchCap = 16" in view
@@ -31,8 +31,8 @@ assert 'contextParams.n_batch = UInt32(config.batch)' in engine
 assert 'contextParams.n_ubatch = UInt32(config.ubatch)' in engine
 assert "adfffbe41b2cabcd51fff326ab045662265062bb" in workflow
 assert "rc126_build94_policy_tests.swift" in workflow
-assert "build100-b16-accel-guarded-unsigned.ipa" in workflow
-assert "Build100-B16-Accel-Guarded" in workflow
+assert "build102-batch24-32-isolated-unsigned.ipa" in workflow
+assert "Build102-Batch24-32-Isolated" in workflow
 for marker in ["pendingKey", "fallbackKey", "baselineOKKey", "confirmedKey", "scheduleNext", "noteStartupFailure", "noteTextSuccess"]:
     assert marker in policy, marker
 print("Build94 guarded 32K batch8/16, safe4 recovery, observer-only timing: PASS")

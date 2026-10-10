@@ -53,7 +53,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "80"' in project
     or 'CURRENT_PROJECT_VERSION: "81"' in project
     or 'CURRENT_PROJECT_VERSION: "82"' in project
-    or 'CURRENT_PROJECT_VERSION: "100"' in project
+    or 'CURRENT_PROJECT_VERSION: "102"' in project
 )
 assert 'CODE_SIGN_ENTITLEMENTS: "BonsaiLab/BonsaiLab.entitlements"' in project
 assert "Security.framework" in project
@@ -64,7 +64,7 @@ assert (
     or '"build_id": "rc1.26-build80-long-context-tier-reload-fix"' in server
     or '"build_id": "rc1.26-build81-32k-memory-squeeze"' in server
     or '"build_id": "rc1.26-build82-unified-metal-32k-lab"' in server
-    or '"build_id": "rc1.26-build100-b16-accel-guarded"' in server
+    or '"build_id": "rc1.26-build102-batch24-32-isolated"' in server
 )
 assert "build79_kv_cache_type" in server
 assert "build79_effective_extended_va" in server
@@ -96,7 +96,7 @@ assert (
     or "BonsaiLab-v1-RC1.26-build80-long-context-tier-reload-fix-unsigned.ipa" in package_block
     or "BonsaiLab-v1-RC1.26-build81-32k-memory-squeeze-unsigned.ipa" in package_block
     or "BonsaiLab-v1-RC1.26-build82-unified-metal-32k-lab-unsigned.ipa" in package_block
-    or "BonsaiLab-v1-RC1.26-build100-b16-accel-guarded-unsigned.ipa" in package_block
+    or "BonsaiLab-v1-RC1.26-build102-batch24-32-isolated-unsigned.ipa" in package_block
 )
 assert "build78-context-boundary-lab-unsigned.ipa" not in package_block
 
