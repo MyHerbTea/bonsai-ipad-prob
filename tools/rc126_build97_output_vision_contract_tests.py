@@ -10,9 +10,9 @@ server = (root / "BonsaiLab/LocalOpenAIServer.swift").read_text()
 project = (root / "project.yml").read_text()
 workflow = (root / ".github/workflows/build-ios.yml").read_text()
 
-assert 'CURRENT_PROJECT_VERSION: "102"' in project
-assert 'RC126APIStartupLifecycle.begin(build: "102")' in view
-assert '"build_id": "rc1.26-build102-batch24-32-isolated"' in server
+assert 'CURRENT_PROJECT_VERSION: "103"' in project
+assert 'RC126APIStartupLifecycle.begin(build: "103")' in view
+assert '"build_id": "rc1.26-build103-integrated-output-stage"' in server
 assert 'BonsaiBuild97APIMaxOutputTokens' in view
 assert '[256, 512, 1024, 2048, 4096, 8192, 16384, 32768]' in view
 assert 'maxOutputTokens: apiMaxOutputTokens' in view
@@ -22,11 +22,11 @@ assert 'min(maxOutputLimit, max(1, requested))' in server
 assert 'contextWindow: advertisedContextWindow' in server
 assert 'maxOutputLimit: advertisedMaxOutputTokens' in server
 assert 'let maxTokens = min(\n            2048,' not in server
-assert '?? 256' in server, 'Keep modest default when clients omit max_tokens'
+assert '?? maxOutputLimit' in server, 'Client omission must inherit configured iPad API ceiling'
 assert view.index('Section("模型")') < view.index('Section("MLX Vision Sidecar")') < view.index('Section("图片")')
 assert view.index('Section("MLX Vision Sidecar")') < view.index('DisclosureGroup(\n                        "高级与诊断"')
 assert view.count('Text("MLX Vision Sidecar Probe")') == 1
 assert 'runMLXVisionProbe()' in view and 'runLiveVisionInjection()' in view
-assert 'Build102-Batch24-32-Isolated' in workflow
-assert 'build102-batch24-32-isolated-unsigned.ipa' in workflow
+assert 'Build103-Integrated-Output-Stage' in workflow
+assert 'build103-integrated-output-stage-unsigned.ipa' in workflow
 print("PASS Build97 output budget, homepage MLX Vision placement and release identity contracts")
