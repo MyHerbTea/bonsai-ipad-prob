@@ -16,7 +16,7 @@ assert project_build_match is not None
 project_build = int(project_build_match.group("build"))
 assert project_build >= 63
 assert "RC1.26" in view
-assert f"Build {project_build}" in view
+assert f'RC126APIStartupLifecycle.begin(build: "{project_build}")' in view
 
 # The risky old path reloaded the full 27B model after a paused-listener context
 # change. The new path must keep the mmap-backed model resident and recreate only
