@@ -74,7 +74,7 @@ assert (
     or 'RC126APIStartupLifecycle.begin(build: "80")' in view
     or 'RC126APIStartupLifecycle.begin(build: "81")' in view
     or 'RC126APIStartupLifecycle.begin(build: "82")' in view
-    or 'RC126APIStartupLifecycle.begin(build: "100"' in view
+    or 'RC126APIStartupLifecycle.begin(build: "102")' in view
 )
 assert (
     "RC1.26 Build 79 Storage-Memory Long Context Lab" in view
@@ -82,6 +82,7 @@ assert (
     or "RC1.26 Build 81 32K Memory Squeeze" in view
     or "RC1.26 Build 82 Unified-Metal 32K Lab" in view
     or "RC1.26 Build 89 Compact Scheduler Metadata" in view
+    or 'RC1.26 Build 102 Prefill 16/24/32 独立实验 API Runtime 已就绪' in view
 )
 assert "RC1.26 Build 79 storage-memory long-context contracts" in workflow
 assert "tools/rc126_build79_storage_memory_contract_tests.py" in workflow

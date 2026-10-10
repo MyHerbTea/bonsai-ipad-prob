@@ -7,7 +7,7 @@ workflow=(root/".github/workflows/build-ios.yml").read_text()
 project=(root/"project.yml").read_text()
 patch=(root/"tools/rc126_build84_patch_prism_native_trace.py").read_text()
 assert 'CURRENT_PROJECT_VERSION: "102"' in project
-assert 'RC126APIStartupLifecycle.begin(build: "100"' in view
+assert 'RC126APIStartupLifecycle.begin(build: "102")' in view
 assert '"build_id": "rc1.26-build102-batch24-32-isolated"' in server
 assert "[BUILD 84 NATIVE CONTEXT CRASH TRACE]" in view
 assert "trace_present=false" in view and "trace_setup_error=" in view
