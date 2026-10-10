@@ -39,9 +39,9 @@ INSERT = r"""
                 if (const char * path = std::getenv("BONSAI_FA_VEC_TRACE_PATH")) {
                     if (FILE * fp = std::fopen(path, "w")) {
                         std::fprintf(fp,
-                                "matched=1\\narm=%s\\ndevice=%s\\ngpu_family=%d\\n"
-                                "kv_type=Q4_0\\nq_rows=%lld\\nkv_len=%lld\\n"
-                                "dk=%lld\\ndv=%lld\\nQ=%d\\nNE=%d\\n",
+                                "matched=1\narm=%s\ndevice=%s\ngpu_family=%d\n"
+                                "kv_type=Q4_0\nq_rows=%lld\nkv_len=%lld\n"
+                                "dk=%lld\ndv=%lld\nQ=%d\nNE=%d\n",
                                 bonsai_arm ? bonsai_arm : "A0",
                                 props_dev->desc, props_dev->gpu_family,
                                 (long long) ne01, (long long) ne11,
