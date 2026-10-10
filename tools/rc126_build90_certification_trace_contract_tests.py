@@ -5,7 +5,7 @@ view = (root / "BonsaiLab/ProductionView.swift").read_text()
 workflow = (root / ".github/workflows/build-ios.yml").read_text()
 project = (root / "project.yml").read_text()
 assert 'CURRENT_PROJECT_VERSION: "90"' in project or 'CURRENT_PROJECT_VERSION: "94"' in project
-assert ('"rc1.26-build90-certification-p1"' in server or '"rc1.26-build94-prefill-kernel-boundary-p0"' in server)
+assert ('"rc1.26-build90-certification-p1"' in server or '"rc1.26-build97-output-config-vision-home"' in server)
 assert 'request.path == "/debug/request-trace"' in server
 assert server.index('guard authorized(request) else') < server.index('request.path == "/debug/request-trace"')
 assert 'payload.certificationTrace = certificationTrace' in server
