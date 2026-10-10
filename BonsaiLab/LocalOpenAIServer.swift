@@ -1893,7 +1893,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build102-batch24-32-isolated",
+            "build_id": "rc1.26-build103-integrated-output-stage",
             "product_git_sha": BonsaiCertificationBuildIdentity.sourceGitSHA,
             "workflow_run_id": BonsaiCertificationBuildIdentity.workflowRunID,
             "prism_upstream_sha": "adfffbe41b2cabcd51fff326ab045662265062bb",
@@ -3049,10 +3049,12 @@ final class LocalOpenAIServer: ObservableObject {
             (root["max_completion_tokens"] as? NSNumber)?.intValue
             ?? (root["max_tokens"] as? NSNumber)?.intValue
             ?? (root["max_output_tokens"] as? NSNumber)?.intValue
-            ?? 256
+            ?? maxOutputLimit
 
-        // Build97: no historical 2048 cap. Preserve the client-requested
-        // budget up to the user-configured server ceiling; never exceed context.
+        // Build103: omission means the configured iPad API output maximum.
+        // Explicit max_completion_tokens / max_tokens / max_output_tokens still
+        // take precedence, capped by the user-configured server ceiling.
+        // The engine then clips to the actual remaining prompt/KV context.
         let maxTokens = min(
             max(1, contextWindow - 1),
             min(maxOutputLimit, max(1, requested))
