@@ -72,7 +72,14 @@ assert '"reasoning_effort"' not in model_block.split('"supported_parameters": ['
 # The active runtime config is also what discovery publishes.
 assert "apiServer.configureModelMetadata(" in view
 assert "contextWindow: selectedAPIContext" in view
-assert "maxOutputTokens: 256" in view
+# Build97 adds a user-selected ceiling; the old hard-coded 256 assertion
+# applies only to pre-Build97 releases. Model discovery must match runtime.
+if project_build >= 97:
+    assert "maxOutputTokens: apiMaxOutputTokens" in view
+    assert "BonsaiBuild97APIMaxOutputTokens" in view
+    assert "min(advertisedMaxOutputTokens, max(1, requested))" in server
+else:
+    assert "maxOutputTokens: 256" in view
 assert '"created": 0' in server
 
 # Multi-turn OpenAI compatibility: preserve developer/system instructions,
