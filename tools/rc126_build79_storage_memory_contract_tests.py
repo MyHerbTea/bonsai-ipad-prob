@@ -64,7 +64,7 @@ assert (
     or '"build_id": "rc1.26-build80-long-context-tier-reload-fix"' in server
     or '"build_id": "rc1.26-build81-32k-memory-squeeze"' in server
     or '"build_id": "rc1.26-build82-unified-metal-32k-lab"' in server
-    or '"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server
+    or '"build_id": "rc1.26-build97-output-config-vision-home"' in server
 )
 assert "build79_kv_cache_type" in server
 assert "build79_effective_extended_va" in server
@@ -96,7 +96,7 @@ assert (
     or "BonsaiLab-v1-RC1.26-build80-long-context-tier-reload-fix-unsigned.ipa" in package_block
     or "BonsaiLab-v1-RC1.26-build81-32k-memory-squeeze-unsigned.ipa" in package_block
     or "BonsaiLab-v1-RC1.26-build82-unified-metal-32k-lab-unsigned.ipa" in package_block
-    or "BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa" in package_block
+    or "BonsaiLab-v1-RC1.26-build97-output-config-vision-home-unsigned.ipa" in package_block
 )
 assert "build78-context-boundary-lab-unsigned.ipa" not in package_block
 
