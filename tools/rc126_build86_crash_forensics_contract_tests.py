@@ -9,7 +9,7 @@ flow=(root/".github/workflows/build-ios.yml").read_text(encoding="utf-8")
 patch=(root/"tools/rc126_build86_patch_prism_crash_forensics.py").read_text(encoding="utf-8")
 assert 'CURRENT_PROJECT_VERSION: "94"' in (root/"project.yml").read_text()
 assert 'RC126APIStartupLifecycle.begin(build: "94")' in view
-assert '"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server
+assert '"build_id": "rc1.26-build97-output-config-vision-home"' in server
 assert "build86_crash_forensics_v2" in server
 assert 'trace_format=2' in engine and 'trace_format=2' in view
 assert "bonsai_build86_previous_native_trace.txt" in engine
@@ -32,5 +32,5 @@ for expected in ("pass 1: assign backends", "pass 2: expand current",
 assert "../../src/bonsai-build84-trace.h" in patch
 assert "tools/rc126_build86_patch_prism_crash_forensics.py" in flow
 assert "tools/rc126_build86_crash_forensics_contract_tests.py" in flow
-assert "BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa" in flow
+assert "BonsaiLab-v1-RC1.26-build97-output-config-vision-home-unsigned.ipa" in flow
 print("RC1.26 Build86 crash forensics v2 contracts: PASS")
