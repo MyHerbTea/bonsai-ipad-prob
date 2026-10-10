@@ -18,7 +18,7 @@ assert project_build_match is not None
 project_build = int(project_build_match.group("build"))
 assert project_build >= 64
 assert "RC1.26" in view
-assert f"Build {project_build}" in view
+assert f'RC126APIStartupLifecycle.begin(build: "{project_build}")' in view
 
 assert "void BonsaiClearVisionPrefixKVSnapshot(void);" in bridge_h
 assert "void BonsaiClearVisionPrefixKVSnapshot(void)" in bridge_mm
