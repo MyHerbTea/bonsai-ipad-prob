@@ -14,7 +14,7 @@ assert ('RC126APIStartupLifecycle.begin(build: "81")' in view or 'RC126APIStartu
 assert ("RC1.26 Build 81 32K Memory Squeeze" in view or "RC1.26 Build 82 Unified-Metal 32K Lab" in view
     or "RC1.26 Build 89 Compact Scheduler Metadata" in view)
 assert ('"build_id": "rc1.26-build81-32k-memory-squeeze"' in server or '"build_id": "rc1.26-build82-unified-metal-32k-lab"' in server
-    or '"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server)
+    or '"build_id": "rc1.26-build97-output-config-vision-home"' in server)
 assert "private func applyBuild82LongContextPolicy(" in view
 assert view.count("applyBuild82LongContextPolicy(") == 3
 
@@ -60,7 +60,7 @@ for field in [
 assert "RC1.26 Build 81 32K memory squeeze contracts" in workflow
 assert "tools/rc126_build81_32k_memory_squeeze_contract_tests.py" in workflow
 assert ("BonsaiLab-v1-RC1.26-build81-32k-memory-squeeze-unsigned.ipa" in workflow or "BonsaiLab-v1-RC1.26-build82-unified-metal-32k-lab-unsigned.ipa" in workflow
-    or "BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa" in workflow)
+    or "BonsaiLab-v1-RC1.26-build97-output-config-vision-home-unsigned.ipa" in workflow)
 assert ("BonsaiLab-iPad-v1-RC1.26-Build81-32K-Memory-Squeeze" in workflow or "BonsaiLab-iPad-v1-RC1.26-Build82-Unified-Metal-32K-Lab" in workflow
-    or "BonsaiLab-iPad-v1-RC1.26-Build94-Prefill-Kernel-Boundary-P0" in workflow)
+    or "BonsaiLab-iPad-v1-RC1.26-Build97-Output-Config-Vision-Home" in workflow)
 print("RC1.26 Build 81 32K memory squeeze contracts: PASS")
