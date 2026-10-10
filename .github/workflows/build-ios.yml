@@ -1,4 +1,4 @@
-name: Build Bonsai iPad Lab v1 RC1.26 Build100 B16 Accel Guarded
+name: Build Bonsai iPad Lab v1 RC1.26 Build102 Batch24/32 Isolated
 
 on:
   push:
@@ -31,8 +31,8 @@ on:
       - lab-v1-rc1-26-build91-long-context-forensics
       - lab-v1-rc1-26-build92-native-prefill-observability
       - lab-v1-rc1-26-build93-prefill-batch8-ab
-      - lab-v1-rc1-26-build100-b16-accel-guarded
-      - lab-v1-rc1-26-build100-b16-accel-guarded
+      - lab-v1-rc1-26-build102-batch24-32-isolated
+      - lab-v1-rc1-26-build102-batch24-32-isolated
   workflow_dispatch:
 
 concurrency:
@@ -78,6 +78,13 @@ jobs:
             -o "$RUNNER_TEMP/build100_policy_tests"
           "$RUNNER_TEMP/build100_policy_tests"
           python3 tools/rc126_build100_b16_contract_tests.py
+          xcrun swiftc -DDEBUG -swift-version 5 \
+            BonsaiLab/Build93BatchTrialPolicy.swift \
+            BonsaiLab/Build94BatchExperiment.swift \
+            tools/rc126_build102_batch_policy_tests.swift \
+            -o "$RUNNER_TEMP/build102_policy_tests"
+          "$RUNNER_TEMP/build102_policy_tests"
+          python3 tools/rc126_build102_batch_contract_tests.py
 
       - name: Live vision injection gate
         shell: bash
@@ -118,7 +125,7 @@ jobs:
           grep -q 'warm.kvReuseHit' BonsaiLab/ProductionView.swift
           grep -q 'UIPasteboard.general.string' BonsaiLab/ProductionView.swift
           grep -q 'MARKETING_VERSION: "1.0.0"' project.yml
-          grep -q 'CURRENT_PROJECT_VERSION: "100"' project.yml
+          grep -q 'CURRENT_PROJECT_VERSION: "102"' project.yml
           grep -q 'reasoningEffort' BonsaiLab/BonsaiEngine.swift
           grep -q 'payload.reasoningEffort' BonsaiLab/ProductionView.swift
           grep -q '<think>\\n\\n</think>\\n\\n' BonsaiLab/BonsaiEngine.swift
@@ -504,9 +511,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"100\"' project.yml)" -ge 1
-          grep -q '"rc1.26-build100-b16-accel-guarded"' BonsaiLab/LocalOpenAIServer.swift
-          grep -q 'RC126APIStartupLifecycle.begin(build: \"100\")' BonsaiLab/ProductionView.swift
+          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"102\"' project.yml)" -ge 1
+          grep -q '"rc1.26-build102-batch24-32-isolated"' BonsaiLab/LocalOpenAIServer.swift
+          grep -q 'RC126APIStartupLifecycle.begin(build: \"102\")' BonsaiLab/ProductionView.swift
 
           PACKAGE_BLOCK="$(
             sed -n \
@@ -514,8 +521,8 @@ jobs:
               .github/workflows/build-ios.yml
           )"
 
-          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build100-b16-accel-guarded-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
-          grep -q 'BonsaiLab-v1-RC1.26-build100-b16-accel-guarded-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
+          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build102-batch24-32-isolated-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
+          grep -q 'BonsaiLab-v1-RC1.26-build102-batch24-32-isolated-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
           if grep -q 'build75-api-cold-start-guard' <<< "$PACKAGE_BLOCK"; then
             echo "ERROR: Build 78 packaging leaked into Build 79 package step." >&2
             exit 1
@@ -636,7 +643,7 @@ jobs:
           file "$FRAMEWORK"
           otool -L "$APP/BonsaiLab"
           test "$(plutil -extract CFBundleShortVersionString raw -o - "$APP/Info.plist")" = "1.0.0"
-          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "100"
+          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "102"
           nm -gU "$FRAMEWORK" > build/llama-symbols.txt
           grep -q '_mtmd_init_from_file' build/llama-symbols.txt
           grep -q '_mtmd_helper_eval_chunks' build/llama-symbols.txt
@@ -654,14 +661,14 @@ jobs:
           ditto "$APP" build/ipa/Payload/BonsaiLab.app
 
           cat > build/BUILD_INFO.txt <<'INFO'
-          Bonsai iPad Lab v1 RC1.26 Build100 guarded 32K B16 speed candidate (NOT CERTIFIED)
+          Bonsai iPad Lab v1 RC1.26 Build102 32K B16/B24/B32 isolated batch sweep (NOT DEVICE CERTIFIED)
           Prism: prism-b10743-adfffbe
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
           Build 84 preserves the Build 82 effective runtime policy and patches Prism only for Qwen3.5 Metal KV at >=32K, allocating each full-attention layer KV in its own backend buffer.
           Build 85 follows Build 84 real-device evidence: model mmap/load completes with ~4974 MiB available but llama_init_from_model terminates. Prism groups Metal attention KV by buffer type into one owned MTLBuffer; Build 83 shards that allocation per full-attention layer only for Qwen3.5 >=32K.
           Source parent: frozen Build97. Fixed Prism, no Build99 APPEND or Build98 FA-vec experiment.
-          B16 is opt-in after Build94 certification, with process-scoped 4/8/16 shape and sticky recovery.
+          B24 requires certified B16; B32 requires certified B24 plus explicit risk consent. All are one-shot with sticky SAFE4 recovery.
           Real-device repeated performance, Vision and crash regression required before promotion.
           Model and Vision Tower weights are NOT bundled in the IPA.
           INFO
@@ -669,19 +676,22 @@ jobs:
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.26-build100-b16-accel-guarded-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.26-build102-batch24-32-isolated-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.26-build100-b16-accel-guarded-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build100-b16-accel-guarded-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.26-build102-batch24-32-isolated-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build102-batch24-32-isolated-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.26-Build100-B16-Accel-Guarded
+          name: BonsaiLab-iPad-v1-RC1.26-Build102-Batch24-32-Isolated
           path: |
-            build/BonsaiLab-v1-RC1.26-build100-b16-accel-guarded-unsigned.ipa
-            build/BonsaiLab-v1-RC1.26-build100-b16-accel-guarded-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.26-build102-batch24-32-isolated-unsigned.ipa
+            build/BonsaiLab-v1-RC1.26-build102-batch24-32-isolated-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             tools/rc126_build100_b16_policy_tests.swift
+            tools/rc126_build102_batch_policy_tests.swift
+            tools/rc126_build102_batch_contract_tests.py
+            docs/backburner-integration/RC1.26_BUILD102_32K_BATCH24_32_SWEEP.md
             tools/rc126_build100_b16_contract_tests.py
             docs/backburner-integration/RC1.26_BUILD100_B16_ACCEL_GUARDED.md
             RC1.20_RELEASE_ACCEPTANCE.md
