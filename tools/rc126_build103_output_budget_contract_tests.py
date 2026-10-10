@@ -25,6 +25,9 @@ expect('(root["max_output_tokens"] as? NSNumber)' in server, "max_output_tokens 
 expect('gen.maxTokens = payload.maxTokens' in view, "validated budget must reach engine")
 expect('min(\n                        payload.maxTokens,\n                        256' not in view, "hidden handler 256 cap")
 expect('discovery_max_output_tokens=\\(apiMaxOutputTokens)' in view, "diagnostic must match UI value")
+expect('Server Max Output Tokens: \\(apiMaxOutputTokens)' in view, "copied API config must reflect UI")
+expect('Max Output Tokens: \\(apiMaxOutputTokens)' in view, "copied Chatbox config must reflect UI")
+expect('Recommended Client Max Output: 128' not in view, "stale 128-token recommendation")
 expect('clampOutputToContext: true' in view, "text context clipping must be enabled for API")
 expect('let availableOutput = appliedRuntime.context - tokens.count - 1' in engine,
        "actual tokenizer-based text budget required")
