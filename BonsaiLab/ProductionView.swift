@@ -967,6 +967,7 @@ struct ProductionView: View {
 
     @State private var quality = VisionQuality.standard
     @State private var answerLength = AnswerLengthPreset.standard
+    @AppStorage("BonsaiBuild97APIMaxOutputTokens") private var apiMaxOutputTokens = 2048
     @State private var question = "请描述这张图片的主要内容。"
     @State private var inferenceMode = VisionInferenceMode.accelerated
     @AppStorage("BonsaiRC1232VisionPrefixKVReuseEnabled")
@@ -1133,6 +1134,77 @@ struct ProductionView: View {
                     }
                 }
 
+                Section("MLX Vision Sidecar") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("MLX Vision Sidecar Probe")
+                        .font(.headline)
+
+                    LabeledContent(
+                        "Vision Tower",
+                        value: mlxVisionWeightsName
+                    )
+                    .lineLimit(1)
+
+                    Button("选择 vision_tower.safetensors") {
+                        showMLXVisionImporter = true
+                    }
+                    .fileImporter(
+                        isPresented: $showMLXVisionImporter,
+                        allowedContentTypes: [safetensorsType],
+                        allowsMultipleSelection: false
+                    ) { result in
+                        handleImport(
+                            result,
+                            kind: .mlxVision
+                        )
+                    }
+
+                    Button(
+                        "运行 MLX Hard Graph-Cut Vision Probe"
+                    ) {
+                        runMLXVisionProbe()
+                    }
+                    .disabled(
+                        busy
+                        || !apiServer.isRunning
+                        || mlxVisionWeightsURL == nil
+                        || imageURL == nil
+                    )
+
+                    Button(
+                        "运行 Live Vision Injection"
+                    ) {
+                        runLiveVisionInjection()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(
+                        busy
+                        || !apiServer.isRunning
+                        || modelURL == nil
+                        || mlxVisionWeightsURL == nil
+                        || imageURL == nil
+                        || question
+                            .trimmingCharacters(
+                                in: .whitespacesAndNewlines
+                            )
+                            .isEmpty
+                    )
+
+                    Text(
+                        "RC1.23.0 保留 RC1.22.5 Hard Graph-Cut 基线；先启动 OpenAI API 让 27B + Text Context 常驻，再把 MLX 的 projected embeddings 直接写入 BVCACHE1 并注入现有 llama context。Live 路径不会初始化 mmproj。"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    if !mlxVisionSummary.isEmpty {
+                        Text(mlxVisionSummary)
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                    }
+                }
+
+                }
+
                 Section("图片") {
                     fileRow(
                         title: "图片",
@@ -1227,6 +1299,18 @@ struct ProductionView: View {
                         }
                         .font(.footnote)
                     }
+                }
+
+                Section("输出长度 · OpenAI API") {
+                    Picker("最大输出 Tokens", selection: $apiMaxOutputTokens) {
+                        ForEach([256, 512, 1024, 2048, 4096, 8192], id: \.self) { count in
+                            Text("\(count)").tag(count)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    Text("客户端未传参数时默认 256 tokens；此选项设置服务端输出预算上限，长输出受剩余上下文限制。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section("局域网 OpenAI API") {
@@ -1563,73 +1647,6 @@ struct ProductionView: View {
                             }
                         }
 
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("MLX Vision Sidecar Probe")
-                                .font(.headline)
-
-                            LabeledContent(
-                                "Vision Tower",
-                                value: mlxVisionWeightsName
-                            )
-                            .lineLimit(1)
-
-                            Button("选择 vision_tower.safetensors") {
-                                showMLXVisionImporter = true
-                            }
-                            .fileImporter(
-                                isPresented: $showMLXVisionImporter,
-                                allowedContentTypes: [safetensorsType],
-                                allowsMultipleSelection: false
-                            ) { result in
-                                handleImport(
-                                    result,
-                                    kind: .mlxVision
-                                )
-                            }
-
-                            Button(
-                                "运行 MLX Hard Graph-Cut Vision Probe"
-                            ) {
-                                runMLXVisionProbe()
-                            }
-                            .disabled(
-                                busy
-                                || !apiServer.isRunning
-                                || mlxVisionWeightsURL == nil
-                                || imageURL == nil
-                            )
-
-                            Button(
-                                "运行 Live Vision Injection"
-                            ) {
-                                runLiveVisionInjection()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(
-                                busy
-                                || !apiServer.isRunning
-                                || modelURL == nil
-                                || mlxVisionWeightsURL == nil
-                                || imageURL == nil
-                                || question
-                                    .trimmingCharacters(
-                                        in: .whitespacesAndNewlines
-                                    )
-                                    .isEmpty
-                            )
-
-                            Text(
-                                "RC1.23.0 保留 RC1.22.5 Hard Graph-Cut 基线；先启动 OpenAI API 让 27B + Text Context 常驻，再把 MLX 的 projected embeddings 直接写入 BVCACHE1 并注入现有 llama context。Live 路径不会初始化 mmproj。"
-                            )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                            if !mlxVisionSummary.isEmpty {
-                                Text(mlxVisionSummary)
-                                    .font(.caption.monospaced())
-                                    .textSelection(.enabled)
-                            }
-                        }
 
                         Button("运行一键设备认证") {
                             runCertification()
@@ -3244,7 +3261,7 @@ struct ProductionView: View {
                 activeContext > 0
                     ? activeContext
                     : selectedAPIContextValue,
-            maxOutputTokens: 256
+            maxOutputTokens: apiMaxOutputTokens
         )
 
         busy = true
@@ -3537,7 +3554,7 @@ struct ProductionView: View {
 
                 apiServer.configureModelMetadata(
                     contextWindow: selectedAPIContext,
-                    maxOutputTokens: 256
+                    maxOutputTokens: apiMaxOutputTokens
                 )
                 apiServer.configureRuntimeShape(
                     batch: apiRuntime.batch,
@@ -3696,7 +3713,7 @@ struct ProductionView: View {
 
                 apiServer.configureModelMetadata(
                     contextWindow: selectedAPIContext,
-                    maxOutputTokens: 256
+                    maxOutputTokens: apiMaxOutputTokens
                 )
                 apiServer.configureRuntimeShape(
                     batch: apiRuntime.batch,
