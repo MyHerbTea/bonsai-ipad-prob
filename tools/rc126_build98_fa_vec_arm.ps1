@@ -45,7 +45,7 @@ $before | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath (Join-Path $out 'b
 
 # A deterministic >1K-token input in most tokenizers; actual token count
 # is measured and must be checked from /debug/prefill, not guessed from chars.
-$lines = for ($n = 1; $n -le 215; $n++) {
+$lines = for ($n = 1; $n -le 64; $n++) {
     "Observation $n : The benchmark ledger stores calibration values, packet indices, checksum patterns, and timestamp ordering for an isolated GPU scheduling experiment."
 }
 $prompt = ($lines -join "`n") + "`nSummarize why stable resource measurement matters. Write at least 300 words, no code."
