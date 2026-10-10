@@ -12,9 +12,9 @@ engine = (root / "BonsaiLab/BonsaiEngine.swift").read_text()
 def has(s, needle): 
     assert needle in s, "MISSING CONTRACT: %r" % needle
 
-has(project, 'CURRENT_PROJECT_VERSION: "104"')
-has(view, 'RC126APIStartupLifecycle.begin(build: "104")')
-has(server, '"build_id": "rc1.26-build104-integrated-32k-performance"')
+has(project, 'CURRENT_PROJECT_VERSION: "105"')
+has(view, 'RC126APIStartupLifecycle.begin(build: "105")')
+has(server, '"build_id": "rc1.26-build105-startup-recovery"')
 has(policy, 'static let preferB16Key = "BonsaiBuild100PreferGuardedB16"')
 has(policy, 'defaults.bool(forKey: confirmedKey)')
 has(policy, 'defaults.bool(forKey: baselineOKKey)')
@@ -40,7 +40,7 @@ has(server, '/debug/build94/launch')
 has(server, '/debug/build94/next-launch')
 has(workflow, 'tools/rc126_build100_b16_policy_tests.swift')
 has(workflow, 'tools/rc126_build100_b16_contract_tests.py')
-has(workflow, 'BonsaiLab-iPad-v1-RC1.26-Build104-Integrated-32K-Performance')
+has(workflow, 'BonsaiLab-iPad-v1-RC1.26-Build105-Safe-Startup-Recovery')
 # Critical: base Build97 has no APPEND experiment, and pinned Prism is unmodified.
 assert 'Build99AppendOnlyReuse' not in engine
 assert 'Build98FAVecAB' not in engine

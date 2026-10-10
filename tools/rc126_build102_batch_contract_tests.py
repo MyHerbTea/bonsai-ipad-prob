@@ -38,13 +38,13 @@ for item in (
     'apiRuntime.batch = batchCap',
     'apiRuntime.ubatch = batchCap',
     'if context == 32_768 {',
-    'RC126APIStartupLifecycle.begin(build: "104")',
+    'RC126APIStartupLifecycle.begin(build: "105")',
     'Build94BatchExperiment.noteTextSuccess(',
     'Build94BatchExperiment.noteStartupFailure()',
 ):
     required(view, item)
 for item in (
-    '"build_id": "rc1.26-build104-integrated-32k-performance"',
+    '"build_id": "rc1.26-build105-startup-recovery"',
     '"/debug/build102/next-launch"',
     '"/debug/build102/launch"',
     'acknowledge_higher_risk',
@@ -55,13 +55,13 @@ for item in (
 ):
     required(server, item)
 for item in (
-    'CURRENT_PROJECT_VERSION: "104"',
+    'CURRENT_PROJECT_VERSION: "105"',
     ):
     required(project, item)
 for item in (
     'tools/rc126_build102_batch_policy_tests.swift',
     'tools/rc126_build102_batch_contract_tests.py',
-    'BonsaiLab-iPad-v1-RC1.26-Build104-Integrated-32K-Performance',
+    'BonsaiLab-iPad-v1-RC1.26-Build105-Safe-Startup-Recovery',
     'adfffbe41b2cabcd51fff326ab045662265062bb',
 ):
     required(workflow, item)

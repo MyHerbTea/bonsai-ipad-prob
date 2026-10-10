@@ -13,9 +13,9 @@ def expect(condition, reason):
     if not condition:
         raise AssertionError(reason)
 
-expect('CURRENT_PROJECT_VERSION: "104"' in project, "new build identity")
-expect('RC126APIStartupLifecycle.begin(build: "104")' in view, "startup identity")
-expect('"build_id": "rc1.26-build104-integrated-32k-performance"' in server, "server identity")
+expect('CURRENT_PROJECT_VERSION: "105"' in project, "new build identity")
+expect('RC126APIStartupLifecycle.begin(build: "105")' in view, "startup identity")
+expect('"build_id": "rc1.26-build105-startup-recovery"' in server, "server identity")
 expect('?? maxOutputLimit' in server, "omitted output length must default to UI-configured ceiling")
 expect('?? 256' not in server, "obsolete API parser 256-token default remains")
 expect('min(maxOutputLimit, max(1, requested))' in server, "configured ceiling validation")
@@ -38,9 +38,9 @@ expect('Int32(requireFullOutputBudget ? gen.maxTokens : 1)' in engine,
 expect('requireFullOutputBudget:\n                                            false' in view,
        "vision API must opt into context clipping")
 expect('maxOutputTokens: apiMaxOutputTokens' in view, "UI configured limit must be propagated")
-expect('lab-v1-rc1-26-build104-integrated-32k-performance' in workflow,
+expect('lab-v1-rc1-26-build105-startup-recovery' in workflow,
        "CI must run on integrated-stage branch")
-expect('build104-integrated-32k-performance-unsigned.ipa' in workflow,
+expect('build105-startup-recovery-unsigned.ipa' in workflow,
        "Build103 IPA artifact must be published")
 print("PASS Build103 parser -> handler -> text/vision engine -> metadata/API UI/output budget contracts")
 print("DEVICE REQUIRED: >256 actual completions, stream/nonstream, context/vision, idle/crash memory")
