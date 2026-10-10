@@ -1327,11 +1327,13 @@ final class LocalOpenAIServer: ObservableObject {
             "build104_text_kv_checkpoint": [
                 "configured": defaults.object(
                     forKey: "BonsaiBuild104TextKVCheckpointEnabled"
-                ) as? Bool ?? true,
+                ) as? Bool ?? false,
                 "effective_sequence_max": defaults.integer(
                     forKey: "BonsaiBuild104EffectiveSeqMax"
                 ),
-                "implementation": "seq1_prompt_checkpoint_hybrid_v1"
+                "implementation": "seq1_prompt_checkpoint_hybrid_v1",
+                "build105_quarantined": true,
+                "status": "DISABLED_AFTER_BUILD104_32K_NATIVE_CRASH"
             ],
             "measurement_ready": observation != nil,
             "metal_device": device?.name ?? "unavailable",
@@ -1902,7 +1904,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build104-integrated-32k-performance",
+            "build_id": "rc1.26-build105-startup-recovery",
             "product_git_sha": BonsaiCertificationBuildIdentity.sourceGitSHA,
             "workflow_run_id": BonsaiCertificationBuildIdentity.workflowRunID,
             "prism_upstream_sha": "adfffbe41b2cabcd51fff326ab045662265062bb",

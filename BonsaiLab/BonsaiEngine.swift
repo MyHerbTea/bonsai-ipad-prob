@@ -75,7 +75,9 @@ actor BonsaiEngine {
     // vision transition. Never claim a KV hit without an exact token prefix.
     private var textKVResidentTokens: [llama_token] = []
     private var textKVResidentContext: OpaquePointer?
-    private let textKVReuseEnabled = true
+    // Build105 safety recovery: quarantined until the M5 32K two-sequence
+    // native-init crash is reproduced and isolated. No unproven KV hits.
+    private let textKVReuseEnabled = false
     private let textKVMinimumReuseTokens = 16
     private let textKVCheckpointTailTokens = 32
     private var textKVCheckpointEnabled: Bool {
@@ -312,7 +314,8 @@ actor BonsaiEngine {
                 at: directory,
                 withIntermediateDirectories: true
             )
-            let header = "build=89\ntrace_format=2\ncontext=\(contextLength)\nstarted=\(Date().timeIntervalSince1970)\n"
+            let defaults = UserDefaults.standard
+            let header = "build=89\napp_build=105\ntrace_format=2\ncontext=\(contextLength)\nbatch=\(defaults.integer(forKey: "BonsaiBuild82EngineContextBatch"))\nseq_max=\(defaults.integer(forKey: "BonsaiBuild104EffectiveSeqMax"))\nkv_checkpoint=QUARANTINED\nstarted=\(Date().timeIntervalSince1970)\n"
             // Preserve last attempt even when a new 32K run is started.
             // The diagnostic UI can export both traces after a crash.
             let previous = directory.appendingPathComponent(
@@ -418,13 +421,16 @@ actor BonsaiEngine {
         UserDefaults.standard.set(config.opOffload, forKey: "BonsaiBuild82EngineOpOffload")
         UserDefaults.standard.set(config.kvUnified, forKey: "BonsaiBuild82EngineKVUnified")
         UserDefaults.standard.synchronize()
-        // Build104 32K: a bounded second sequence holds a prompt-only KV
-        // checkpoint. Other context sizes retain the validated single seq.
-        // Recurrent partial tail trim was rejected by pinned Prism; copying
-        // seq 0 to seq 1 before decode avoids corrupting the recurrent state.
-        contextParams.n_seq_max =
-            config.context == 32_768 && config.kvUnified &&
-                textKVCheckpointEnabled ? 2 : 1
+        // Build105 emergency rollback: Build104 changed the 32K hybrid
+        // allocation from one sequence to two and device startup crashed
+        // before the native trace emitted a phase. Until real-device
+        // certification, always keep the Build103 proven single sequence.
+        // This intentionally overrides any persisted Build104 user setting.
+        contextParams.n_seq_max = 1
+        UserDefaults.standard.set(
+            true,
+            forKey: "BonsaiBuild105KVCheckpointQuarantined"
+        )
         UserDefaults.standard.set(
             Int(contextParams.n_seq_max),
             forKey: "BonsaiBuild104EffectiveSeqMax"

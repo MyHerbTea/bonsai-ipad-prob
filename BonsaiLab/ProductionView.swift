@@ -972,9 +972,9 @@ struct ProductionView: View {
     @AppStorage("BonsaiBuild100PreferGuardedB16")
     private var preferGuardedB16NextLaunch = false
     @AppStorage("BonsaiBuild104PreferCertifiedB24")
-    private var preferCertifiedB24NextLaunch = true
+    private var preferCertifiedB24NextLaunch = false
     @AppStorage("BonsaiBuild104TextKVCheckpointEnabled")
-    private var textKVCheckpointEnabled104 = true
+    private var textKVCheckpointEnabled104 = false
     @State private var question = "请描述这张图片的主要内容。"
     @State private var inferenceMode = VisionInferenceMode.accelerated
     @AppStorage("BonsaiRC1232VisionPrefixKVReuseEnabled")
@@ -1326,19 +1326,20 @@ struct ProductionView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Section("Build 104 · 32K 持续加速与 KV 检查点") {
+                Section("Build 105 · 32K 启动保护") {
                     Toggle(
-                        "持续优先使用已认证的 Batch 24/24",
+                        "手动开启 Batch 24/24（下次冷启动）",
                         isOn: $preferCertifiedB24NextLaunch
                     )
-                    Text("仅在这台设备已完成 B8、B16、B24 认证并且未进入安全回退时自动生效；B16 手动优先选项仍具有更高优先级。故障或启动中断回退 SAFE4。退出并重开 App 才会改变 Batch。")
+                    Text("Build105 默认关闭 B24 自动提升。仅当你确认本机已有 B8/B16/B24 认证、32K 单序列正常启动后才可手动打开；崩溃后自动回退 SAFE4。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     Toggle(
-                        "32K 双序列 KV 前缀检查点（实验性）",
+                        "32K 双序列 KV 检查点（已隔离）",
                         isOn: $textKVCheckpointEnabled104
                     )
-                    Text("以第二序列保留已计算的提示词前缀，避免 Prism 混合递归状态不支持的生成尾部剪裁。配置更改仅在完整重启后生效；所有视觉和故障路径清空缓存。未完成真机证明前不宣称稳定 KV 加速。")
+                    .disabled(true)
+                    Text("Build104 在 32K 原生初始化时发生闪退，因此 Build105 强制 n_seq_max=1，禁止双序列 KV，即使此前存储的开关为开。该功能需独立真实设备认证后才能恢复。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -3355,11 +3356,28 @@ struct ProductionView: View {
             // Build93: only 32768 enters the guarded 8/8 candidate. A
             // prior incomplete candidate or startup error selects 4/4.
             // Other 32K+ contexts retain their Build92 shape.
-            // B24 defaults to enabled only when the installation has its
-            // own complete B8/B16/B24 certification record. Sticky recovery
-            // and explicit B16 preference retain priority.
-            UserDefaults.standard.register(defaults: [
-                Build94BatchExperiment.preferB24Key: true
+            // Build105 device-crash migration: remove unsafe Build104
+            // first-launch defaults before any model/context allocation.
+            // Preserve previous sticky SAFE4 if an experimental start was
+            // interrupted; do not silently acknowledge a crash.
+            let defaults105 = UserDefaults.standard
+            if !defaults105.bool(forKey: "BonsaiBuild105RecoveryMigrationComplete") {
+                defaults105.set(false, forKey: Build94BatchExperiment.preferB24Key)
+                defaults105.set(false, forKey: Build94BatchExperiment.preferB16Key)
+                defaults105.set(false, forKey: "BonsaiBuild104TextKVCheckpointEnabled")
+                if defaults105.bool(forKey: Build94BatchExperiment.pendingKey) {
+                    defaults105.set(true, forKey: Build94BatchExperiment.fallbackKey)
+                    defaults105.set(false, forKey: Build94BatchExperiment.pendingKey)
+                    defaults105.set("build104_interrupted_safe4", forKey: Build94BatchExperiment.reasonKey)
+                } else if !defaults105.bool(forKey: Build94BatchExperiment.fallbackKey) {
+                    defaults105.set(Build94BatchExperiment.Arm.baseline8.rawValue,
+                                    forKey: Build94BatchExperiment.nextKey)
+                }
+                defaults105.set(true, forKey: "BonsaiBuild105RecoveryMigrationComplete")
+                defaults105.synchronize()
+            }
+            defaults105.register(defaults: [
+                Build94BatchExperiment.preferB24Key: false
             ])
             let arm = Build94BatchExperiment.select(context: context)
             let batchCap: Int
@@ -3664,7 +3682,7 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "104")
+        RC126APIStartupLifecycle.begin(build: "105")
         busy = true
         status = "正在执行 RC1.26 Build 89 Compact Scheduler Metadata + API 冷启动保护…"
         detail = """
