@@ -25,7 +25,7 @@ assert project_build >= 63
 # The product UI must advertise the same numeric build without maintaining a
 # brittle allow-list of every later RC1.26 experiment name.
 assert "RC1.26" in view
-assert f"Build {project_build}" in view
+assert f'RC126APIStartupLifecycle.begin(build: "{project_build}")' in view
 
 # Context ladder: frozen 512 default plus explicit device-validation candidates.
 for value in ["512", "768", "1024", "2048"]:
