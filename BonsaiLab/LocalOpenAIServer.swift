@@ -1321,6 +1321,7 @@ final class LocalOpenAIServer: ObservableObject {
             "text_kv_reuse_prompt_format":
                 "prefix_monotonic_chatml_v1",
             "text_kv_reuse": textKVReuse,
+            "build99_append_only": Build99AppendOnlyReuse.snapshot(),
             "measurement_ready": observation != nil,
             "metal_device": device?.name ?? "unavailable",
             "metal_has_unified_memory":
