@@ -1317,7 +1317,7 @@ struct ProductionView: View {
                             maxOutputTokens: selected
                         )
                     }
-                    Text("客户端未传参数时默认 256 tokens；此选项设置服务端输出预算上限，实际可生成长度受剩余上下文与设备资源限制。")
+                    Text("客户端未指定 max_tokens 等参数时，默认使用这里设置的输出上限；请求明确指定时尊重客户端但不超过此上限。实际输出受剩余上下文、模型停止标记与设备资源限制。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -2392,7 +2392,7 @@ struct ProductionView: View {
             "startup_last_error=\(apiStartupLastError)",
             "api_key=[REDACTED]",
             "discovery_context_length=\(effectiveAPIContext)",
-            "discovery_max_output_tokens=256",
+            "discovery_max_output_tokens=\(apiMaxOutputTokens)",
             "capability_chat=true",
             "capability_vision=true",
             "capability_streaming=true",
@@ -3638,7 +3638,7 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "102")
+        RC126APIStartupLifecycle.begin(build: "103")
         busy = true
         status = "正在执行 RC1.26 Build 89 Compact Scheduler Metadata + API 冷启动保护…"
         detail = """
@@ -3812,10 +3812,9 @@ struct ProductionView: View {
                     }
 
                     var gen = GenerationConfig()
-                    gen.maxTokens = min(
-                        payload.maxTokens,
-                        256
-                    )
+                    // Build103: never silently impose a separate 256-token
+                    // application cap after the API request was validated.
+                    gen.maxTokens = payload.maxTokens
                     gen.temperature =
                         payload.temperature
                     gen.topP =
@@ -4176,7 +4175,7 @@ struct ProductionView: View {
                                         reasoningEffort:
                                             payload.reasoningEffort,
                                         requireFullOutputBudget:
-                                            true,
+                                            false,
                                         // RC1.25.3 Build 64 isolation:
                                         // external OpenAI vision requests do not
                                         // retain/restore prefix-KV snapshots.
@@ -4347,6 +4346,7 @@ struct ProductionView: View {
                                 generation: gen,
                                 reasoningEffort:
                                     payload.reasoningEffort,
+                                clampOutputToContext: true,
                                 onDelta: onDelta,
                                 onPrefillProgress: { stage, total, processed, index, ms in
                                     apiServer.observeNativeTextPrefill(
