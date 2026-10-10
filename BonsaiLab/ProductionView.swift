@@ -3339,12 +3339,14 @@ struct ProductionView: View {
             let batchCap: Int
             switch arm {
             case .candidate16: batchCap = 16
+            case .candidate24: batchCap = 24
+            case .candidate32: batchCap = 32
             case .baseline8: batchCap = 8
             default: batchCap = 4
             }
             if context == 32_768 {
-                // Build100 explicit shape: the selected safe4/B8/B16 is
-                // the ACTUAL llama context batch, even when earlier Phase2
+                // Build102: selected SAFE4/B8/B16/B24/B32 is the ACTUAL
+                // llama context batch, even when earlier Phase2
                 // latches contain a different historical experiment arm.
                 // Never change allocated context parameters mid-request.
                 apiRuntime.batch = batchCap
@@ -3636,7 +3638,7 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "100")
+        RC126APIStartupLifecycle.begin(build: "102")
         busy = true
         status = "正在执行 RC1.26 Build 89 Compact Scheduler Metadata + API 冷启动保护…"
         detail = """
@@ -4439,7 +4441,7 @@ struct ProductionView: View {
                 await MainActor.run {
                     busy = false
                     status =
-                        "RC1.26 Build 94 Prefill 8/16 A/B P0 API Runtime 已就绪"
+                        "RC1.26 Build 102 Prefill 16/24/32 独立实验 API Runtime 已就绪"
                     let profileText =
                         selectedAPIRuntimeProfile
                             .uppercased()
