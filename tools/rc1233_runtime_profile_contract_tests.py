@@ -15,7 +15,7 @@ assert 'if apiRuntimeProfile == "flash"' in view
 assert 'case "flash":' not in view
 assert 'case "accelerated":' in view
 
-assert "contextParams.n_seq_max =" in engine and "config.context == 32_768 && config.kvUnified &&" in engine
+assert "contextParams.n_seq_max = 1" in engine
 assert "params.n_seq_max = 1" in engine
 assert "BonsaiRetainVisionPrefixKV" in engine
 assert "apiVisionPrefixReuseKey" in engine
