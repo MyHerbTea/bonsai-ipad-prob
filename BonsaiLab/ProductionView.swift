@@ -1303,12 +1303,18 @@ struct ProductionView: View {
 
                 Section("输出长度 · OpenAI API") {
                     Picker("最大输出 Tokens", selection: $apiMaxOutputTokens) {
-                        ForEach([256, 512, 1024, 2048, 4096, 8192], id: \.self) { count in
+                        ForEach([256, 512, 1024, 2048, 4096, 8192, 16384, 32768], id: \.self) { count in
                             Text("\(count)").tag(count)
                         }
                     }
                     .pickerStyle(.menu)
-                    Text("客户端未传参数时默认 256 tokens；此选项设置服务端输出预算上限，长输出受剩余上下文限制。")
+                    .onChange(of: apiMaxOutputTokens) { _, selected in
+                        apiServer.configureModelMetadata(
+                            contextWindow: selectedAPIContextValue,
+                            maxOutputTokens: selected
+                        )
+                    }
+                    Text("客户端未传参数时默认 256 tokens；此选项设置服务端输出预算上限，实际可生成长度受剩余上下文与设备资源限制。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
