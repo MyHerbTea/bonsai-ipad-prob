@@ -712,13 +712,16 @@ final class LocalOpenAIServer: ObservableObject {
         }
 
         if request.method == "GET",
-           request.path == "/debug/build94/launch" {
+           request.path == "/debug/build94/launch" ||
+           (request.method == "GET" &&
+            request.path == "/debug/build102/launch") {
             sendJSON(connection, status: 200, object: debugBuild94LaunchObject())
             return
         }
 
         if request.method == "POST",
-           request.path == "/debug/build94/next-launch" {
+           (request.path == "/debug/build94/next-launch" ||
+            request.path == "/debug/build102/next-launch") {
             updateBuild94NextLaunch(request, connection: connection)
             return
         }
@@ -1890,7 +1893,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build100-b16-accel-guarded",
+            "build_id": "rc1.26-build102-batch24-32-isolated",
             "product_git_sha": BonsaiCertificationBuildIdentity.sourceGitSHA,
             "workflow_run_id": BonsaiCertificationBuildIdentity.workflowRunID,
             "prism_upstream_sha": "adfffbe41b2cabcd51fff326ab045662265062bb",
@@ -1960,7 +1963,12 @@ final class LocalOpenAIServer: ObservableObject {
 
     private func debugBuild94LaunchObject() -> [String: Any] {
         var result = Build94BatchExperiment.snapshot()
-        result["phase"] = "RC1.26_BUILD100_B16_ACCEL_GUARDED"
+        result["phase"] = "RC1.26_BUILD102_BATCH24_32_ISOLATED"
+        result["allowed_arms"] = [
+            "SAFE4", "BASELINE8", "CANDIDATE16",
+            "CANDIDATE24", "CANDIDATE32"
+        ]
+        result["candidate32_requires_explicit_consent"] = true
         result["context_window"] = advertisedContextWindow
         result["active_batch"] = advertisedBatch
         result["active_ubatch"] = advertisedUBatch
@@ -1985,11 +1993,12 @@ final class LocalOpenAIServer: ObservableObject {
             else {
                 sendJSON(connection, status: 400, object: Self.errorObject(
                     "invalid_build94_arm",
-                    "arm must be SAFE4, BASELINE8 or CANDIDATE16."
+                    "arm must be SAFE4, BASELINE8, CANDIDATE16, CANDIDATE24 or CANDIDATE32."
                 ))
                 return
             }
             let acknowledged = root["acknowledge_recovery"] as? Bool ?? false
+            let higherRiskConsent = root["acknowledge_higher_risk"] as? Bool ?? false
             guard advertisedContextWindow == 32_768 else {
                 sendJSON(connection, status: 409, object: Self.errorObject(
                     "build94_context_mismatch", "32K context is required."
@@ -1997,11 +2006,12 @@ final class LocalOpenAIServer: ObservableObject {
                 return
             }
             guard Build94BatchExperiment.scheduleNext(
-                arm, acknowledgeRecovery: acknowledged
+                arm, acknowledgeRecovery: acknowledged,
+                acknowledgeHigherRisk: higherRiskConsent
             ) else {
                 sendJSON(connection, status: 409, object: Self.errorObject(
                     "build94_arm_blocked",
-                    "Complete a baseline8 >=200-token request first, or explicitly acknowledge safe4 recovery."
+                    "B16 needs completed B8; B24 needs completed B16; B32 additionally needs completed B24 and acknowledge_higher_risk=true. Sticky SAFE4 recovery requires explicit acknowledgement."
                 ))
                 return
             }
