@@ -285,7 +285,7 @@ final class LocalOpenAIServer: ObservableObject {
         maxOutputTokens: Int
     ) {
         advertisedContextWindow = contextWindow
-        advertisedMaxOutputTokens = [256, 512, 1024, 2048, 4096, 8192].contains(maxOutputTokens) ? maxOutputTokens : 2048
+        advertisedMaxOutputTokens = [256, 512, 1024, 2048, 4096, 8192, 16384, 32768].contains(maxOutputTokens) ? maxOutputTokens : 2048
     }
 
     func configureRuntimeShape(
