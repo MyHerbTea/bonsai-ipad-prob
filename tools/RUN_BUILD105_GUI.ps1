@@ -64,10 +64,17 @@ if(Get-Command 'py.exe' -ErrorAction SilentlyContinue){$exe='py.exe';$py=@('-3',
 elseif(Get-Command 'python.exe' -ErrorAction SilentlyContinue){$exe='python.exe';$py=@('-u')}
 if(-not $exe){Write-Host '[ERROR] Python 3 is missing';Remove-Item Env:BONSAI_API_KEY;exit 2}
 Write-Host 'Bonsai Build105 - API KEY [REDACTED]'
+Write-Host '[PREFLIGHT] Testing Python compatibility before accessing iPad...'
 $rc=2
 try {
- & $exe @py $runner '--output' (Join-Path $root 'RESULTS')
- $rc=$LASTEXITCODE
+ & $exe @py $runner '--dry-run'
+ if ($LASTEXITCODE -ne 0) {
+   Write-Host '[ERROR] Local runner compatibility check failed before API test.'
+   $rc=2
+ } else {
+   & $exe @py $runner '--output' (Join-Path $root 'RESULTS')
+   $rc=$LASTEXITCODE
+ }
 }finally{
  Remove-Item Env:BONSAI_API_KEY -ErrorAction SilentlyContinue
  Remove-Item Env:BONSAI_BASE_URL -ErrorAction SilentlyContinue

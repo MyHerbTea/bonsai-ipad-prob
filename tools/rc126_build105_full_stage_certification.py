@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-run Build105 integrated iPad acceptance suite. Python 3.10+, stdlib only.
+"""One-run Build105 integrated iPad acceptance suite. Python 3.8+, stdlib only.
 No configuration file, no fixed client output cap, no credentials in results.
 The iPad app must already be running its OpenAI API; device relaunch cannot be
 automated over HTTP. The runner continues through independent test failures.
@@ -108,7 +108,11 @@ def request(url, key=None, payload=None, timeout=45, stream=False, test_id=""):
     except Exception:
         return status, {"raw_excerpt": raw[:700], "mime": mime}
 def normalize(url):
-    return url.rstrip("/").removesuffix("/v1")
+    # Python 3.8-compatible; str.removesuffix was introduced in 3.9.
+    result = url.strip().rstrip("/")
+    if result.endswith("/v1"):
+        result = result[:-3]
+    return result
 def discover(hint):
     if hint:
         return normalize(hint)
@@ -153,6 +157,9 @@ def run():
     args = ap.parse_args()
     if args.dry_run:
         assert normalize("http://127.0.0.1:8080/v1") == "http://127.0.0.1:8080"
+        assert normalize(" http://127.0.0.1:8080/v1/ ") == "http://127.0.0.1:8080"
+        assert normalize("http://127.0.0.1:8080") == "http://127.0.0.1:8080"
+        assert normalize("http://127.0.0.1:8080/api") == "http://127.0.0.1:8080/api"
         assert all(HOSTS)
         # Product identity must match the installed Build105 IPA.
         assert 'str(build_info.get("build")) != "105"' in Path(__file__).read_text(encoding="utf-8")
@@ -167,7 +174,7 @@ def run():
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     session = root / ("Build105-FULL-" + stamp)
     session.mkdir(parents=True, exist_ok=True)
-    base = discover(args.base_url)
+    base = ""
     key = args.api_key
     if not key:
         key = getpass.getpass("Bonsai API Key (never saved or included in results): ")
@@ -226,6 +233,8 @@ def run():
             except Exception as e:
                 record(suffix + route, "SKIP", reason=str(e)[:140])
     try:
+        base = discover(args.base_url)
+        record("api_discovery", "PASS", base_url=base)
         status, models = request(base + "/v1/models", key, timeout=10)
         if status != 200:
             raise RuntimeError(f"/v1/models HTTP {status}")
@@ -317,6 +326,9 @@ def run():
             check(f"vision_{n}_images",vision_case)
         check("post_vision_text",lambda:chat("post_vision_text",text("请只回复：图文切换成功。"),max_tokens=90))
         debug_snapshot("after")
+    except Exception as e:
+        record("startup_or_discovery", "FAIL",
+               error=type(e).__name__ + ": " + str(e)[:350])
     finally:
         meta = {"generated_at":iso(), "host":platform.system(), "python":platform.python_version(),
                 "base_url":base, "schema_version":1, "profile":"integrated",

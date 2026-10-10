@@ -95,6 +95,14 @@ jobs:
           python3 tools/rc126_build104_full_stage_certification.py --dry-run
           python3 -m py_compile tools/rc126_build105_full_stage_certification.py
           python3 tools/rc126_build105_full_stage_certification.py --dry-run
+          python3 - <<'PY'
+          from pathlib import Path
+          import ast
+          source = Path("tools/rc126_build105_full_stage_certification.py").read_text(encoding="utf-8")
+          ast.parse(source, feature_version=(3, 8))
+          assert 'return url.rstrip("/").removesuffix("/v1")' not in source
+          print("Build105 runner Python3.8 compatibility contract: PASS")
+          PY
           xcrun swiftc -DDEBUG -swift-version 5 \
             BonsaiLab/Build93BatchTrialPolicy.swift \
             BonsaiLab/Build94BatchExperiment.swift \
