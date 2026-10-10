@@ -1551,7 +1551,7 @@ actor BonsaiEngine {
                                 ? apiVisionPrefixPositions
                                 : 0,
                             Int32(appliedRuntime.context),
-                            Int32(gen.maxTokens),
+                            Int32(requireFullOutputBudget ? gen.maxTokens : 1),
                             &errorBuffer,
                             errorBuffer.count,
                             stagePath
@@ -2381,13 +2381,14 @@ actor BonsaiEngine {
         userPrompt: String,
         generation: GenerationConfig,
         reasoningEffort: String? = nil,
+        clampOutputToContext: Bool = false,
         onDelta: (@Sendable (String) -> Void)? = nil,
         onPrefillProgress: (@Sendable (String, Int, Int, Int, Double) -> Void)? = nil
     ) throws -> GenerationMetrics {
         guard let context, let vocab else {
             throw LabError.noModel
         }
-        let gen = try generation.validated(
+        var gen = try generation.validated(
             context: appliedRuntime.context
         )
 
@@ -2402,8 +2403,19 @@ actor BonsaiEngine {
             vocab: vocab
         )
 
-        if tokens.count + gen.maxTokens >=
-            appliedRuntime.context {
+        // Build103: clients may omit max_tokens or configure a ceiling
+        // larger than the space left after tokenization. Clamp to *actual*
+        // remaining context, never to a hidden 128/256-token default.
+        let availableOutput = appliedRuntime.context - tokens.count - 1
+        if availableOutput <= 0 {
+            throw LabError.promptTooLong(
+                tokens.count + 1,
+                appliedRuntime.context
+            )
+        }
+        if clampOutputToContext {
+            gen.maxTokens = min(gen.maxTokens, availableOutput)
+        } else if gen.maxTokens > availableOutput {
             throw LabError.promptTooLong(
                 tokens.count + gen.maxTokens,
                 appliedRuntime.context
