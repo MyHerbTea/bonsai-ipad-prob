@@ -7,7 +7,7 @@ srv=(root/"BonsaiLab/LocalOpenAIServer.swift").read_text()
 flow=(root/".github/workflows/build-ios.yml").read_text()
 patch=(root/"tools/rc126_build87_patch_prism_sched_context.py").read_text()
 assert 'CURRENT_PROJECT_VERSION: "98"' in (root/"project.yml").read_text()
-assert 'RC126APIStartupLifecycle.begin(build: "97"' in v
+assert 'RC126APIStartupLifecycle.begin(build: "98"' in v
 assert '"build_id": "rc1.26-build98-m5-fa-vec-ab"' in srv
 assert "build87_sched_context_trace_supported" in srv
 assert "build=89" in e
