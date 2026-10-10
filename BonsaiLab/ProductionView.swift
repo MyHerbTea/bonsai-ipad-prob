@@ -969,6 +969,8 @@ struct ProductionView: View {
     @State private var quality = VisionQuality.standard
     @State private var answerLength = AnswerLengthPreset.standard
     @AppStorage("BonsaiBuild97APIMaxOutputTokens") private var apiMaxOutputTokens = 2048
+    @AppStorage("BonsaiBuild100PreferGuardedB16")
+    private var preferGuardedB16NextLaunch = false
     @State private var question = "请描述这张图片的主要内容。"
     @State private var inferenceMode = VisionInferenceMode.accelerated
     @AppStorage("BonsaiRC1232VisionPrefixKVReuseEnabled")
@@ -1316,6 +1318,19 @@ struct ProductionView: View {
                         )
                     }
                     Text("客户端未传参数时默认 256 tokens；此选项设置服务端输出预算上限，实际可生成长度受剩余上下文与设备资源限制。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Build 100 · 32K 推理加速实验") {
+                    Toggle(
+                        "下次完整启动优先使用认证过的 Batch 16/16",
+                        isOn: $preferGuardedB16NextLaunch
+                    )
+                    Text("仅对 32768 Context 生效。必须已有 B8 与 B16 完成记录；否则仍使用安全基线。修改仅在彻底退出并重开 App 后生效。候选启动失败或上次尝试未完成时会锁定回退至 4/4，需显式确认恢复。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Text("实验版 · 不是 Stable；模型、Vision 和 OpenAI API 其余行为保留 Build 97 基线。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -3327,8 +3342,17 @@ struct ProductionView: View {
             case .baseline8: batchCap = 8
             default: batchCap = 4
             }
-            apiRuntime.batch = min(apiRuntime.batch, batchCap)
-            apiRuntime.ubatch = min(apiRuntime.ubatch, batchCap)
+            if context == 32_768 {
+                // Build100 explicit shape: the selected safe4/B8/B16 is
+                // the ACTUAL llama context batch, even when earlier Phase2
+                // latches contain a different historical experiment arm.
+                // Never change allocated context parameters mid-request.
+                apiRuntime.batch = batchCap
+                apiRuntime.ubatch = batchCap
+            } else {
+                apiRuntime.batch = min(apiRuntime.batch, batchCap)
+                apiRuntime.ubatch = min(apiRuntime.ubatch, batchCap)
+            }
             apiRuntime.gpuLayers = 99
             apiRuntime.offloadKQV = true
             apiRuntime.opOffload = true
@@ -3612,7 +3636,7 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "97")
+        RC126APIStartupLifecycle.begin(build: "100")
         busy = true
         status = "正在执行 RC1.26 Build 89 Compact Scheduler Metadata + API 冷启动保护…"
         detail = """
