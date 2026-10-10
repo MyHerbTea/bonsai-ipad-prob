@@ -6,7 +6,7 @@ server=(root/"BonsaiLab/LocalOpenAIServer.swift").read_text()
 workflow=(root/".github/workflows/build-ios.yml").read_text()
 project=(root/"project.yml").read_text()
 patch=(root/"tools/rc126_build84_patch_prism_native_trace.py").read_text()
-assert 'CURRENT_PROJECT_VERSION: "94"' in project
+assert 'CURRENT_PROJECT_VERSION: "97"' in project
 assert 'RC126APIStartupLifecycle.begin(build: "94"' in view
 assert '"build_id": "rc1.26-build97-output-config-vision-home"' in server
 assert "[BUILD 84 NATIVE CONTEXT CRASH TRACE]" in view
