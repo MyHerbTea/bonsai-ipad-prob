@@ -7,10 +7,10 @@ project = (ROOT / "project.yml").read_text(encoding="utf-8")
 workflow = (ROOT / ".github/workflows/build-ios.yml").read_text(encoding="utf-8")
 patcher = (ROOT / "tools/rc126_build83_patch_prism_kv_sharding.py").read_text(encoding="utf-8")
 
-assert 'CURRENT_PROJECT_VERSION: "104"' in project
-assert 'RC126APIStartupLifecycle.begin(build: "104")' in view
+assert 'CURRENT_PROJECT_VERSION: "105"' in project
+assert 'RC126APIStartupLifecycle.begin(build: "105")' in view
 assert "RC1.26 Build 89 Compact Scheduler Metadata" in view
-assert '"build_id": "rc1.26-build104-integrated-32k-performance"' in server
+assert '"build_id": "rc1.26-build105-startup-recovery"' in server
 
 assert "ctx32k-q4-unified-metal-gpu99-b4" in view
 assert "apiRuntime.gpuLayers = 99" in view
@@ -40,7 +40,7 @@ assert "adfffbe41b2cabcd51fff326ab045662265062bb" in workflow
 assert "rc126_build83_patch_prism_kv_sharding.py" in workflow
 assert "build-xcframework.sh ios-device" in workflow
 assert "RC1.26 Build 83 Prism Metal KV sharding contracts" in workflow
-assert "BonsaiLab-v1-RC1.26-build104-integrated-32k-performance-unsigned.ipa" in workflow
-assert "BonsaiLab-iPad-v1-RC1.26-Build104-Integrated-32K-Performance" in workflow
+assert "BonsaiLab-v1-RC1.26-build105-startup-recovery-unsigned.ipa" in workflow
+assert "BonsaiLab-iPad-v1-RC1.26-Build105-Safe-Startup-Recovery" in workflow
 
 print("RC1.26 Build 83 Prism Metal KV sharding contracts: PASS")
