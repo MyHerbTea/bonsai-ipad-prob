@@ -6,7 +6,7 @@ srv=(root/"BonsaiLab/LocalOpenAIServer.swift").read_text()
 wf=(root/".github/workflows/build-ios.yml").read_text()
 p=(root/"tools/rc126_build89_patch_prism_compact_scheduler.py").read_text()
 assert 'CURRENT_PROJECT_VERSION: "98"' in (root/"project.yml").read_text()
-assert 'RC126APIStartupLifecycle.begin(build: "97"' in v
+assert 'RC126APIStartupLifecycle.begin(build: "98"' in v
 assert '"build_id": "rc1.26-build98-m5-fa-vec-ab"' in srv
 assert '"build89_compact_scheduler_metadata": true' in srv
 assert 'let header = "build=89' in e
