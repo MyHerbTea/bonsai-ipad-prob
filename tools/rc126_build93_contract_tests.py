@@ -7,9 +7,9 @@ engine = (root / "BonsaiLab/BonsaiEngine.swift").read_text()
 server = (root / "BonsaiLab/LocalOpenAIServer.swift").read_text()
 policy = (root / "BonsaiLab/Build93BatchTrialPolicy.swift").read_text()
 project = (root / "project.yml").read_text()
-assert 'CURRENT_PROJECT_VERSION: "103"' in project
-assert 'RC126APIStartupLifecycle.begin(build: "103")' in view
-assert '"build_id": "rc1.26-build103-integrated-output-stage"' in server
+assert 'CURRENT_PROJECT_VERSION: "104"' in project
+assert 'RC126APIStartupLifecycle.begin(build: "104")' in view
+assert '"build_id": "rc1.26-build104-integrated-32k-performance"' in server
 assert '"schema": "bonsai-build94-execution-v1"' in server
 assert 'Build94BatchExperiment.select(context: context)' in view
 assert 'case .candidate16: batchCap = 16' in view

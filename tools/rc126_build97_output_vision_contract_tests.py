@@ -10,9 +10,9 @@ server = (root / "BonsaiLab/LocalOpenAIServer.swift").read_text()
 project = (root / "project.yml").read_text()
 workflow = (root / ".github/workflows/build-ios.yml").read_text()
 
-assert 'CURRENT_PROJECT_VERSION: "103"' in project
-assert 'RC126APIStartupLifecycle.begin(build: "103")' in view
-assert '"build_id": "rc1.26-build103-integrated-output-stage"' in server
+assert 'CURRENT_PROJECT_VERSION: "104"' in project
+assert 'RC126APIStartupLifecycle.begin(build: "104")' in view
+assert '"build_id": "rc1.26-build104-integrated-32k-performance"' in server
 assert 'BonsaiBuild97APIMaxOutputTokens' in view
 assert '[256, 512, 1024, 2048, 4096, 8192, 16384, 32768]' in view
 assert 'maxOutputTokens: apiMaxOutputTokens' in view
@@ -27,6 +27,6 @@ assert view.index('Section("模型")') < view.index('Section("MLX Vision Sidecar
 assert view.index('Section("MLX Vision Sidecar")') < view.index('DisclosureGroup(\n                        "高级与诊断"')
 assert view.count('Text("MLX Vision Sidecar Probe")') == 1
 assert 'runMLXVisionProbe()' in view and 'runLiveVisionInjection()' in view
-assert 'Build103-Integrated-Output-Stage' in workflow
-assert 'build103-integrated-output-stage-unsigned.ipa' in workflow
+assert 'Build104-Integrated-32K-Performance' in workflow
+assert 'build104-integrated-32k-performance-unsigned.ipa' in workflow
 print("PASS Build97 output budget, homepage MLX Vision placement and release identity contracts")
