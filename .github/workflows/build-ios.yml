@@ -1,4 +1,4 @@
-name: Build Bonsai iPad Lab v1 RC1.26 Build104 Integrated 32K Performance
+name: Build Bonsai iPad Lab v1 RC1.26 Build105 Safe Startup Recovery
 
 on:
   push:
@@ -35,6 +35,7 @@ on:
       - lab-v1-rc1-26-build103-integrated-output-stage
       - lab-v1-rc1-26-build103-integrated-stage-fixed
       - lab-v1-rc1-26-build104-integrated-32k-performance
+      - lab-v1-rc1-26-build105-startup-recovery
   workflow_dispatch:
 
 concurrency:
@@ -74,17 +75,26 @@ jobs:
           python3 tools/rc126_build94_contract_tests.py
           python3 tools/rc126_build97_output_vision_contract_tests.py
           python3 tools/rc126_build103_output_budget_contract_tests.py
-          python3 tools/rc126_build104_integrated_contract_tests.py
+          python3 tools/rc126_build105_startup_contract_tests.py
           xcrun swiftc -DDEBUG -swift-version 5 \
             BonsaiLab/Build93BatchTrialPolicy.swift \
             BonsaiLab/Build94BatchExperiment.swift \
             tools/rc126_build104_policy_tests.swift \
             -o "$RUNNER_TEMP/build104_policy_tests"
           "$RUNNER_TEMP/build104_policy_tests"
+          xcrun swiftc -DDEBUG -swift-version 5 \
+            BonsaiLab/Build93BatchTrialPolicy.swift \
+            BonsaiLab/Build94BatchExperiment.swift \
+            BonsaiLab/Build105StartupRecovery.swift \
+            tools/rc126_build105_recovery_policy_tests.swift \
+            -o "$RUNNER_TEMP/build105_recovery_policy_tests"
+          "$RUNNER_TEMP/build105_recovery_policy_tests"
           python3 -m py_compile tools/rc126_build103_full_stage_certification.py
           python3 tools/rc126_build103_full_stage_certification.py --dry-run
           python3 -m py_compile tools/rc126_build104_full_stage_certification.py
           python3 tools/rc126_build104_full_stage_certification.py --dry-run
+          python3 -m py_compile tools/rc126_build105_full_stage_certification.py
+          python3 tools/rc126_build105_full_stage_certification.py --dry-run
           xcrun swiftc -DDEBUG -swift-version 5 \
             BonsaiLab/Build93BatchTrialPolicy.swift \
             BonsaiLab/Build94BatchExperiment.swift \
@@ -525,9 +535,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"104\"' project.yml)" -ge 1
-          grep -q '"rc1.26-build104-integrated-32k-performance"' BonsaiLab/LocalOpenAIServer.swift
-          grep -q 'RC126APIStartupLifecycle.begin(build: \"104\")' BonsaiLab/ProductionView.swift
+          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"105\"' project.yml)" -ge 1
+          grep -q '"rc1.26-build105-startup-recovery"' BonsaiLab/LocalOpenAIServer.swift
+          grep -q 'RC126APIStartupLifecycle.begin(build: \"105\")' BonsaiLab/ProductionView.swift
 
           PACKAGE_BLOCK="$(
             sed -n \
@@ -535,8 +545,8 @@ jobs:
               .github/workflows/build-ios.yml
           )"
 
-          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build104-integrated-32k-performance-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
-          grep -q 'BonsaiLab-v1-RC1.26-build104-integrated-32k-performance-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
+          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build105-startup-recovery-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
+          grep -q 'BonsaiLab-v1-RC1.26-build105-startup-recovery-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
           if grep -q 'build75-api-cold-start-guard' <<< "$PACKAGE_BLOCK"; then
             echo "ERROR: Build 78 packaging leaked into Build 79 package step." >&2
             exit 1
@@ -657,7 +667,7 @@ jobs:
           file "$FRAMEWORK"
           otool -L "$APP/BonsaiLab"
           test "$(plutil -extract CFBundleShortVersionString raw -o - "$APP/Info.plist")" = "1.0.0"
-          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "104"
+          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "105"
           nm -gU "$FRAMEWORK" > build/llama-symbols.txt
           grep -q '_mtmd_init_from_file' build/llama-symbols.txt
           grep -q '_mtmd_helper_eval_chunks' build/llama-symbols.txt
@@ -675,14 +685,14 @@ jobs:
           ditto "$APP" build/ipa/Payload/BonsaiLab.app
 
           cat > build/BUILD_INFO.txt <<'INFO'
-          Bonsai iPad Lab v1 RC1.26 Build104 qualified B24 + hybrid seq1 KV checkpoint (NOT DEVICE CERTIFIED)
+          Bonsai iPad Lab v1 RC1.26 Build105 safe startup recovery (NOT DEVICE CERTIFIED)
           Prism: prism-b10743-adfffbe
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
           Build 84 preserves the Build 82 effective runtime policy and patches Prism only for Qwen3.5 Metal KV at >=32K, allocating each full-attention layer KV in its own backend buffer.
           Build 85 follows Build 84 real-device evidence: model mmap/load completes with ~4974 MiB available but llama_init_from_model terminates. Prism groups Metal attention KV by buffer type into one owned MTLBuffer; Build 83 shards that allocation per full-attention layer only for Qwen3.5 >=32K.
           Source parent: frozen Build97. Fixed Prism, no Build99 APPEND or Build98 FA-vec experiment.
-          Qualified B24 can persist under user preference; B32 remains one-shot explicit high-risk consent; sticky SAFE4 recovery takes priority.
+          Build105 quarantines unverified 32K seq2 KV (n_seq_max always 1) and disables auto B24; sticky SAFE4 preserved from crashed Build104 migration. Build103 output budget stays intact.
           Build103 removes the API 256-token parser/handler caps and clips to actual remaining context.\n           Real-device full-stage text, long-context, Vision, KV reuse, crash regression required before promotion.
           Model and Vision Tower weights are NOT bundled in the IPA.
           INFO
@@ -690,31 +700,34 @@ jobs:
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.26-build104-integrated-32k-performance-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.26-build105-startup-recovery-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.26-build104-integrated-32k-performance-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build104-integrated-32k-performance-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.26-build105-startup-recovery-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build105-startup-recovery-unsigned.ipa.sha256
 
-      - name: Package one-click Build104 integrated certification runner
+      - name: Package one-click Build105 safe recovery certification runner
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p build/build104-runner
-          cp tools/RUN_BUILD104_FULL_STAGE.cmd tools/RUN_BUILD104_GUI.ps1 tools/rc126_build104_full_stage_certification.py build/build104-runner/
-          cp docs/backburner-integration/RC1.26_BUILD104_INTEGRATED_32K_PERFORMANCE.md build/build104-runner/README.md
-          (cd build/build104-runner && zip -qry ../Bonsai-Build104-OneClick-FullStage.zip .)
-          unzip -t build/Bonsai-Build104-OneClick-FullStage.zip
+          mkdir -p build/build105-runner
+          cp tools/RUN_BUILD105_FULL_STAGE.cmd tools/RUN_BUILD105_GUI.ps1 tools/rc126_build105_full_stage_certification.py build/build105-runner/
+          cp docs/backburner-integration/RC1.26_BUILD105_STARTUP_RECOVERY.md build/build105-runner/README.md
+          (cd build/build105-runner && zip -qry ../Bonsai-Build105-OneClick-FullStage.zip .)
+          unzip -t build/Bonsai-Build105-OneClick-FullStage.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.26-Build104-Integrated-32K-Performance
+          name: BonsaiLab-iPad-v1-RC1.26-Build105-Safe-Startup-Recovery
           path: |
-            build/Bonsai-Build104-OneClick-FullStage.zip
+            build/Bonsai-Build105-OneClick-FullStage.zip
+            tools/rc126_build105_startup_contract_tests.py
+            tools/rc126_build105_recovery_policy_tests.swift
+            docs/backburner-integration/RC1.26_BUILD105_STARTUP_RECOVERY.md
             tools/rc126_build104_integrated_contract_tests.py
             tools/rc126_build104_policy_tests.swift
             docs/backburner-integration/RC1.26_BUILD104_INTEGRATED_32K_PERFORMANCE.md
-            build/BonsaiLab-v1-RC1.26-build104-integrated-32k-performance-unsigned.ipa
-            build/BonsaiLab-v1-RC1.26-build104-integrated-32k-performance-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.26-build105-startup-recovery-unsigned.ipa
+            build/BonsaiLab-v1-RC1.26-build105-startup-recovery-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             tools/rc126_build100_b16_policy_tests.swift
             tools/rc126_build102_batch_policy_tests.swift
