@@ -969,6 +969,7 @@ struct ProductionView: View {
     @State private var quality = VisionQuality.standard
     @State private var answerLength = AnswerLengthPreset.standard
     @AppStorage("BonsaiBuild97APIMaxOutputTokens") private var apiMaxOutputTokens = 2048
+    @AppStorage("BonsaiBuild99AppendOnlyNextArm") private var build99AppendOnlyNextArm = "OFF"
     @State private var question = "请描述这张图片的主要内容。"
     @State private var inferenceMode = VisionInferenceMode.accelerated
     @AppStorage("BonsaiRC1232VisionPrefixKVReuseEnabled")
@@ -1318,6 +1319,25 @@ struct ProductionView: View {
                     Text("客户端未传参数时默认 256 tokens；此选项设置服务端输出预算上限，实际可生成长度受剩余上下文与设备资源限制。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                }
+
+                Section("Build 99 · 多轮精确前缀加速") {
+                    DisclosureGroup("Append-only 实验（默认关闭）") {
+                        LabeledContent(
+                            "本次进程模式",
+                            value: Build99AppendOnlyReuse.activeArm == "APPEND"
+                                ? "APPEND · 实验"
+                                : "OFF · 原始引擎"
+                        )
+                        Picker("下次完整启动模式", selection: $build99AppendOnlyNextArm) {
+                            Text("OFF · 原始安全路径").tag("OFF")
+                            Text("APPEND · 精确前缀续算").tag("APPEND")
+                        }
+                        .pickerStyle(.menu)
+                        Text("此开关仅在完全结束 App 进程并重新打开后生效，下一次启动自动恢复 OFF。严格按完整 token 前缀匹配；不匹配时重新计算，不回滚 GDN 状态。仅限实验，不修改 Vision 路径。")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Section("局域网 OpenAI API") {
