@@ -3605,7 +3605,7 @@ struct ProductionView: View {
         let sharedEngine = engine
         let sharedVisionSidecar = mlxVisionSidecar
 
-        RC126APIStartupLifecycle.begin(build: "94")
+        RC126APIStartupLifecycle.begin(build: "97")
         busy = true
         status = "正在执行 RC1.26 Build 89 Compact Scheduler Metadata + API 冷启动保护…"
         detail = """
