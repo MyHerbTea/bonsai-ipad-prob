@@ -961,7 +961,9 @@ final class LocalOpenAIServer: ObservableObject {
         do {
             payload = try Self.parseChatPayload(
                 request.body,
-                defaultModel: modelID
+                defaultModel: modelID,
+                contextWindow: advertisedContextWindow,
+                maxOutputLimit: advertisedMaxOutputTokens
             )
             payload.certificationTrace = certificationTrace
         } catch let error as OpenAIMultimodalError {
@@ -2738,7 +2740,9 @@ final class LocalOpenAIServer: ObservableObject {
 
     private static func parseChatPayload(
         _ body: Data,
-        defaultModel: String
+        defaultModel: String,
+        contextWindow: Int,
+        maxOutputLimit: Int
     ) throws -> OpenAIRequestPayload {
         guard
             let root = try JSONSerialization.jsonObject(
@@ -3040,8 +3044,8 @@ final class LocalOpenAIServer: ObservableObject {
         // Build97: no historical 2048 cap. Preserve the client-requested
         // budget up to the user-configured server ceiling; never exceed context.
         let maxTokens = min(
-            max(1, advertisedContextWindow - 1),
-            min(advertisedMaxOutputTokens, max(1, requested))
+            max(1, contextWindow - 1),
+            min(maxOutputLimit, max(1, requested))
         )
 
         let temperature =
