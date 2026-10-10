@@ -18,7 +18,9 @@ assert '[256, 512, 1024, 2048, 4096, 8192, 16384, 32768]' in view
 assert 'maxOutputTokens: apiMaxOutputTokens' in view
 assert 'maxOutputTokens: 256' not in view
 assert 'max(1, advertisedContextWindow - 1)' in server
-assert 'min(advertisedMaxOutputTokens, max(1, requested))' in server
+assert 'min(maxOutputLimit, max(1, requested))' in server
+assert 'contextWindow: advertisedContextWindow' in server
+assert 'maxOutputLimit: advertisedMaxOutputTokens' in server
 assert 'let maxTokens = min(\n            2048,' not in server
 assert '?? 256' in server, 'Keep modest default when clients omit max_tokens'
 assert view.index('Section("模型")') < view.index('Section("MLX Vision Sidecar")') < view.index('Section("图片")')
