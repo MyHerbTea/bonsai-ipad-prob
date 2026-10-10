@@ -17,7 +17,7 @@ assert project_build_match is not None
 project_build = int(project_build_match.group("build"))
 assert project_build >= 63
 assert "RC1.26" in view
-assert f"Build {project_build}" in view
+assert f'RC126APIStartupLifecycle.begin(build: "{project_build}")' in view
 
 assert (
     "RC1.25.2 Build 63 API Context Ladder" in view
