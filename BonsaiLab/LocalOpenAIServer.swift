@@ -1890,7 +1890,7 @@ final class LocalOpenAIServer: ObservableObject {
         let info = Bundle.main.infoDictionary ?? [:]
         return [
             "program": "RC1.26_BACKBURNER_RUNTIME_OPTIMIZATION",
-            "build_id": "rc1.26-build97-output-config-vision-home",
+            "build_id": "rc1.26-build100-b16-accel-guarded",
             "product_git_sha": BonsaiCertificationBuildIdentity.sourceGitSHA,
             "workflow_run_id": BonsaiCertificationBuildIdentity.workflowRunID,
             "prism_upstream_sha": "adfffbe41b2cabcd51fff326ab045662265062bb",
@@ -1960,7 +1960,7 @@ final class LocalOpenAIServer: ObservableObject {
 
     private func debugBuild94LaunchObject() -> [String: Any] {
         var result = Build94BatchExperiment.snapshot()
-        result["phase"] = "RC1.26_BUILD94_32K_PREFILL_KERNEL_BOUNDARY"
+        result["phase"] = "RC1.26_BUILD100_B16_ACCEL_GUARDED"
         result["context_window"] = advertisedContextWindow
         result["active_batch"] = advertisedBatch
         result["active_ubatch"] = advertisedUBatch
