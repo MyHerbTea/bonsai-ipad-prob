@@ -16,7 +16,7 @@ assert 'app_build=105' in e
 assert 'private var preferCertifiedB24NextLaunch = false' in v
 assert 'private var textKVCheckpointEnabled104 = false' in v
 assert 'Build105StartupRecovery.apply()' in v
-assert 'Build94BatchExperiment.preferB24Key: false' in v
+assert 'defaults.set(false, forKey: Build94BatchExperiment.preferB24Key)' in p
 assert 'migrationKey = "BonsaiBuild105RecoveryMigrationComplete"' in p
 assert 'defaults.bool(forKey: Build94BatchExperiment.pendingKey)' in p
 assert 'defaults.set(true, forKey: Build94BatchExperiment.fallbackKey)' in p
