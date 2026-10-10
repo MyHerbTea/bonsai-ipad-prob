@@ -1339,7 +1339,7 @@ struct ProductionView: View {
                         isOn: $textKVCheckpointEnabled104
                     )
                     .disabled(true)
-                    Text("Build104 在 32K 原生初始化时发生闪退，因此 Build105 强制 n_seq_max=1，禁止双序列 KV，即使此前存储的开关为开。该功能需独立真实设备认证后才能恢复。")
+                    Text("Build104 在 32K 原生初始化时发生闪退，因此 Build105 强制使用已认证的单序列模式，禁止双序列 KV，即使此前存储的开关为开。该功能需独立真实设备认证后才能恢复。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
