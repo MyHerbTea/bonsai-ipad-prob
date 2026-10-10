@@ -1,4 +1,4 @@
-name: Build Bonsai iPad Lab v1 RC1.26 Build102 Batch24/32 Isolated
+name: Build Bonsai iPad Lab v1 RC1.26 Build103 Integrated Output Stage
 
 on:
   push:
@@ -32,7 +32,7 @@ on:
       - lab-v1-rc1-26-build92-native-prefill-observability
       - lab-v1-rc1-26-build93-prefill-batch8-ab
       - lab-v1-rc1-26-build102-batch24-32-isolated
-      - lab-v1-rc1-26-build102-batch24-32-isolated
+      - lab-v1-rc1-26-build103-integrated-output-stage
   workflow_dispatch:
 
 concurrency:
@@ -71,6 +71,7 @@ jobs:
           "$RUNNER_TEMP/build94_policy_tests"
           python3 tools/rc126_build94_contract_tests.py
           python3 tools/rc126_build97_output_vision_contract_tests.py
+          python3 tools/rc126_build103_output_budget_contract_tests.py
           xcrun swiftc -DDEBUG -swift-version 5 \
             BonsaiLab/Build93BatchTrialPolicy.swift \
             BonsaiLab/Build94BatchExperiment.swift \
@@ -521,8 +522,8 @@ jobs:
               .github/workflows/build-ios.yml
           )"
 
-          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build102-batch24-32-isolated-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
-          grep -q 'BonsaiLab-v1-RC1.26-build102-batch24-32-isolated-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
+          grep -q 'zip -qry ../BonsaiLab-v1-RC1.26-build103-integrated-output-stage-unsigned.ipa Payload' <<< "$PACKAGE_BLOCK"
+          grep -q 'BonsaiLab-v1-RC1.26-build103-integrated-output-stage-unsigned.ipa.sha256' <<< "$PACKAGE_BLOCK"
           if grep -q 'build75-api-cold-start-guard' <<< "$PACKAGE_BLOCK"; then
             echo "ERROR: Build 78 packaging leaked into Build 79 package step." >&2
             exit 1
@@ -643,7 +644,7 @@ jobs:
           file "$FRAMEWORK"
           otool -L "$APP/BonsaiLab"
           test "$(plutil -extract CFBundleShortVersionString raw -o - "$APP/Info.plist")" = "1.0.0"
-          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "102"
+          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "103"
           nm -gU "$FRAMEWORK" > build/llama-symbols.txt
           grep -q '_mtmd_init_from_file' build/llama-symbols.txt
           grep -q '_mtmd_helper_eval_chunks' build/llama-symbols.txt
@@ -661,7 +662,7 @@ jobs:
           ditto "$APP" build/ipa/Payload/BonsaiLab.app
 
           cat > build/BUILD_INFO.txt <<'INFO'
-          Bonsai iPad Lab v1 RC1.26 Build102 32K B16/B24/B32 isolated batch sweep (NOT DEVICE CERTIFIED)
+          Bonsai iPad Lab v1 RC1.26 Build103 integrated output budgets + 32K guarded batch (NOT DEVICE CERTIFIED)
           Prism: prism-b10743-adfffbe
           Main model target: Ternary-Bonsai-2-27B-PTQ1_0.gguf
           Vision: MLX Vision Sidecar + cached projected injection
@@ -669,24 +670,24 @@ jobs:
           Build 85 follows Build 84 real-device evidence: model mmap/load completes with ~4974 MiB available but llama_init_from_model terminates. Prism groups Metal attention KV by buffer type into one owned MTLBuffer; Build 83 shards that allocation per full-attention layer only for Qwen3.5 >=32K.
           Source parent: frozen Build97. Fixed Prism, no Build99 APPEND or Build98 FA-vec experiment.
           B24 requires certified B16; B32 requires certified B24 plus explicit risk consent. All are one-shot with sticky SAFE4 recovery.
-          Real-device repeated performance, Vision and crash regression required before promotion.
+          Build103 removes the API 256-token parser/handler caps and clips to actual remaining context.\n           Real-device full-stage text, long-context, Vision, KV reuse, crash regression required before promotion.
           Model and Vision Tower weights are NOT bundled in the IPA.
           INFO
           echo "Commit: $GITHUB_SHA" >> build/BUILD_INFO.txt
           echo "Workflow run: $GITHUB_RUN_ID" >> build/BUILD_INFO.txt
 
           cd build/ipa
-          zip -qry ../BonsaiLab-v1-RC1.26-build102-batch24-32-isolated-unsigned.ipa Payload
+          zip -qry ../BonsaiLab-v1-RC1.26-build103-integrated-output-stage-unsigned.ipa Payload
           cd ../..
-          shasum -a 256 build/BonsaiLab-v1-RC1.26-build102-batch24-32-isolated-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build102-batch24-32-isolated-unsigned.ipa.sha256
+          shasum -a 256 build/BonsaiLab-v1-RC1.26-build103-integrated-output-stage-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build103-integrated-output-stage-unsigned.ipa.sha256
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BonsaiLab-iPad-v1-RC1.26-Build102-Batch24-32-Isolated
+          name: BonsaiLab-iPad-v1-RC1.26-Build103-Integrated-Output-Stage
           path: |
-            build/BonsaiLab-v1-RC1.26-build102-batch24-32-isolated-unsigned.ipa
-            build/BonsaiLab-v1-RC1.26-build102-batch24-32-isolated-unsigned.ipa.sha256
+            build/BonsaiLab-v1-RC1.26-build103-integrated-output-stage-unsigned.ipa
+            build/BonsaiLab-v1-RC1.26-build103-integrated-output-stage-unsigned.ipa.sha256
             build/BUILD_INFO.txt
             tools/rc126_build100_b16_policy_tests.swift
             tools/rc126_build102_batch_policy_tests.swift
