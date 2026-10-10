@@ -3356,29 +3356,10 @@ struct ProductionView: View {
             // Build93: only 32768 enters the guarded 8/8 candidate. A
             // prior incomplete candidate or startup error selects 4/4.
             // Other 32K+ contexts retain their Build92 shape.
-            // Build105 device-crash migration: remove unsafe Build104
-            // first-launch defaults before any model/context allocation.
-            // Preserve previous sticky SAFE4 if an experimental start was
-            // interrupted; do not silently acknowledge a crash.
-            let defaults105 = UserDefaults.standard
-            if !defaults105.bool(forKey: "BonsaiBuild105RecoveryMigrationComplete") {
-                defaults105.set(false, forKey: Build94BatchExperiment.preferB24Key)
-                defaults105.set(false, forKey: Build94BatchExperiment.preferB16Key)
-                defaults105.set(false, forKey: "BonsaiBuild104TextKVCheckpointEnabled")
-                if defaults105.bool(forKey: Build94BatchExperiment.pendingKey) {
-                    defaults105.set(true, forKey: Build94BatchExperiment.fallbackKey)
-                    defaults105.set(false, forKey: Build94BatchExperiment.pendingKey)
-                    defaults105.set("build104_interrupted_safe4", forKey: Build94BatchExperiment.reasonKey)
-                } else if !defaults105.bool(forKey: Build94BatchExperiment.fallbackKey) {
-                    defaults105.set(Build94BatchExperiment.Arm.baseline8.rawValue,
-                                    forKey: Build94BatchExperiment.nextKey)
-                }
-                defaults105.set(true, forKey: "BonsaiBuild105RecoveryMigrationComplete")
-                defaults105.synchronize()
-            }
-            defaults105.register(defaults: [
-                Build94BatchExperiment.preferB24Key: false
-            ])
+            // Build105 recovery is a pure Foundation policy, covered by
+            // executable Swift tests. Never enter the native context before
+            // quarantining Build104's unsafe persistent settings.
+            Build105StartupRecovery.apply()
             let arm = Build94BatchExperiment.select(context: context)
             let batchCap: Int
             switch arm {
