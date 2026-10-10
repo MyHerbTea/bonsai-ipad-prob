@@ -37,11 +37,25 @@ def request(url, key=None, payload=None, timeout=45, stream=False, test_id=""):
         headers["X-Bonsai-Test-Case"] = test_id
         headers["X-Bonsai-Request-ID"] = str(uuid.uuid4())
     req = urllib.request.Request(url, headers=headers, data=data, method="POST" if data is not None else "GET")
+    first_event_seconds = None
+    started = time.monotonic()
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
-            body = response.read()
             status = response.status
             mime = response.headers.get("Content-Type", "")
+            if stream:
+                chunks = []
+                # Consume SSE as it arrives, not response.read() after completion.
+                while True:
+                    part = response.readline()
+                    if not part:
+                        break
+                    chunks.append(part)
+                    if first_event_seconds is None and part.startswith(b"data: "):
+                        first_event_seconds = round(time.monotonic() - started, 3)
+                body = b"".join(chunks)
+            else:
+                body = response.read()
     except urllib.error.HTTPError as exc:
         body = exc.read()
         status = exc.code
@@ -68,7 +82,8 @@ def request(url, key=None, payload=None, timeout=45, stream=False, test_id=""):
             except Exception:
                 pass
         return status, {"text": "".join(text_parts), "finish_reason": finish_reason, "events": event_count,
-                        "done": "data: [DONE]" in raw, "mime": mime, "bytes": len(body)}
+                        "done": "data: [DONE]" in raw, "mime": mime, "bytes": len(body),
+                        "first_event_seconds": first_event_seconds}
     try:
         return status, json.loads(raw)
     except Exception:
@@ -97,6 +112,17 @@ def choices_text(obj):
     first = (obj.get("choices") or [{}])[0]
     msg = first.get("message") or {}
     return msg.get("content") or "", first.get("finish_reason"), obj.get("usage") or {}
+def classify_long_output(completion_tokens, finish_reason, threshold=256):
+    """Only an observed >threshold completion certifies removal of the old cap."""
+    if completion_tokens is None:
+        return "INCONCLUSIVE", "Missing completion_tokens usage"
+    if completion_tokens > threshold:
+        return "PASS", "Measured generation exceeds the historical limit"
+    if finish_reason == "length":
+        return "FAIL", "Generation reached a length stop without exceeding the old limit"
+    return "INCONCLUSIVE", "Model stopped early; cannot prove the configured budget"
+
+
 def run():
     ap = argparse.ArgumentParser(description="Bonsai Build103 one-run device integration")
     ap.add_argument("--base-url", default=os.environ.get("BONSAI_BASE_URL", ""))
@@ -109,7 +135,12 @@ def run():
     if args.dry_run:
         assert normalize("http://127.0.0.1:8080/v1") == "http://127.0.0.1:8080"
         assert all(HOSTS)
-        print("PASS Build103 integrated runner dry-run")
+        assert classify_long_output(384, "length")[0] == "PASS"
+        assert classify_long_output(256, "length")[0] == "FAIL"
+        assert classify_long_output(128, "length")[0] == "FAIL"
+        assert classify_long_output(128, "stop")[0] == "INCONCLUSIVE"
+        assert classify_long_output(None, "stop")[0] == "INCONCLUSIVE"
+        print("PASS Build103 integrated runner dry-run and output verdicts")
         return 0
     root = Path(args.output)
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -132,13 +163,13 @@ def run():
         except Exception as e:
             record(name, "FAIL", elapsed_s=round(time.monotonic()-begin, 2),
                    error=type(e).__name__ + ": " + str(e)[:350])
-    def chat(name, messages, max_tokens=None, stream=False, require_min=None):
+    def chat(name, messages, max_tokens=None, stream=False, require_min=None, budget_field="max_tokens"):
         payload = {"model": model, "messages": messages, "stream": stream, "temperature": 0,
                    "stream_options": {"include_usage": True} if stream else None}
         if not stream:
             payload.pop("stream_options")
         if max_tokens is not None:
-            payload["max_tokens"] = max_tokens
+            payload[budget_field] = max_tokens
         t0 = time.monotonic()
         status, obj = request(base + "/v1/chat/completions", key, payload, timeout=args.timeout,
                               stream=stream, test_id=name)
@@ -149,22 +180,21 @@ def run():
             txt, reason, usage = obj["text"], obj["finish_reason"], {}
             if not obj["done"] or obj["events"] < 1:
                 raise AssertionError("Incomplete SSE stream or no events")
+            if "text/event-stream" not in obj.get("mime", ""):
+                raise AssertionError("SSE response has invalid content type")
         else:
             txt, reason, usage = choices_text(obj)
         if not txt.strip():
             raise AssertionError("Blank assistant content")
         count = usage.get("completion_tokens", None)
         record(name, "PASS", elapsed_s=elapsed, characters=len(txt), completion_tokens=count,
-               finish_reason=reason, client_max_tokens=max_tokens or "omitted", stream=stream)
+               finish_reason=reason, client_max_tokens=max_tokens if max_tokens is not None else "omitted",
+               stream=stream, budget_field=budget_field,
+               first_event_seconds=obj.get("first_event_seconds") if stream else None)
         if require_min is not None:
-            if count is None:
-                record(name+"_length", "INCONCLUSIVE", reason="No completion token usage")
-            elif count > require_min:
-                record(name+"_length", "PASS", completion_tokens=count, threshold=require_min)
-            elif count == require_min and reason == "length":
-                record(name+"_length", "FAIL", reason="Suspected fixed token cap", completion_tokens=count)
-            else:
-                record(name+"_length", "INCONCLUSIVE", reason="Model may have stopped naturally", completion_tokens=count, finish_reason=reason)
+            verdict, rationale = classify_long_output(count, reason, require_min)
+            record(name+"_length", verdict, reason=rationale, completion_tokens=count,
+                   threshold=require_min, finish_reason=reason)
         return txt
     def debug_snapshot(suffix):
         for route in ["/health", "/debug/runtime", "/debug/telemetry", "/debug/prefill", "/debug/execution", "/debug/build"]:
@@ -194,12 +224,19 @@ def run():
         def output_probe(case, n):
             prompt = "请从0001开始逐行列出递增的4位序号，直到0400。每行仅写一个数字，不要解释，不要省略。"
             chat(case, text(prompt), max_tokens=n, require_min=256 if n>256 else None)
-        check("explicit_384_tokens", lambda: output_probe("explicit_384_tokens", min(384, ceiling, context-1)))
         if ceiling > 256 and context > 1024:
+            check("explicit_384_tokens", lambda: output_probe("explicit_384_tokens", min(384, ceiling, context-1)))
+            check("alias_max_completion_tokens", lambda: chat(
+                "alias_max_completion_tokens", text("请只回复：别名支持。"),
+                max_tokens=384, budget_field="max_completion_tokens"))
+            check("alias_max_output_tokens", lambda: chat(
+                "alias_max_output_tokens", text("请只回复：别名支持。"),
+                max_tokens=384, budget_field="max_output_tokens"))
             check("implicit_ui_default_tokens", lambda: chat(
                 "implicit_ui_default_tokens",text("请从0001到0400逐行写出4位数字，每行一个，不要提前停止。"),
                 max_tokens=None,require_min=256))
         else:
+            record("explicit_384_tokens","SKIP",reason="UI ceiling <= 256 or context too small")
             record("implicit_ui_default_tokens","SKIP",reason="UI ceiling <= 256 or context too small")
         def turn_sequence():
             a = "随后的回答请记住我说的随机标记 LILAC-0427。只需确认。"
@@ -242,7 +279,10 @@ def run():
                 "credential_saved":False}
         (session / "manifest.json").write_text(json.dumps(meta,ensure_ascii=False,indent=2),encoding="utf-8")
         counts = {k:sum(x["state"]==k for x in events) for k in ["PASS","FAIL","SKIP","INCONCLUSIVE"]}
-        status = "PASS" if counts["FAIL"]==0 and counts["PASS"]>0 else "FAIL"
+        # Do not promote an incomplete or unproven device run to full certification.
+        status = ("FAIL" if counts["FAIL"] else
+                  "INCOMPLETE" if (counts["INCONCLUSIVE"] or counts["SKIP"]) else
+                  "PASS" if counts["PASS"] else "INCOMPLETE")
         report = "# Bonsai Build103 integrated device test\n\n"
         report += f"**{status}** | " + " | ".join(f"{k}={v}" for k,v in counts.items()) + "\n\n"
         report += f"Date: {iso()}\n\n"
@@ -258,7 +298,7 @@ def run():
                 if p.is_file():
                     z.write(p, arcname=p.relative_to(session))
         print("\nFINAL:",archive.resolve(), "=>", status, counts)
-    return 1 if any(x["state"]=="FAIL" for x in events) else 0
+    return 0 if status == "PASS" else 1 if status == "FAIL" else 3
 if __name__ == "__main__":
     try:
         sys.exit(run())
