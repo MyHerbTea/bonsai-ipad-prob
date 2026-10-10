@@ -131,7 +131,7 @@ final class LocalOpenAIServer: ObservableObject {
 
     let modelID = "bonsai-2-27b-local"
     private var advertisedContextWindow = 512
-    private var advertisedMaxOutputTokens = 256
+    private var advertisedMaxOutputTokens = 2048
     private var advertisedBatch = 8
     private var advertisedUBatch = 8
     private var runtimeRequestedProfile: RuntimeOptimizationProfile = .baseline
@@ -285,7 +285,7 @@ final class LocalOpenAIServer: ObservableObject {
         maxOutputTokens: Int
     ) {
         advertisedContextWindow = contextWindow
-        advertisedMaxOutputTokens = maxOutputTokens
+        advertisedMaxOutputTokens = [256, 512, 1024, 2048, 4096, 8192].contains(maxOutputTokens) ? maxOutputTokens : 2048
     }
 
     func configureRuntimeShape(
@@ -3037,9 +3037,11 @@ final class LocalOpenAIServer: ObservableObject {
             ?? (root["max_output_tokens"] as? NSNumber)?.intValue
             ?? 256
 
+        // Build97: no historical 2048 cap. Preserve the client-requested
+        // budget up to the user-configured server ceiling; never exceed context.
         let maxTokens = min(
-            2048,
-            max(1, requested)
+            max(1, advertisedContextWindow - 1),
+            min(advertisedMaxOutputTokens, max(1, requested))
         )
 
         let temperature =
