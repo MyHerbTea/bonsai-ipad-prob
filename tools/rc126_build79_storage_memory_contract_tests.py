@@ -53,7 +53,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "80"' in project
     or 'CURRENT_PROJECT_VERSION: "81"' in project
     or 'CURRENT_PROJECT_VERSION: "82"' in project
-    or 'CURRENT_PROJECT_VERSION: "94"' in project
+    or 'CURRENT_PROJECT_VERSION: "97"' in project
 )
 assert 'CODE_SIGN_ENTITLEMENTS: "BonsaiLab/BonsaiLab.entitlements"' in project
 assert "Security.framework" in project
@@ -74,7 +74,7 @@ assert (
     or 'RC126APIStartupLifecycle.begin(build: "80")' in view
     or 'RC126APIStartupLifecycle.begin(build: "81")' in view
     or 'RC126APIStartupLifecycle.begin(build: "82")' in view
-    or 'RC126APIStartupLifecycle.begin(build: "94")' in view
+    or 'RC126APIStartupLifecycle.begin(build: "97"' in view
 )
 assert (
     "RC1.26 Build 79 Storage-Memory Long Context Lab" in view
