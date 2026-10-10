@@ -170,7 +170,12 @@ enum Build94BatchExperiment {
         defaults.set(true, forKey: fallbackKey)
         defaults.set(false, forKey: pendingKey)
         defaults.set(Arm.safe4.rawValue, forKey: nextKey)
-        defaults.set("\(selected!.rawValue)_startup_failed", forKey: reasonKey)
+        if selected == .candidate16 {
+            // Preserve Build100 diagnostics and its certified source contract.
+            defaults.set("candidate16_startup_failed", forKey: reasonKey)
+        } else {
+            defaults.set("\(selected!.rawValue)_startup_failed", forKey: reasonKey)
+        }
         defaults.set(false, forKey: preferB16Key)
         defaults.synchronize()
     }
