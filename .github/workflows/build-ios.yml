@@ -684,11 +684,22 @@ jobs:
           cd ../..
           shasum -a 256 build/BonsaiLab-v1-RC1.26-build103-integrated-output-stage-unsigned.ipa | tee build/BonsaiLab-v1-RC1.26-build103-integrated-output-stage-unsigned.ipa.sha256
 
+      - name: Package one-click Build103 full-stage certification runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/build103-runner
+          cp tools/RUN_BUILD103_FULL_STAGE.cmd tools/rc126_build103_full_stage_certification.py build/build103-runner/
+          cp docs/backburner-integration/RC1.26_BUILD103_INTEGRATED_OUTPUT_STAGE.md build/build103-runner/README.md
+          (cd build/build103-runner && zip -qry ../Bonsai-Build103-FullStage-Runner.zip .)
+          unzip -t build/Bonsai-Build103-FullStage-Runner.zip
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: BonsaiLab-iPad-v1-RC1.26-Build103-Integrated-Output-Stage
           path: |
+            build/Bonsai-Build103-FullStage-Runner.zip
             build/BonsaiLab-v1-RC1.26-build103-integrated-output-stage-unsigned.ipa
             build/BonsaiLab-v1-RC1.26-build103-integrated-output-stage-unsigned.ipa.sha256
             build/BUILD_INFO.txt
