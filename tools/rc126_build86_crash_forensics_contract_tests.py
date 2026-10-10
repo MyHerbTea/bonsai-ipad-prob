@@ -8,7 +8,7 @@ server=(root/"BonsaiLab/LocalOpenAIServer.swift").read_text(encoding="utf-8")
 flow=(root/".github/workflows/build-ios.yml").read_text(encoding="utf-8")
 patch=(root/"tools/rc126_build86_patch_prism_crash_forensics.py").read_text(encoding="utf-8")
 assert 'CURRENT_PROJECT_VERSION: "98"' in (root/"project.yml").read_text()
-assert 'RC126APIStartupLifecycle.begin(build: "97"' in view
+assert 'RC126APIStartupLifecycle.begin(build: "98"' in view
 assert '"build_id": "rc1.26-build98-m5-fa-vec-ab"' in server
 assert "build86_crash_forensics_v2" in server
 assert 'trace_format=2' in engine and 'trace_format=2' in view
