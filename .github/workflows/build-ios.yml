@@ -69,6 +69,7 @@ jobs:
             -o "$RUNNER_TEMP/build94_policy_tests"
           "$RUNNER_TEMP/build94_policy_tests"
           python3 tools/rc126_build94_contract_tests.py
+          python3 tools/rc126_build97_output_vision_contract_tests.py
 
       - name: Live vision injection gate
         shell: bash
