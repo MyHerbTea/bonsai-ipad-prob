@@ -8,6 +8,9 @@ enum Build94BatchExperiment {
         case safe4 = "SAFE4"
         case baseline8 = "BASELINE8"
         case candidate16 = "CANDIDATE16"
+        // Build102: one-shot bounded experimental arms. Never auto-selected.
+        case candidate24 = "CANDIDATE24"
+        case candidate32 = "CANDIDATE32"
     }
 
     static let nextKey = "BonsaiBuild94NextArm"
@@ -17,6 +20,9 @@ enum Build94BatchExperiment {
     static let confirmedKey = "BonsaiBuild94CandidateCompleted"
     static let reasonKey = "BonsaiBuild94DecisionReason"
     static let baselineOKKey = "BonsaiBuild94BaselineCompleted"
+    static let candidate24CompletedKey = "BonsaiBuild102Candidate24Completed"
+    static let candidate32CompletedKey = "BonsaiBuild102Candidate32Completed"
+    static let higherRiskConsentKey = "BonsaiBuild102HigherRiskConsent"
     // Build100 isolated acceleration opt-in. OFF by default on all devices.
     // This is consulted only during 32K context creation, never mid-request.
     static let preferB16Key = "BonsaiBuild100PreferGuardedB16"
@@ -62,11 +68,18 @@ enum Build94BatchExperiment {
             // One-shot scheduling still reverts, regardless of preference.
             defaults.set(Arm.baseline8.rawValue, forKey: nextKey)
             arm = planned
-            if arm == .candidate16 {
-                // Persist marker BEFORE model/context creation.
+            if arm == .candidate16 || arm == .candidate24 || arm == .candidate32 {
+                // Shared sticky safety marker covers ALL experimental arms.
+                // Set BEFORE model/context creation; never change shape mid-process.
                 defaults.set(true, forKey: pendingKey)
-                defaults.set(false, forKey: confirmedKey)
-                defaults.set("candidate16_trial_pending", forKey: reasonKey)
+                if arm == .candidate16 {
+                    defaults.set(false, forKey: confirmedKey)
+                } else if arm == .candidate24 {
+                    defaults.set(false, forKey: candidate24CompletedKey)
+                } else {
+                    defaults.set(false, forKey: candidate32CompletedKey)
+                }
+                defaults.set("selected_\(arm.rawValue)_trial_pending", forKey: reasonKey)
             } else {
                 defaults.set("selected_\(arm.rawValue)", forKey: reasonKey)
             }
@@ -78,6 +91,7 @@ enum Build94BatchExperiment {
     }
 
     static func scheduleNext(_ arm: Arm, acknowledgeRecovery: Bool,
+                             acknowledgeHigherRisk: Bool = false,
                              defaults: UserDefaults = .standard) -> Bool {
         gate.lock()
         defer { gate.unlock() }
@@ -86,8 +100,21 @@ enum Build94BatchExperiment {
         if fallback && (arm != .safe4) && !acknowledgeRecovery {
             return false
         }
-        // Recovery must be deliberate; candidate16 must follow a verified baseline8.
+        // B24 requires a prior completed B16 on this installation.
+        // B32 additionally requires a completed B24 and explicit consent.
         if arm == .candidate16 && !defaults.bool(forKey: baselineOKKey) {
+            return false
+        }
+        if arm == .candidate24 &&
+            (!defaults.bool(forKey: baselineOKKey) ||
+             !defaults.bool(forKey: confirmedKey)) {
+            return false
+        }
+        if arm == .candidate32 &&
+            (!defaults.bool(forKey: baselineOKKey) ||
+             !defaults.bool(forKey: confirmedKey) ||
+             !defaults.bool(forKey: candidate24CompletedKey) ||
+             !acknowledgeHigherRisk) {
             return false
         }
         if acknowledgeRecovery && arm == .baseline8 {
@@ -98,8 +125,13 @@ enum Build94BatchExperiment {
             defaults.set("manual_recovery_acknowledged", forKey: reasonKey)
         }
         if arm != .candidate16 {
-            // Explicit recovery or baseline scheduling overrides auto-boost.
+            // Explicit experimental scheduling overrides Build100 recurring boost.
             defaults.set(false, forKey: preferB16Key)
+        }
+        if arm == .candidate32 {
+            defaults.set(true, forKey: higherRiskConsentKey)
+        } else {
+            defaults.set(false, forKey: higherRiskConsentKey)
         }
         defaults.set(arm.rawValue, forKey: nextKey)
         defaults.synchronize()
@@ -116,6 +148,14 @@ enum Build94BatchExperiment {
             defaults.set(false, forKey: pendingKey)
             defaults.set(true, forKey: confirmedKey)
             defaults.set("candidate16_completed_text_200", forKey: reasonKey)
+        } else if selected == .candidate24 && defaults.bool(forKey: pendingKey) {
+            defaults.set(false, forKey: pendingKey)
+            defaults.set(true, forKey: candidate24CompletedKey)
+            defaults.set("candidate24_completed_text_200", forKey: reasonKey)
+        } else if selected == .candidate32 && defaults.bool(forKey: pendingKey) {
+            defaults.set(false, forKey: pendingKey)
+            defaults.set(true, forKey: candidate32CompletedKey)
+            defaults.set("candidate32_completed_text_200", forKey: reasonKey)
         }
         defaults.synchronize()
     }
@@ -123,11 +163,14 @@ enum Build94BatchExperiment {
     static func noteStartupFailure(defaults: UserDefaults = .standard) {
         gate.lock()
         defer { gate.unlock() }
-        guard selected == .candidate16 else { return }
+        guard selected == .candidate16 ||
+              selected == .candidate24 ||
+              selected == .candidate32
+        else { return }
         defaults.set(true, forKey: fallbackKey)
         defaults.set(false, forKey: pendingKey)
         defaults.set(Arm.safe4.rawValue, forKey: nextKey)
-        defaults.set("candidate16_startup_failed", forKey: reasonKey)
+        defaults.set("\(selected!.rawValue)_startup_failed", forKey: reasonKey)
         defaults.set(false, forKey: preferB16Key)
         defaults.synchronize()
     }
@@ -152,6 +195,10 @@ enum Build94BatchExperiment {
             "restart_required": next != (selected?.rawValue ?? Arm.baseline8.rawValue),
             "pending": defaults.bool(forKey: pendingKey),
             "confirmed_candidate16": defaults.bool(forKey: confirmedKey),
+            "confirmed_candidate24": defaults.bool(forKey: candidate24CompletedKey),
+            "confirmed_candidate32": defaults.bool(forKey: candidate32CompletedKey),
+            "candidate32_consent_logged": defaults.bool(forKey: higherRiskConsentKey),
+            "experiment_sweep": "Build102_32K_one_shot",
             "baseline8_completed": defaults.bool(forKey: baselineOKKey),
             "sticky_fallback": defaults.bool(forKey: fallbackKey),
             "reason": defaults.string(forKey: reasonKey) ?? "none"
