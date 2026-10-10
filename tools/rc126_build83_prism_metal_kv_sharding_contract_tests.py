@@ -10,7 +10,7 @@ patcher = (ROOT / "tools/rc126_build83_patch_prism_kv_sharding.py").read_text(en
 assert 'CURRENT_PROJECT_VERSION: "94"' in project
 assert 'RC126APIStartupLifecycle.begin(build: "94"' in view
 assert "RC1.26 Build 89 Compact Scheduler Metadata" in view
-assert '"build_id": "rc1.26-build94-prefill-kernel-boundary-p0"' in server
+assert '"build_id": "rc1.26-build97-output-config-vision-home"' in server
 
 assert "ctx32k-q4-unified-metal-gpu99-b4" in view
 assert "apiRuntime.gpuLayers = 99" in view
@@ -40,7 +40,7 @@ assert "adfffbe41b2cabcd51fff326ab045662265062bb" in workflow
 assert "rc126_build83_patch_prism_kv_sharding.py" in workflow
 assert "build-xcframework.sh ios-device" in workflow
 assert "RC1.26 Build 83 Prism Metal KV sharding contracts" in workflow
-assert "BonsaiLab-v1-RC1.26-build94-prefill-kernel-boundary-p0-unsigned.ipa" in workflow
-assert "BonsaiLab-iPad-v1-RC1.26-Build94-Prefill-Kernel-Boundary-P0" in workflow
+assert "BonsaiLab-v1-RC1.26-build97-output-config-vision-home-unsigned.ipa" in workflow
+assert "BonsaiLab-iPad-v1-RC1.26-Build97-Output-Config-Vision-Home" in workflow
 
 print("RC1.26 Build 83 Prism Metal KV sharding contracts: PASS")
