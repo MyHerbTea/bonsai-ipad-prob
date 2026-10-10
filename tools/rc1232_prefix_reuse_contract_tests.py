@@ -38,7 +38,7 @@ assert "enablePrefixReuse: Bool = false" in engine
 assert "effectivePrefixReuse" in engine
 assert "apiVisionPrefixReuseContextCapable" not in engine
 assert "prefixReuseContextCapable ? 2 : 1" not in " ".join(engine.split())
-assert "contextParams.n_seq_max = 1" in engine
+assert "contextParams.n_seq_max =" in engine and "config.context == 32_768 && config.kvUnified &&" in engine, "Build104 only adds seq1 for unified text KV; legacy Vision stays seq1"
 assert "params.n_seq_max = 1" in engine
 assert "BonsaiRetainVisionPrefixKV" in engine
 assert "TWOPHASE_VISION_95_PREFIX_RETAINED" in engine
