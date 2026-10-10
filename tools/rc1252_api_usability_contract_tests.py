@@ -77,7 +77,7 @@ assert "contextWindow: selectedAPIContext" in view
 if project_build >= 97:
     assert "maxOutputTokens: apiMaxOutputTokens" in view
     assert "BonsaiBuild97APIMaxOutputTokens" in view
-    assert "min(advertisedMaxOutputTokens, max(1, requested))" in server
+    assert "min(maxOutputLimit, max(1, requested))" in server
 else:
     assert "maxOutputTokens: 256" in view
 assert '"created": 0' in server
