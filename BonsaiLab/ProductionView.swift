@@ -969,6 +969,7 @@ struct ProductionView: View {
     @State private var quality = VisionQuality.standard
     @State private var answerLength = AnswerLengthPreset.standard
     @AppStorage("BonsaiBuild97APIMaxOutputTokens") private var apiMaxOutputTokens = 2048
+    @AppStorage("BonsaiBuild98FAVecNextArm") private var build98NextFAVecArm = "A0"
     @State private var question = "请描述这张图片的主要内容。"
     @State private var inferenceMode = VisionInferenceMode.accelerated
     @AppStorage("BonsaiRC1232VisionPrefixKVReuseEnabled")
@@ -1318,6 +1319,26 @@ struct ProductionView: View {
                     Text("客户端未传参数时默认 256 tokens；此选项设置服务端输出预算上限，实际可生成长度受剩余上下文与设备资源限制。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                }
+
+                Section("Build 98 · M5 FA-vec 实验") {
+                    DisclosureGroup("仅限真机 A/B · 默认关闭") {
+                        LabeledContent(
+                            "本次运行 Arm",
+                            value: UserDefaults.standard.string(
+                                forKey: Build98FAVecAB.activeKey
+                            ) ?? "A0"
+                        )
+                        Picker("下次完整启动使用", selection: $build98NextFAVecArm) {
+                            Text("A0 · 原始 Prism 参数").tag("A0")
+                            Text("A1 · Q=1, NE=2").tag("A1")
+                            Text("A2 · Q=1, NE=4").tag("A2")
+                        }
+                        .pickerStyle(.menu)
+                        Text("切换只在关闭并重新打开 App 后生效；下一次启动自动恢复 A0。仅基础 M5 + Q4_0 + 单 Query + 长 KV + 256 维 Head 符合条件时使用候选。远程 API 不能修改 Arm。")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Section("局域网 OpenAI API") {
