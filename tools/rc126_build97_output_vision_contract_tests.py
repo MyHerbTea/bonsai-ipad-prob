@@ -17,7 +17,7 @@ assert 'BonsaiBuild97APIMaxOutputTokens' in view
 assert '[256, 512, 1024, 2048, 4096, 8192, 16384, 32768]' in view
 assert 'maxOutputTokens: apiMaxOutputTokens' in view
 assert 'maxOutputTokens: 256' not in view
-assert 'max(1, advertisedContextWindow - 1)' in server
+assert 'max(1, contextWindow - 1)' in server
 assert 'min(maxOutputLimit, max(1, requested))' in server
 assert 'contextWindow: advertisedContextWindow' in server
 assert 'maxOutputLimit: advertisedMaxOutputTokens' in server
