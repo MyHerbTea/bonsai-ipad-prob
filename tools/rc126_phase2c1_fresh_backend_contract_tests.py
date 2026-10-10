@@ -126,7 +126,7 @@ assert (
     or 'CURRENT_PROJECT_VERSION: "81"' in project
     or 'CURRENT_PROJECT_VERSION: "82"' in project
     or 'CURRENT_PROJECT_VERSION: "90"' in project
-    or 'CURRENT_PROJECT_VERSION: "94"' in project
+    or 'CURRENT_PROJECT_VERSION: "97"' in project
 )
 assert "RC1.26 Phase 2C-1 fresh backend contracts" in workflow
 assert "tools/rc126_phase2c1_fresh_backend_contract_tests.py" in workflow
