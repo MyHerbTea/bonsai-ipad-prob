@@ -2558,6 +2558,7 @@ actor BonsaiEngine {
                         Int32(tokens.count),
                     maxTokens: gen.maxTokens,
                     stagePrefix: "TEXT",
+                    captureTokenIDs: textKVAppendOnlyEnabled,
                     onDelta: onDelta
                 )
             let end =
@@ -3266,6 +3267,7 @@ actor BonsaiEngine {
         startPosition: Int32,
         maxTokens: Int,
         stagePrefix: String,
+        captureTokenIDs: Bool = false,
         onDelta: (@Sendable (String) -> Void)? = nil
     ) throws -> (
         text: String,
@@ -3321,7 +3323,7 @@ actor BonsaiEngine {
 
             position += 1
             generated += 1
-            if stagePrefix == "TEXT" {
+            if captureTokenIDs {
                 generatedTokenIDs.append(token)
             }
         }
