@@ -76,6 +76,8 @@ actor BonsaiEngine {
     private var textKVResidentContext: OpaquePointer?
     private let textKVReuseEnabled = true
     private let textKVMinimumReuseTokens = 16
+    // Build99: append-only state continuity, default OFF and process-latched.
+    private let textKVAppendOnlyEnabled = Build99AppendOnlyReuse.enabled
 
     private let stageKey = "BonsaiLabLastStage"
 
@@ -112,6 +114,7 @@ actor BonsaiEngine {
             keepingCapacity: false
         )
         textKVResidentContext = nil
+        UserDefaults.standard.set(0, forKey: Build99AppendOnlyReuse.residentTokensKey)
         persistTextKVReuseObservation(
             hit: false,
             lcpTokens: 0,
@@ -2432,8 +2435,32 @@ actor BonsaiEngine {
             "cold_or_incompatible"
 
         do {
-            if textKVReuseEnabled,
-               textKVResidentContext == context,
+            // Build99 candidate: use only an exact extension of ALL tokens
+            // physically decoded in the resident GDN + attention context.
+            // Never trim partially divergent recurrent state.
+            if textKVAppendOnlyEnabled {
+                if textKVResidentContext == context,
+                   textKVResidentTokens.count >= textKVMinimumReuseTokens,
+                   tokens.count > textKVResidentTokens.count,
+                   tokens.starts(with: textKVResidentTokens) {
+                    reusedTokens = textKVResidentTokens.count
+                    lcpTokens = reusedTokens
+                    reuseHit = true
+                    reuseReason = "append_only_exact_extension"
+                    mark("TEXT_KV_99_APPEND_ONLY_\(reusedTokens)_OF_\(tokens.count)")
+                    try evalTextTokens(
+                        tokens,
+                        context: context,
+                        batchSize: appliedRuntime.batch,
+                        tokenOffset: reusedTokens,
+                        startPosition: Int32(reusedTokens),
+                        onProgress: onPrefillProgress
+                    )
+                } else {
+                    reuseReason = "append_only_no_exact_extension"
+                }
+            } else if textKVReuseEnabled,
+                      textKVResidentContext == context,
                !textKVResidentTokens.isEmpty,
                !tokens.isEmpty {
                 lcpTokens =
@@ -2545,30 +2572,48 @@ actor BonsaiEngine {
                 throw LabError.emptyOutput
             }
 
-            // Keep only prompt KV resident. The next request can safely
-            // compare its complete prompt token stream to this exact ledger.
-            let retainedPrompt =
-                llama_memory_seq_rm(
-                    llama_get_memory(context),
-                    0,
-                    Int32(tokens.count),
-                    -1
-                )
-
-            if retainedPrompt {
-                textKVResidentTokens = tokens
-                textKVResidentContext = context
-                mark("TEXT_KV_90_PROMPT_RETAINED")
+            if textKVAppendOnlyEnabled {
+                // The sampled tokens were each submitted to llama_decode.
+                // Their complete token stream is the true in-memory state.
+                // This path intentionally never calls seq_rm on GDN.
+                if generated.tokenIDs.count == generated.count,
+                   !generated.tokenIDs.isEmpty {
+                    textKVResidentTokens = tokens + generated.tokenIDs
+                    textKVResidentContext = context
+                    UserDefaults.standard.set(
+                        textKVResidentTokens.count,
+                        forKey: Build99AppendOnlyReuse.residentTokensKey
+                    )
+                    mark("TEXT_KV_99_CONTIGUOUS_LEDGER_READY")
+                } else {
+                    clearTextKVReuseState(reason: "append_only_incomplete_ledger")
+                    llama_memory_clear(llama_get_memory(context), true)
+                }
             } else {
-                clearTextKVReuseState(
-                    reason:
-                        "post_generation_tail_trim_failed"
-                )
-                llama_memory_clear(
-                    llama_get_memory(context),
-                    true
-                )
-                mark("TEXT_KV_91_PROMPT_RETAIN_FAIL")
+                // Frozen Build97 behavior for all ordinary runs.
+                // GDN may reject tail rollback; preserve old fallback.
+                let retainedPrompt =
+                    llama_memory_seq_rm(
+                        llama_get_memory(context),
+                        0,
+                        Int32(tokens.count),
+                        -1
+                    )
+
+                if retainedPrompt {
+                    textKVResidentTokens = tokens
+                    textKVResidentContext = context
+                    mark("TEXT_KV_90_PROMPT_RETAINED")
+                } else {
+                    clearTextKVReuseState(
+                        reason: "post_generation_tail_trim_failed"
+                    )
+                    llama_memory_clear(
+                        llama_get_memory(context),
+                        true
+                    )
+                    mark("TEXT_KV_91_PROMPT_RETAIN_FAIL")
+                }
             }
 
             let first =
@@ -3225,6 +3270,7 @@ actor BonsaiEngine {
     ) throws -> (
         text: String,
         count: Int,
+        tokenIDs: [llama_token],
         firstTokenTime: UInt64?,
         terminationReason: GenerationTerminationReason
     ) {
@@ -3232,6 +3278,7 @@ actor BonsaiEngine {
         var pending: [CChar] = []
         var position = startPosition
         var generated = 0
+        var generatedTokenIDs: [llama_token] = []
         var firstTokenTime: UInt64?
         var terminationReason: GenerationTerminationReason = .length
 
@@ -3274,6 +3321,9 @@ actor BonsaiEngine {
 
             position += 1
             generated += 1
+            if stagePrefix == "TEXT" {
+                generatedTokenIDs.append(token)
+            }
         }
 
         if !pending.isEmpty {
@@ -3288,6 +3338,7 @@ actor BonsaiEngine {
         return (
             output,
             generated,
+            generatedTokenIDs,
             firstTokenTime,
             terminationReason
         )
