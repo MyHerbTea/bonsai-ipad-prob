@@ -681,6 +681,8 @@ jobs:
             build/BUILD_INFO.txt
             tools/rc126_build98_patch_prism_fa_vec_ab.py
             tools/rc126_build98_fa_vec_contract_tests.py
+            tools/rc126_build98_fa_vec_arm.ps1
+            docs/backburner-integration/RC1.26_BUILD98_M5_FA_VEC_AB.md
             RC1.20_RELEASE_ACCEPTANCE.md
             tools/rc126_phase2d_prefill_batch_arm.ps1
             tools/rc126_phase2e_prefill_batch_arm.ps1
