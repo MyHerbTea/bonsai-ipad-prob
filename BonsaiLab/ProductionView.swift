@@ -948,6 +948,7 @@ private enum RC1232PerformanceDiagnostics {
     }
 }
 
+// Build 97: configurable API output budget and homepage MLX Vision Sidecar.
 struct ProductionView: View {
     @Environment(\.scenePhase) private var scenePhase
     private let engine = BonsaiEngine()
