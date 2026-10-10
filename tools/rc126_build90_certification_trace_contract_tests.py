@@ -13,7 +13,7 @@ assert 'BonsaiRequestTrace.from(headers: request.headers)' in server
 assert 'recordCertificationTrace(' in server
 assert 'certificationTraceLimit = 64' in server
 assert 'payload.certificationTrace?.requestID' in view
-assert 'RC126APIStartupLifecycle.begin(build: "103"' in view
+assert 'RC126APIStartupLifecycle.begin(build: "104"' in view
 assert 'BonsaiCertificationBuildIdentity.sourceGitSHA' in server
 assert 'Embed exact product build identity' in workflow
 assert 'github_run_id' not in server or 'workflow_run_id' in server
