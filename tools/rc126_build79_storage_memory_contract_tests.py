@@ -74,7 +74,7 @@ assert (
     or 'RC126APIStartupLifecycle.begin(build: "80")' in view
     or 'RC126APIStartupLifecycle.begin(build: "81")' in view
     or 'RC126APIStartupLifecycle.begin(build: "82")' in view
-    or 'RC126APIStartupLifecycle.begin(build: "97"' in view
+    or 'RC126APIStartupLifecycle.begin(build: "98"' in view
 )
 assert (
     "RC1.26 Build 79 Storage-Memory Long Context Lab" in view
