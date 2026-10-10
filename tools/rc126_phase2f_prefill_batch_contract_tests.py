@@ -52,7 +52,7 @@ assert (
     or '"rc1.26-build80-long-context-tier-reload-fix"' in server
     or '"rc1.26-build81-32k-memory-squeeze"' in server
     or '"rc1.26-build82-unified-metal-32k-lab"' in server
-    or '"rc1.26-build94-prefill-kernel-boundary-p0"' in server
+    or '"rc1.26-build97-output-config-vision-home"' in server
 )
 
 for marker in [
