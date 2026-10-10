@@ -7,7 +7,7 @@ server = (root/"BonsaiLab/LocalOpenAIServer.swift").read_text(encoding="utf-8")
 workflow = (root/".github/workflows/build-ios.yml").read_text(encoding="utf-8")
 patch = (root/"tools/rc126_build88_patch_prism_mmap_recovery.py").read_text(encoding="utf-8")
 assert 'CURRENT_PROJECT_VERSION: "102"' in (root/"project.yml").read_text()
-assert 'RC126APIStartupLifecycle.begin(build: "100"' in view
+assert 'RC126APIStartupLifecycle.begin(build: "102")' in view
 assert '"build_id": "rc1.26-build102-batch24-32-isolated"' in server
 assert '"build88_scheduler_mmap_recovery": true' in server
 assert "build=89" in engine

@@ -97,6 +97,7 @@ assert (
     or "RC1.26 Build 82 Unified-Metal 32K Lab" in view
     or "RC1.26 Build 89 Compact Scheduler Metadata" in view
     or "RC1.26 Build 92 Native Prefill Observability P0" in view
+    or 'RC1.26 Build 102 Prefill 16/24/32 独立实验 API Runtime 已就绪' in view
 )
 
 for marker in [
