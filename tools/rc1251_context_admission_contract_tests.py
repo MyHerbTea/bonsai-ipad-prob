@@ -48,7 +48,8 @@ assert rejection < memory_lookup
 # Swift passes the exact values and translates native admission code 9 back
 # into the structured API budget error instead of a generic 500.
 assert "Int32(appliedRuntime.context)" in engine
-assert "Int32(gen.maxTokens)" in engine
+assert "Int32(requireFullOutputBudget ? gen.maxTokens : 1)" in engine
+assert "min(\n                    gen.maxTokens,\n                    available" in engine
 assert "if prefill.code == 9" in engine
 assert "LabError.contextBudgetExceeded(" in engine
 
