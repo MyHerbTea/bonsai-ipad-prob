@@ -20,7 +20,8 @@ assert 'Build94BatchExperiment.noteStartupFailure()' in view
 assert view.index('Phase2FPrefillBatchLaunchLatch.apply(') < view.index('applyBuild82LongContextPolicy(', view.index('private func startAPIServer()'))
 assert 'contextParams.n_batch = UInt32(config.batch)' in engine
 assert 'contextParams.n_ubatch = UInt32(config.ubatch)' in engine
-assert 'batchSize:\n                        appliedRuntime.batch' in engine
+assert ('batchSize:\n                        appliedRuntime.batch' in engine or
+        'batchSize: appliedRuntime.batch' in engine), "32K prefill must use effective runtime batch"
 assert 'onProgress?("decode_begin"' in engine
 assert 'onProgress?("decode_end"' in engine
 for field in ['"batch_trial"', '"engine_context_batch"', '"engine_context_ubatch"', '"pending"', '"sticky_fallback"']:
