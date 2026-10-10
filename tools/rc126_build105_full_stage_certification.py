@@ -154,6 +154,8 @@ def run():
     if args.dry_run:
         assert normalize("http://127.0.0.1:8080/v1") == "http://127.0.0.1:8080"
         assert all(HOSTS)
+        # Product identity must match the installed Build105 IPA.
+        assert 'str(build_info.get("build")) != "105"' in Path(__file__).read_text(encoding="utf-8")
         assert classify_long_output(384, "length")[0] == "PASS"
         assert classify_long_output(256, "length")[0] == "FAIL"
         assert classify_long_output(128, "length")[0] == "FAIL"
@@ -236,7 +238,7 @@ def run():
         record("discovery", "PASS", model=model, context=context, advertised_max_output=ceiling)
         (session / "model.json").write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8")
         build_code, build_info = request(base + "/debug/build", key, timeout=12)
-        if build_code != 200 or str(build_info.get("build")) != "104":
+        if build_code != 200 or str(build_info.get("build")) != "105":
             raise RuntimeError("Expected installed Build105; /debug/build returned " +
                                str(build_info.get("build")) + ". Older IPA must not certify.")
         record("build105_identity", "PASS", build=build_info.get("build"),
