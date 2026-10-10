@@ -2026,6 +2026,7 @@ final class LocalOpenAIServer: ObservableObject {
                 "flags": state.effective.wireDictionary
             ],
             "fallbacks": state.fallbacks,
+            "fa_vec_experiment": Build98FAVecAB.snapshot(),
             "phase": "RC1.26_PHASE2C0_CAPABILITY_PROVENANCE_AUDIT",
             "behavior_changes_enabled":
                 state.effective.hasBehaviorChangingFeature
