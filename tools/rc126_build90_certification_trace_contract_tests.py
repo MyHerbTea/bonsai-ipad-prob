@@ -4,8 +4,8 @@ server = (root / "BonsaiLab/LocalOpenAIServer.swift").read_text()
 view = (root / "BonsaiLab/ProductionView.swift").read_text()
 workflow = (root / ".github/workflows/build-ios.yml").read_text()
 project = (root / "project.yml").read_text()
-assert 'CURRENT_PROJECT_VERSION: "90"' in project or 'CURRENT_PROJECT_VERSION: "104"' in project
-assert ('"rc1.26-build90-certification-p1"' in server or '"rc1.26-build104-integrated-32k-performance"' in server)
+assert 'CURRENT_PROJECT_VERSION: "90"' in project or 'CURRENT_PROJECT_VERSION: "105"' in project
+assert ('"rc1.26-build90-certification-p1"' in server or '"rc1.26-build105-startup-recovery"' in server)
 assert 'request.path == "/debug/request-trace"' in server
 assert server.index('guard authorized(request) else') < server.index('request.path == "/debug/request-trace"')
 assert 'payload.certificationTrace = certificationTrace' in server
