@@ -4486,8 +4486,8 @@ struct ProductionView: View {
         Model: \(apiServer.modelID)
         API Key: \(apiServer.apiKey)
         Context Window: \(apiContextProfile)
-        Server Max Output Tokens: 256
-        Recommended Client Max Output: 128
+        Server Max Output Tokens: \(apiMaxOutputTokens)
+        Recommended Client Max Output: \(apiMaxOutputTokens) (same as iPad UI; default if omitted)
 
         Capabilities
         Vision: ON
@@ -4502,7 +4502,7 @@ struct ProductionView: View {
         API Path: leave blank (default /chat/completions)
         Model: \(apiServer.modelID)
         Context Window: \(apiContextProfile)
-        Max Output Tokens: 128 (recommended)
+        Max Output Tokens: \(apiMaxOutputTokens) (omit if the client supports server defaults)
         Vision: ON
         Reasoning: OFF
         Tool Use: OFF
