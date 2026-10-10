@@ -503,9 +503,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"97\"' project.yml)" -ge 1
+          test "$(grep -c 'CURRENT_PROJECT_VERSION: \"99\"' project.yml)" -ge 1
           grep -q '"rc1.26-build99-append-only-prefix-speed-lab"' BonsaiLab/LocalOpenAIServer.swift
-          grep -q 'RC126APIStartupLifecycle.begin(build: \"97\")' BonsaiLab/ProductionView.swift
+          grep -q 'RC126APIStartupLifecycle.begin(build: \"99\")' BonsaiLab/ProductionView.swift
 
           PACKAGE_BLOCK="$(
             sed -n \
