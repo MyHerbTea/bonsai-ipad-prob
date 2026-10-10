@@ -423,7 +423,8 @@ actor BonsaiEngine {
         // Recurrent partial tail trim was rejected by pinned Prism; copying
         // seq 0 to seq 1 before decode avoids corrupting the recurrent state.
         contextParams.n_seq_max =
-            config.context == 32_768 && textKVCheckpointEnabled ? 2 : 1
+            config.context == 32_768 && config.kvUnified &&
+                textKVCheckpointEnabled ? 2 : 1
         UserDefaults.standard.set(
             Int(contextParams.n_seq_max),
             forKey: "BonsaiBuild104EffectiveSeqMax"

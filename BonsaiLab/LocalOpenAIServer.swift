@@ -1324,6 +1324,15 @@ final class LocalOpenAIServer: ObservableObject {
             "text_kv_reuse_prompt_format":
                 "prefix_monotonic_chatml_v1",
             "text_kv_reuse": textKVReuse,
+            "build104_text_kv_checkpoint": [
+                "configured": defaults.object(
+                    forKey: "BonsaiBuild104TextKVCheckpointEnabled"
+                ) as? Bool ?? true,
+                "effective_sequence_max": defaults.integer(
+                    forKey: "BonsaiBuild104EffectiveSeqMax"
+                ),
+                "implementation": "seq1_prompt_checkpoint_hybrid_v1"
+            ],
             "measurement_ready": observation != nil,
             "metal_device": device?.name ?? "unavailable",
             "metal_has_unified_memory":

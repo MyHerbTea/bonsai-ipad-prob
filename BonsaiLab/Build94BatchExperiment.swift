@@ -26,9 +26,6 @@ enum Build94BatchExperiment {
     // Build100 isolated acceleration opt-in. OFF by default on all devices.
     // This is consulted only during 32K context creation, never mid-request.
     static let preferB16Key = "BonsaiBuild100PreferGuardedB16"
-    // Build104: verified-on-this-installation B24 may persist across
-    // launches; the user can opt out and sticky SAFE4 always takes priority.
-    static let preferB24Key = "BonsaiBuild104PreferCertifiedB24"
     private static let gate = NSLock()
     private static var selected: Arm?
 
@@ -45,14 +42,12 @@ enum Build94BatchExperiment {
             defaults.set(true, forKey: fallbackKey)
             defaults.set("sticky_recovery_baseline", forKey: reasonKey)
             defaults.set(false, forKey: preferB16Key)
-            defaults.set(false, forKey: preferB24Key)
         } else if defaults.bool(forKey: pendingKey) {
             arm = .safe4
             defaults.set(true, forKey: fallbackKey)
             defaults.set(false, forKey: pendingKey)
             defaults.set("previous_candidate16_incomplete", forKey: reasonKey)
             defaults.set(false, forKey: preferB16Key)
-            defaults.set(false, forKey: preferB24Key)
         } else {
             let requested = Arm(rawValue: defaults.string(forKey: nextKey) ?? "")
                 ?? .baseline8
@@ -61,14 +56,9 @@ enum Build94BatchExperiment {
             let certified = defaults.bool(forKey: confirmedKey)
                 && defaults.bool(forKey: baselineOKKey)
             let preferred = defaults.bool(forKey: preferB16Key)
-            let certified24 = certified &&
-                defaults.bool(forKey: candidate24CompletedKey)
-            let preferred24 = defaults.bool(forKey: preferB24Key)
             let planned: Arm
             if preferred && certified {
                 planned = .candidate16
-            } else if preferred24 && certified24 {
-                planned = .candidate24
             } else {
                 planned = requested
                 if preferred && !certified {
@@ -138,10 +128,6 @@ enum Build94BatchExperiment {
             // Explicit experimental scheduling overrides Build100 recurring boost.
             defaults.set(false, forKey: preferB16Key)
         }
-        if arm != .candidate24 {
-            // An explicit SAFE4/B8/B16/B32 arm overrides auto B24.
-            defaults.set(false, forKey: preferB24Key)
-        }
         if arm == .candidate32 {
             defaults.set(true, forKey: higherRiskConsentKey)
         } else {
@@ -191,7 +177,6 @@ enum Build94BatchExperiment {
             defaults.set("\(selected!.rawValue)_startup_failed", forKey: reasonKey)
         }
         defaults.set(false, forKey: preferB16Key)
-        defaults.set(false, forKey: preferB24Key)
         defaults.synchronize()
     }
 
@@ -203,22 +188,15 @@ enum Build94BatchExperiment {
             && defaults.bool(forKey: baselineOKKey)
             && !defaults.bool(forKey: fallbackKey)
             && !defaults.bool(forKey: Build93BatchTrialPolicy.fallbackKey)
-        let prefer24 = defaults.bool(forKey: preferB24Key)
-        let eligible24 = eligible &&
-            defaults.bool(forKey: candidate24CompletedKey)
         let next = (preferred && eligible)
             ? Arm.candidate16.rawValue
-            : (prefer24 && eligible24)
-                ? Arm.candidate24.rawValue
-                : (defaults.string(forKey: nextKey) ?? Arm.baseline8.rawValue)
+            : (defaults.string(forKey: nextKey) ?? Arm.baseline8.rawValue)
         return [
             "active_arm": selected?.rawValue ?? "NOT_SELECTED",
             "next_arm": defaults.string(forKey: nextKey) ?? Arm.baseline8.rawValue,
             "effective_next_arm": next,
             "preferred_16_enabled": preferred,
             "preferred_16_eligible": eligible,
-            "preferred_24_enabled": prefer24,
-            "preferred_24_eligible": eligible24,
             "restart_required": next != (selected?.rawValue ?? Arm.baseline8.rawValue),
             "pending": defaults.bool(forKey: pendingKey),
             "confirmed_candidate16": defaults.bool(forKey: confirmedKey),

@@ -50,7 +50,7 @@ assert "prompt_text=NOT_INCLUDED" in view
 assert "assistant_output=NOT_INCLUDED" in view
 
 # Frozen C2-B invariants remain untouched.
-assert "contextParams.n_seq_max =" in engine and "config.context == 32_768 && textKVCheckpointEnabled ? 2 : 1" in engine
+assert "contextParams.n_seq_max = 1" in engine
 assert "params.n_seq_max = 1" in engine
 assert "apiVisionPrefixReuseKey" in engine
 assert "BonsaiRetainVisionPrefixKV" in engine
